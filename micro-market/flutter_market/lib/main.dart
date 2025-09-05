@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
+import './core/router/app_router.dart';
 
 void main() {
   runApp(MyApp());
@@ -10,7 +11,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'MicroMarket',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       ),
       // La pantalla de login será la pantalla inicial
       // Desde allí se navegará a la MainScreen que contiene la barra de navegación
-      home: const LoginScreen(),
+      routerConfig: AppRouter.router,
     );
   }
 }

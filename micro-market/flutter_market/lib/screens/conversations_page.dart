@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../widgets/chat_view.dart';
-import '../widgets/theme.dart';
+import '../core/theme/theme.dart';
 
 class ConversationsPage extends StatelessWidget {
   final List<Map<String, String>> conversations = [
@@ -29,36 +30,29 @@ class ConversationsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text("Chats"),
-        backgroundColor: AppColors.primaryBlue,
-      ),
-      body: ListView.builder(
-        itemCount: conversations.length,
-        itemBuilder: (context, index) {
-          final chat = conversations[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(chat["avatar"]!),
-            ),
-            title: Text(chat["name"]!),
-            subtitle: Text(chat["lastMessage"]!),
-            trailing: Text(chat["time"]!),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatPage(
-                    userName: chat["name"]!,
-                    avatar: chat["avatar"]!,
-                  ),
-                ),
-              );
+    return ListView.builder(
+      itemCount: conversations.length,
+      itemBuilder: (context, index) {
+        final chat = conversations[index];
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundImage: NetworkImage(chat["avatar"]!),
+            onBackgroundImageError: (exception, stackTrace) {
             },
-          );
-        },
-      ),
+          ),
+          title: Text(chat["name"]!),
+          subtitle: Text(chat["lastMessage"]!),
+          trailing: Text(chat["time"]!),
+          onTap: () {
+            print('Navegando a chat con ${chat["name"]}');
+
+            context.go(
+              '/home/chat/${Uri.encodeComponent(chat["name"]!)}'
+              '?avatar=${Uri.encodeComponent(chat["avatar"]!)}',
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -67,25 +61,31 @@ class ChatPage extends StatelessWidget {
   final String userName;
   final String avatar;
 
-  ChatPage({required this.userName, required this.avatar});
+  const ChatPage({super.key, required this.userName, required this.avatar});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.primaryBlue,
+        foregroundColor: AppColors.white, // Asegurar que el texto sea blanco
         title: Row(
           children: [
-            CircleAvatar(backgroundImage: NetworkImage(avatar)),
+            CircleAvatar(
+              backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
+              child: avatar.isEmpty ? Icon(Icons.person) : null,
+              onBackgroundImageError: (exception, stackTrace) {
+                // Manejo de error si la imagen no carga
+              },
+            ),
             const SizedBox(width: 10),
-            Text(userName),
+            Expanded(child: Text(userName, overflow: TextOverflow.ellipsis)),
           ],
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.call, color: AppColors.white),
             onPressed: () {
-              // Aquí luego puedes integrar llamadas (VoIP / Teléfono)
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text("Función de llamada no implementada"),
@@ -95,7 +95,7 @@ class ChatPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ChatView(),
+      body: const ChatView(), 
     );
   }
 }

@@ -1,50 +1,70 @@
+// main_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../widgets/custom_bottom_navigation.dart';
-import 'home_screen.dart';
-import 'messages_screen.dart';
-import 'favorites_screen.dart';
-import 'profile_screen.dart';
+// No necesitas importar las otras páginas aquí directamente
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
-
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    MessagesScreen(),
-    FavoritesScreen(),
-    ProfileScreen(),
-  ];
-
-  void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
+class MainScreen extends StatelessWidget {
+  // Recibirá el widget hijo que debe mostrar (la pantalla actual)
+  final Widget child;
+  const MainScreen({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
+    final currentIndex = _calculateSelectedIndex(context);
+    final location = GoRouterState.of(context).uri.toString();
+    final isChatPage = location.startsWith('/home/chat');
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(_getTitle()),
-      ),
-      body: _screens[_currentIndex],
+      appBar: isChatPage ? null : AppBar(title: Text(_getTitle(currentIndex))),
+      body: child, // Muestra el widget hijo proporcionado por ShellRoute
       bottomNavigationBar: CustomBottomNavigation(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
+        currentIndex: currentIndex,
+        onTap: (index) => _onItemTapped(index, context),
       ),
     );
   }
 
-  String _getTitle() {
-    switch (_currentIndex) {
+  // Función para determinar el índice basado en la ruta actual
+  int _calculateSelectedIndex(BuildContext context) {
+    final String location = GoRouterState.of(context).uri.toString();
+    if (location.startsWith('/home/messages') ||
+        location.startsWith('/home/chat')) {
+      return 1;
+    }
+    if (location.startsWith('/home/favorites')) {
+      return 2;
+    }
+    if (location.startsWith('/home/profile')) {
+      return 3;
+    }
+    // Por defecto, es el home
+    return 0;
+  }
+
+  // Función para navegar cuando se toca un ítem de la barra
+  void _onItemTapped(int index, BuildContext context) {
+    switch (index) {
+      case 0:
+        context.go('/home');
+        break;
+      case 1:
+        context.go('/home/messages');
+        break;
+      case 2:
+        // Asumiendo que tendrás una ruta para favoritos
+        // context.go('/home/favorites');
+        break;
+      case 3:
+        // Asumiendo que tendrás una ruta para el perfil
+        // context.go('/home/profile');
+        break;
+    }
+  }
+
+  String _getTitle(int index) {
+    switch (index) {
       case 0:
         return 'Inicio';
       case 1:

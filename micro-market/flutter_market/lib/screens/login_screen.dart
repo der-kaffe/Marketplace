@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'main_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,22 +19,17 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+
   void _login() {
     // Validamos pero aceptamos cualquier entrada
     if (_formKey.currentState!.validate()) {
-      // En un caso real, aquí iría la lógica de autenticación
-      // Por ahora, simplemente navegamos a la pantalla principal
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
+      context.go('/home');
     }
   }
-  
+
   // Método para acceder sin credenciales
   void _loginAsGuest() {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MainScreen()),
-    );
+    context.go('/home');
   }
 
   @override
@@ -45,10 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue.shade300,
-              Colors.blue.shade700,
-            ],
+            colors: [Colors.blue.shade300, Colors.blue.shade700],
           ),
         ),
         child: SafeArea(
@@ -67,11 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.store,
-                          size: 80,
-                          color: Colors.blue,
-                        ),
+                        const Icon(Icons.store, size: 80, color: Colors.blue),
                         const SizedBox(height: 16),
                         const Text(
                           'MicroMarket',
@@ -80,7 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 32),                        TextFormField(
+                        const SizedBox(height: 32),
+                        TextFormField(
                           controller: _usernameController,
                           decoration: const InputDecoration(
                             labelText: 'Usuario',
@@ -103,7 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           obscureText: true,
                           // Aceptamos cualquier valor
                           validator: (value) => null,
-                        ),                        const SizedBox(height: 32),
+                        ),
+                        const SizedBox(height: 32),
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -140,10 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text(
                           'Puedes ingresar con cualquier usuario y contraseña',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
                     ),

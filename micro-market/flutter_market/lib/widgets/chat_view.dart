@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'theme.dart';
+import '../core/theme/theme.dart';
 
 class ChatView extends StatefulWidget {
+  const ChatView({super.key});
+
   @override
   _ChatViewState createState() => _ChatViewState();
 }
@@ -31,7 +33,7 @@ class _ChatViewState extends State<ChatView> {
       children: [
         Expanded(
           child: ListView.builder(
-            padding: EdgeInsets.all(10),
+            padding: const EdgeInsets.all(10),
             itemCount: messages.length,
             itemBuilder: (context, index) {
               final msg = messages[index];
@@ -40,8 +42,8 @@ class _ChatViewState extends State<ChatView> {
                     ? Alignment.centerRight
                     : Alignment.centerLeft,
                 child: Container(
-                  margin: EdgeInsets.symmetric(vertical: 5),
-                  padding: EdgeInsets.all(12),
+                  margin: const EdgeInsets.symmetric(vertical: 5),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: msg["isMe"] ? AppColors.primaryBlue : AppColors.grey,
                     borderRadius: BorderRadius.circular(12),
@@ -57,7 +59,7 @@ class _ChatViewState extends State<ChatView> {
             },
           ),
         ),
-        Divider(height: 1),
+        const Divider(height: 1),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           color: AppColors.white,
@@ -65,15 +67,11 @@ class _ChatViewState extends State<ChatView> {
             children: [
               IconButton(
                 icon: const Icon(Icons.photo, color: AppColors.primaryBlue),
-                onPressed: () {
-                  // Función de enviar foto
-                },
+                onPressed: () {},
               ),
               IconButton(
                 icon: const Icon(Icons.mic, color: AppColors.accentYellow),
-                onPressed: () {
-                  // Función de grabar/enviar audio
-                },
+                onPressed: () {},
               ),
               Expanded(
                 child: TextField(
