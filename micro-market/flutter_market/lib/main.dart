@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'screens/login_screen.dart';
-import './core/router/app_router.dart';
+import 'core/router/app_router.dart';
+import 'theme/app_theme.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -14,13 +14,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       title: 'MicroMarket',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      // La pantalla de login será la pantalla inicial
-      // Desde allí se navegará a la MainScreen que contiene la barra de navegación
-      routerConfig: AppRouter.router,
+      theme: AppTheme.lightTheme, // Aplicamos el tema personalizado
+      darkTheme: AppTheme.darkTheme, // Tema oscuro opcional
+      themeMode: ThemeMode.light, // Por defecto usamos el tema claro
+      
+      // Usamos el router definido en app_router.dart
+      routerDelegate: AppRouter.router.routerDelegate,
+      routeInformationParser: AppRouter.router.routeInformationParser,
+      routeInformationProvider: AppRouter.router.routeInformationProvider,
     );
   }
 }

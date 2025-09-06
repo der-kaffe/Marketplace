@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,28 +20,33 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
-
-  void _login() {
+    void _login() {
     // Validamos pero aceptamos cualquier entrada
     if (_formKey.currentState!.validate()) {
+      // En un caso real, aquí iría la lógica de autenticación
+      // Por ahora, simplemente navegamos a la pantalla principal
       context.go('/home');
     }
   }
-
+  
   // Método para acceder sin credenciales
   void _loginAsGuest() {
     context.go('/home');
   }
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.blue.shade300, Colors.blue.shade700],
+            colors: [
+              AppColors.azulClaro,
+              AppColors.azulPrimario,
+              AppColors.azulOscuro,
+            ],
           ),
         ),
         child: SafeArea(
@@ -59,13 +65,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.store, size: 80, color: Colors.blue),
+                        const Icon(
+                          Icons.store,
+                          size: 80,
+                          color: AppColors.azulPrimario,
+                        ),
                         const SizedBox(height: 16),
                         const Text(
                           'MicroMarket',
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
+                            color: AppColors.azulPrimario,
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -100,8 +111,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: ElevatedButton(
                             onPressed: _login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.azulPrimario,
+                              foregroundColor: AppColors.blanco,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -118,7 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: OutlinedButton(
                             onPressed: _loginAsGuest,
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.blue),
+                              side: const BorderSide(color: AppColors.amarilloPrimario),
+                              foregroundColor: AppColors.amarilloPrimario,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
@@ -130,7 +142,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         const Text(
                           'Puedes ingresar con cualquier usuario y contraseña',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textoSecundario,
+                          ),
                         ),
                       ],
                     ),

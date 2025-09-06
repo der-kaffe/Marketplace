@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/theme/theme.dart';
+import '../theme/app_colors.dart';
 
 class ChatView extends StatefulWidget {
   const ChatView({super.key});
@@ -69,13 +69,13 @@ class _ChatViewState extends State<ChatView> {
                     maxWidth: MediaQuery.of(context).size.width * 0.8,
                   ),
                   decoration: BoxDecoration(
-                    color: msg["isMe"] ? AppColors.primaryBlue : AppColors.grey,
+                    color: msg["isMe"] ? AppColors.azulPrimario : AppColors.grisClaro,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     msg["text"],
                     style: TextStyle(
-                      color: msg["isMe"] ? AppColors.white : AppColors.black,
+                      color: msg["isMe"] ? AppColors.blanco : AppColors.textoOscuro,
                     ),
                   ),
                 ),
@@ -86,12 +86,12 @@ class _ChatViewState extends State<ChatView> {
         const Divider(height: 1),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          color: AppColors.white,
+          color: AppColors.blanco,
           child: SafeArea(
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.photo, color: AppColors.primaryBlue),
+                  icon: Icon(Icons.photo, color: AppColors.azulPrimario),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -101,7 +101,7 @@ class _ChatViewState extends State<ChatView> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.mic, color: AppColors.accentYellow),
+                  icon: Icon(Icons.mic, color: AppColors.amarilloPrimario),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -126,7 +126,7 @@ class _ChatViewState extends State<ChatView> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send, color: AppColors.primaryBlue),
+                  icon: Icon(Icons.send, color: AppColors.azulPrimario),
                   onPressed: _sendMessage,
                 ),
               ],

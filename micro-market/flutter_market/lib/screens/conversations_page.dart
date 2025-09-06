@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/chat_view.dart';
-import '../core/theme/theme.dart';
+import '../theme/app_colors.dart';
 
 class ConversationsPage extends StatelessWidget {
   final List<Map<String, String>> conversations = [
@@ -85,7 +85,7 @@ class _ChatPageState extends State<ChatPage> {
           // AppBar personalizado
           Container(
             height: kToolbarHeight + MediaQuery.of(context).padding.top,
-            color: AppColors.primaryBlue,
+            color: AppColors.azulPrimario,
             padding: EdgeInsets.only(
               left: 16,
               right: 16,
@@ -94,7 +94,7 @@ class _ChatPageState extends State<ChatPage> {
             child: Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.arrow_back, color: AppColors.white),
+                  icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
                   onPressed: () {
                     // Usar pop en lugar de go para volver correctamente
                     context.pop();
@@ -114,14 +114,14 @@ class _ChatPageState extends State<ChatPage> {
                     widget.userName,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.white,
+                      color: AppColors.blanco,
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.call, color: AppColors.white),
+                  icon: const Icon(Icons.call, color: AppColors.blanco),
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(

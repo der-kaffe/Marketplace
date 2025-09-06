@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class CustomBottomNavigation extends StatelessWidget {
   final int currentIndex;
@@ -14,7 +15,7 @@ class CustomBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF1E88E5), // Azul similar al de la imagen
+        color: AppColors.azulPrimario, // Color azul institucional
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(30),
           topRight: Radius.circular(30),
@@ -68,7 +69,6 @@ class _NavItem extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
   });
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -78,14 +78,14 @@ class _NavItem extends StatelessWidget {
         children: [
           Icon(
             icon,
-            color: Colors.white,
+            color: isSelected ? AppColors.amarilloPrimario : AppColors.blanco, // Icono amarillo cuando está seleccionado
             size: isSelected ? 28 : 24,
           ),
           const SizedBox(height: 4),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white,
+              color: isSelected ? AppColors.amarilloPrimario : AppColors.blanco, // Texto amarillo cuando está seleccionado
               fontSize: isSelected ? 12 : 11,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-class FavoritesScreen extends StatelessWidget {
-  const FavoritesScreen({super.key});
+class MessagesScreen extends StatelessWidget {
+  const MessagesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -13,13 +13,13 @@ class FavoritesScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
-              Icons.favorite, 
+              Icons.message, 
               size: 100, 
-              color: AppColors.error
+              color: AppColors.amarilloPrimario
             ),
             const SizedBox(height: 16),
             Text(
-              'Pantalla de Favoritos',
+              'Pantalla de Mensajes',
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppColors.azulPrimario,
                 fontWeight: FontWeight.bold
@@ -29,11 +29,11 @@ class FavoritesScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () {},
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.grisPrimario,
+                backgroundColor: AppColors.azulPrimario,
                 foregroundColor: AppColors.blanco,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
-              child: const Text('Ver Favoritos'),
+              child: const Text('Nuevo Mensaje'),
             ),
           ],
         ),
