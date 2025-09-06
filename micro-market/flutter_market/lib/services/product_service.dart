@@ -67,31 +67,42 @@ class ProductService {
     ),
   ];
 
-  /// Lista de categorías simuladas
-  final List<Category> _categories = [
+  /// Lista de categorías simuladas  final List<Category> _categories = [
     const Category(
-      id: 'comidas',
-      name: 'Comidas',
-      description: 'Sandwiches, ensaladas y más',
-      iconName: 'fastfood',
+      id: 'deportes',
+      name: 'Deportes',
+      description: 'Artículos deportivos y equipamiento',
+      iconName: 'sports_soccer',
     ),
     const Category(
-      id: 'bebidas',
-      name: 'Bebidas',
-      description: 'Cafés, jugos y bebidas frías',
-      iconName: 'local_drink',
+      id: 'electronica',
+      name: 'Electrónica',
+      description: 'Gadgets, computadoras y accesorios',
+      iconName: 'devices',
     ),
     const Category(
-      id: 'snacks',
-      name: 'Snacks',
-      description: 'Opciones para picar entre comidas',
-      iconName: 'breakfast_dining',
+      id: 'ropa',
+      name: 'Ropa',
+      description: 'Moda para todas las edades',
+      iconName: 'checkroom',
     ),
     const Category(
-      id: 'postres',
-      name: 'Postres',
-      description: 'Dulces y postres variados',
-      iconName: 'cake',
+      id: 'joyas',
+      name: 'Joyas',
+      description: 'Accesorios y joyería',
+      iconName: 'diamond',
+    ),
+    const Category(
+      id: 'belleza',
+      name: 'Belleza',
+      description: 'Cosméticos y cuidado personal',
+      iconName: 'spa',
+    ),
+    const Category(
+      id: 'hogar',
+      name: 'Hogar',
+      description: 'Muebles y decoración',
+      iconName: 'chair',
     ),
   ];
 
