@@ -38,6 +38,7 @@ class ConversationsPage extends StatelessWidget {
           leading: CircleAvatar(
             backgroundImage: NetworkImage(chat["avatar"]!),
             onBackgroundImageError: (exception, stackTrace) {
+              print('Error cargando avatar: $exception');
             },
           ),
           title: Text(chat["name"]!),
@@ -46,7 +47,8 @@ class ConversationsPage extends StatelessWidget {
           onTap: () {
             print('Navegando a chat con ${chat["name"]}');
 
-            context.go(
+            // Usar push en lugar de go para mantener el stack de navegación
+            context.push(
               '/home/chat/${Uri.encodeComponent(chat["name"]!)}'
               '?avatar=${Uri.encodeComponent(chat["avatar"]!)}',
             );
@@ -57,45 +59,88 @@ class ConversationsPage extends StatelessWidget {
   }
 }
 
-class ChatPage extends StatelessWidget {
+class ChatPage extends StatefulWidget {
   final String userName;
   final String avatar;
 
   const ChatPage({super.key, required this.userName, required this.avatar});
 
   @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  @override
+  void dispose() {
+    // Limpiar recursos cuando se sale del chat
+    print('Saliendo del chat con ${widget.userName}');
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryBlue,
-        foregroundColor: AppColors.white, // Asegurar que el texto sea blanco
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: avatar.isNotEmpty ? NetworkImage(avatar) : null,
-              child: avatar.isEmpty ? Icon(Icons.person) : null,
-              onBackgroundImageError: (exception, stackTrace) {
-                // Manejo de error si la imagen no carga
-              },
+      body: Column(
+        children: [
+          // AppBar personalizado
+          Container(
+            height: kToolbarHeight + MediaQuery.of(context).padding.top,
+            color: AppColors.primaryBlue,
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: MediaQuery.of(context).padding.top,
             ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(userName, overflow: TextOverflow.ellipsis)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.call, color: AppColors.white),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Función de llamada no implementada"),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: AppColors.white),
+                  onPressed: () {
+                    // Usar pop en lugar de go para volver correctamente
+                    context.pop();
+                  },
                 ),
-              );
-            },
+                CircleAvatar(
+                  backgroundImage: widget.avatar.isNotEmpty
+                      ? NetworkImage(widget.avatar)
+                      : null,
+                  child: widget.avatar.isEmpty
+                      ? const Icon(Icons.person)
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    widget.userName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.call, color: AppColors.white),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Función de llamada no implementada"),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          // Contenido del chat
+          Expanded(
+            child: ChatView(
+              key: ValueKey(widget.userName), // Key única para cada chat
+            ),
           ),
         ],
       ),
-      body: const ChatView(), 
     );
   }
 }
