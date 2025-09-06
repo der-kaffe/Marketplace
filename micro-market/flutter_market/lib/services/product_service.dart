@@ -3,71 +3,70 @@ import '../models/product_model.dart';
 
 /// Clase para gestionar los productos de la aplicación
 class ProductService {
-  /// Lista de productos simulados para la aplicación
-  final List<Product> _products = [
+  /// Lista de productos simulados para la aplicación  final List<Product> _products = [
     Product(
       id: '1',
-      title: 'Sandwich Italiano',
-      description: 'Delicioso sandwich con palta, tomate y mayonesa',
-      price: 2500,
+      title: 'Smartphone Galaxy S23',
+      description: 'Teléfono de última generación con 256GB de memoria',
+      price: 699999,
       imageUrl: 'https://via.placeholder.com/150',
-      rating: 4.5,
+      rating: 4.8,
       reviewCount: 120,
-      category: 'comidas',
+      category: 'electronica',
     ),
     Product(
       id: '2',
-      title: 'Café Americano',
-      description: 'Café recién molido, fuerte y aromático',
-      price: 1800,
+      title: 'Zapatillas Running',
+      description: 'Zapatillas deportivas para running con suela amortiguada',
+      price: 89990,
       imageUrl: 'https://via.placeholder.com/150',
-      rating: 4.8,
+      rating: 4.6,
       reviewCount: 95,
-      category: 'bebidas',
+      category: 'deportes',
     ),
     Product(
       id: '3',
-      title: 'Ensalada César',
-      description: 'Ensalada fresca con lechuga, pollo, crutones y aderezo especial',
-      price: 3200,
+      title: 'Chaqueta de Cuero',
+      description: 'Chaqueta de cuero genuino con forro interior',
+      price: 129990,
       imageUrl: 'https://via.placeholder.com/150',
-      rating: 4.3,
+      rating: 4.5,
       reviewCount: 78,
-      category: 'comidas',
+      category: 'ropa',
     ),
     Product(
       id: '4',
-      title: 'Jugo Natural',
-      description: 'Jugo de frutas naturales sin azúcar añadida',
-      price: 1500,
+      title: 'Anillo de Plata',
+      description: 'Anillo de plata 925 con diseño minimalista',
+      price: 35000,
       imageUrl: 'https://via.placeholder.com/150',
       rating: 4.7,
       reviewCount: 105,
-      category: 'bebidas',
+      category: 'joyas',
     ),
     Product(
       id: '5',
-      title: 'Brownie de Chocolate',
-      description: 'Delicioso brownie casero con trozos de chocolate',
-      price: 1200,
+      title: 'Set de Maquillaje',
+      description: 'Set completo de maquillaje con paleta de sombras y labiales',
+      price: 45990,
       imageUrl: 'https://via.placeholder.com/150',
       rating: 4.9,
       reviewCount: 150,
-      category: 'postres',
+      category: 'belleza',
     ),
     Product(
       id: '6',
-      title: 'Galletas de Avena',
-      description: 'Galletas de avena con pasas, suaves por dentro y crocantes por fuera',
-      price: 800,
+      title: 'Lámpara Moderna',
+      description: 'Lámpara de mesa con diseño contemporáneo',
+      price: 39990,
       imageUrl: 'https://via.placeholder.com/150',
       rating: 4.4,
       reviewCount: 65,
-      category: 'snacks',
+      category: 'hogar',
     ),
   ];
-
-  /// Lista de categorías simuladas  final List<Category> _categories = [
+  /// Lista de categorías simuladas
+  final List<Category> _categories = [
     const Category(
       id: 'deportes',
       name: 'Deportes',
@@ -150,18 +149,21 @@ class ProductService {
       return null;
     }
   }
-
   /// Convierte un nombre de icono a un widget Icon
   static IconData getIconForName(String iconName) {
     switch (iconName) {
-      case 'fastfood':
-        return Icons.fastfood;
-      case 'local_drink':
-        return Icons.local_drink;
-      case 'breakfast_dining':
-        return Icons.breakfast_dining;
-      case 'cake':
-        return Icons.cake;
+      case 'sports_soccer':
+        return Icons.sports_soccer;
+      case 'devices':
+        return Icons.devices;
+      case 'checkroom':
+        return Icons.checkroom;
+      case 'diamond':
+        return Icons.diamond;
+      case 'spa':
+        return Icons.spa;
+      case 'chair':
+        return Icons.chair;
       default:
         return Icons.category;
     }
