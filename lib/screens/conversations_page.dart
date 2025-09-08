@@ -28,6 +28,8 @@ class ConversationsPage extends StatelessWidget {
     },
   ];
 
+  ConversationsPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return ListView.builder(

@@ -16,7 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ProductService _productService = ProductService();
   final ScrollController _scrollController = ScrollController();
 
-  List<Product> _products = [];
+  final List<Product> _products = [];
   bool _isLoading = false;
   int _page = 0;
   final int _limit = 4; // productos por carga (matching original count)
