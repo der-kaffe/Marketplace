@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 
 class NewPostScreen extends StatefulWidget {
@@ -82,7 +83,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);   // cerrar sheet
-                        Navigator.pop(context);   // volver a Home (porque usamos push)
+                        context.go('/home');      // navegar directamente al home usando GoRouter
                       },
                       child: const Text('Volver al inicio'),
                     ),
