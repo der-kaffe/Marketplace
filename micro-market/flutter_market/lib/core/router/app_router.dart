@@ -7,11 +7,13 @@ import '../../screens/conversations_page.dart';
 import '../../screens/home_screen.dart';
 import '../../screens/favorites_screen.dart';
 import '../../screens/profile_screen.dart';
+import '../../screens/startup_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/startup',
     routes: [
+      GoRoute(path: '/startup', builder: (context, state) => const StartupScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
 
       ShellRoute(
