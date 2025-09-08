@@ -2,187 +2,226 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_card.dart';
+import '../services/product_service.dart';
+import '../models/product_model.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ProductService _productService = ProductService();
+  final ScrollController _scrollController = ScrollController();
+
+  List<Product> _products = [];
+  bool _isLoading = false;
+  int _page = 0;
+  final int _limit = 4; // productos por carga (matching original count)
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMore();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 200 &&
+          !_isLoading) {
+        _loadMore();
+      }
+    });
+  }
+
+  Future<void> _loadMore() async {
+    if (_isLoading) return;
+    
+    setState(() => _isLoading = true);
+    final newProducts =
+        await _productService.fetchProducts(page: _page, limit: _limit);
+        
+    setState(() {
+      _products.addAll(newProducts);
+      _page++;
+      _isLoading = false;
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Banner promocional
-            _buildPromoBanner(context),
-            
-            const SizedBox(height: 24),
-            
-            // Categorías
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Categorías',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+    return Scaffold(
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Banner promocional (original)
+              _buildPromoBanner(context),
+              
+              const SizedBox(height: 24),
+              
+              // Categorías (original)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Categorías',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // Implementar navegación a todas las categorías
-                    _showNotImplementedMessage(context, 'Ver todas las categorías');
-                  },
-                  child: const Text('Ver todas'),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Lista horizontal de categorías
-            SizedBox(
-              height: 120,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [                  CategoryCard(
-                    icon: Icons.sports_soccer,
-                    title: 'Deportes',
-                    color: Colors.blue,
-                    onTap: () => _showNotImplementedMessage(context, 'Categoría: Deportes'),
-                  ),
-                  CategoryCard(
-                    icon: Icons.devices,
-                    title: 'Electrónica',
-                    color: AppColors.amarilloPrimario,
-                    onTap: () => _showNotImplementedMessage(context, 'Categoría: Electrónica'),
-                  ),
-                  CategoryCard(
-                    icon: Icons.checkroom,
-                    title: 'Ropa',
-                    color: Colors.orange,
-                    onTap: () => _showNotImplementedMessage(context, 'Categoría: Ropa'),
-                  ),
-                  CategoryCard(
-                    icon: Icons.diamond,
-                    title: 'Joyas',
-                    color: Colors.purple,
-                    onTap: () => _showNotImplementedMessage(context, 'Categoría: Joyas'),
-                  ),
-                  CategoryCard(
-                    icon: Icons.spa,
-                    title: 'Belleza',
-                    color: Colors.pink,
-                    onTap: () => _showNotImplementedMessage(context, 'Categoría: Belleza'),
-                  ),
-                  CategoryCard(
-                    icon: Icons.chair,
-                    title: 'Hogar',
-                    color: Colors.green,
-                    onTap: () => _showNotImplementedMessage(context, 'Categoría: Hogar'),
+                  TextButton(
+                    onPressed: () {
+                      _showNotImplementedMessage(context, 'Ver todas las categorías');
+                    },
+                    child: const Text('Ver todas'),
                   ),
                 ],
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Productos destacados
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Productos destacados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+              
+              const SizedBox(height: 12),
+              
+              // Lista horizontal de categorías (original)
+              SizedBox(
+                height: 120,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    CategoryCard(
+                      icon: Icons.sports_soccer,
+                      title: 'Deportes',
+                      color: Colors.blue,
+                      onTap: () => _showNotImplementedMessage(context, 'Categoría: Deportes'),
+                    ),
+                    CategoryCard(
+                      icon: Icons.devices,
+                      title: 'Electrónica',
+                      color: AppColors.amarilloPrimario,
+                      onTap: () => _showNotImplementedMessage(context, 'Categoría: Electrónica'),
+                    ),
+                    CategoryCard(
+                      icon: Icons.checkroom,
+                      title: 'Ropa',
+                      color: Colors.orange,
+                      onTap: () => _showNotImplementedMessage(context, 'Categoría: Ropa'),
+                    ),
+                    CategoryCard(
+                      icon: Icons.diamond,
+                      title: 'Joyas',
+                      color: Colors.purple,
+                      onTap: () => _showNotImplementedMessage(context, 'Categoría: Joyas'),
+                    ),
+                    CategoryCard(
+                      icon: Icons.spa,
+                      title: 'Belleza',
+                      color: Colors.pink,
+                      onTap: () => _showNotImplementedMessage(context, 'Categoría: Belleza'),
+                    ),
+                    CategoryCard(
+                      icon: Icons.chair,
+                      title: 'Hogar',
+                      color: Colors.green,
+                      onTap: () => _showNotImplementedMessage(context, 'Categoría: Hogar'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    // Implementar navegación a todos los productos
-                    _showNotImplementedMessage(context, 'Ver todos los productos');
-                  },
-                  child: const Text('Ver todos'),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Productos destacados en grid
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              childAspectRatio: 0.75,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              children: [                ProductCard(
-                  imageUrl: 'https://via.placeholder.com/150',
-                  title: 'Sandwich Italiano',
-                  description: 'Delicioso sandwich con ingredientes frescos',
-                  price: 2500,
-                  onTap: () => _showNotImplementedMessage(context, 'Producto: Sandwich Italiano'),
-                ),
-                ProductCard(
-                  imageUrl: 'https://via.placeholder.com/150',
-                  title: 'Café Americano',
-                  description: 'Café de grano selecto, recién molido',
-                  price: 1800,
-                  onTap: () => _showNotImplementedMessage(context, 'Producto: Café Americano'),
-                ),
-                ProductCard(
-                  imageUrl: 'https://via.placeholder.com/150',
-                  title: 'Ensalada César',
-                  description: 'Ensalada fresca con aderezo especial',
-                  price: 3200,
-                  onTap: () => _showNotImplementedMessage(context, 'Producto: Ensalada César'),
-                ),
-                ProductCard(
-                  imageUrl: 'https://via.placeholder.com/150',
-                  title: 'Jugo Natural',
-                  description: 'Jugo de frutas naturales sin azúcar añadida',
-                  price: 1500,
-                  onTap: () => _showNotImplementedMessage(context, 'Producto: Jugo Natural'),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Promociones
-            const Text(
-              'Promociones',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
               ),
-            ),
-            
-            const SizedBox(height: 12),
-            
-            // Banner de promociones
-            _buildPromotionCard(
-              context,
-              'Desayuno Completo',
-              '20% de descuento',
-              AppColors.amarilloPrimario,
-            ),
-            
-            const SizedBox(height: 10),
-            
-            _buildPromotionCard(
-              context,
-              'Combo Almuerzo',
-              '2x1 los miércoles',
-              AppColors.azulPrimario,
-            ),
-            
-            const SizedBox(height: 24),
-          ],
+              
+              const SizedBox(height: 24),
+              
+              // Productos destacados (original title)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Productos destacados',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      _showNotImplementedMessage(context, 'Ver todos los productos');
+                    },
+                    child: const Text('Ver todos'),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Productos destacados en grid (with infinite scroll)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.75,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
+                itemCount: _products.length + (_isLoading ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (index >= _products.length) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  final product = _products[index];
+                  return ProductCard(
+                    imageUrl: product.imageUrl,
+                    title: product.title,
+                    description: product.description,
+                    price: product.price,
+                    onTap: () => _showNotImplementedMessage(context, 'Producto: ${product.title}'),
+                  );
+                },
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Promociones (original)
+              const Text(
+                'Promociones',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Banner de promociones (original)
+              _buildPromotionCard(
+                context,
+                'Desayuno Completo',
+                '20% de descuento',
+                AppColors.amarilloPrimario,
+              ),
+              
+              const SizedBox(height: 10),
+              
+              _buildPromotionCard(
+                context,
+                'Combo Almuerzo',
+                '2x1 los miércoles',
+                AppColors.azulPrimario,
+              ),
+              
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -200,7 +239,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // Widget para el banner promocional
+  // Widget para el banner promocional (original)
   Widget _buildPromoBanner(BuildContext context) {
     return Container(
       height: 180,
@@ -258,7 +297,6 @@ class HomeScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 ElevatedButton(
                   onPressed: () {
-                    // Implementar acción de explorar
                     _showNotImplementedMessage(context, 'Explorar productos');
                   },
                   style: ElevatedButton.styleFrom(
@@ -275,7 +313,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
   
-  // Widget para las tarjetas de promoción
+  // Widget para las tarjetas de promoción (original)
   Widget _buildPromotionCard(BuildContext context, String title, String subtitle, Color color) {
     return GestureDetector(
       onTap: () => _showNotImplementedMessage(context, 'Promoción: $title'),
@@ -341,4 +379,3 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
-

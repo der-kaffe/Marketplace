@@ -55,7 +55,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
               const SizedBox(height: 12),
               const Text('¡Publicación creada!', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text('Tu publicación se verá en el inicio (mock).', textAlign: TextAlign.center),
+              const Text('Tu publicación próximamente funcionará.', textAlign: TextAlign.center),
               const SizedBox(height: 16),
               Row(
                 children: [

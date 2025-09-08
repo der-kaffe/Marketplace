@@ -3,7 +3,8 @@ import '../models/product_model.dart';
 
 /// Clase para gestionar los productos de la aplicación
 class ProductService {
-  /// Lista de productos simulados para la aplicación  final List<Product> _products = [
+  /// Lista de productos simulados para la aplicación
+  final List<Product> _products = [
     Product(
       id: '1',
       title: 'Smartphone Galaxy S23',
@@ -64,7 +65,98 @@ class ProductService {
       reviewCount: 65,
       category: 'hogar',
     ),
+    Product(
+      id: '7',
+      title: 'Audífonos Bluetooth',
+      description: 'Sonido de alta calidad con cancelación de ruido',
+      price: 54990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.3,
+      reviewCount: 210,
+      category: 'electronica',
+    ),
+    Product(
+      id: '8',
+      title: 'Pelota de Fútbol',
+      description: 'Pelota oficial tamaño 5',
+      price: 15990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.1,
+      reviewCount: 88,
+      category: 'deportes',
+    ),
+    Product(
+      id: '9',
+      title: 'Polera Estampada',
+      description: 'Polera 100% algodón con diseño original',
+      price: 12990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.2,
+      reviewCount: 67,
+      category: 'ropa',
+    ),
+    Product(
+      id: '10',
+      title: 'Collar de Acero',
+      description: 'Collar con dije minimalista',
+      price: 24990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.6,
+      reviewCount: 50,
+      category: 'joyas',
+    ),
+    Product(
+      id: '11',
+      title: 'Perfume Floral',
+      description: 'Aroma fresco y duradero',
+      price: 69990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.8,
+      reviewCount: 190,
+      category: 'belleza',
+    ),
+    Product(
+      id: '12',
+      title: 'Sillón Reclinable',
+      description: 'Comodidad premium para tu sala de estar',
+      price: 299990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.9,
+      reviewCount: 73,
+      category: 'hogar',
+    ),
+    Product(
+      id: '13',
+      title: 'Smartwatch Fit',
+      description: 'Monitorea tu actividad física y salud',
+      price: 89990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.5,
+      reviewCount: 220,
+      category: 'electronica',
+    ),
+    Product(
+      id: '14',
+      title: 'Raqueta de Tenis',
+      description: 'Raqueta profesional ligera y resistente',
+      price: 75990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.4,
+      reviewCount: 130,
+      category: 'deportes',
+    ),
+    Product(
+      id: '15',
+      title: 'Vestido de Fiesta',
+      description: 'Vestido elegante para ocasiones especiales',
+      price: 119990,
+      imageUrl: 'https://via.placeholder.com/150',
+      rating: 4.7,
+      reviewCount: 140,
+      category: 'ropa',
+    ),
   ];
+
   /// Lista de categorías simuladas
   final List<Category> _categories = [
     const Category(
@@ -105,51 +197,48 @@ class ProductService {
     ),
   ];
 
-  /// Obtiene todos los productos disponibles
-  List<Product> getAllProducts() {
-    return List.from(_products);
+  /// Simula carga paginada
+  Future<List<Product>> fetchProducts({int page = 0, int limit = 6}) async {
+    await Future.delayed(const Duration(seconds: 1)); // simula red
+    final start = page * limit;
+    final end = (start + limit > _products.length) ? _products.length : start + limit;
+    if (start >= _products.length) return [];
+    return _products.sublist(start, end);
   }
 
-  /// Obtiene productos por categoría
-  List<Product> getProductsByCategory(String categoryId) {
-    return _products.where((product) => product.category == categoryId).toList();
-  }
+  /// Métodos de utilidad
+  List<Product> getAllProducts() => List.from(_products);
 
-  /// Obtiene productos destacados (con mayor rating)
+  List<Product> getProductsByCategory(String categoryId) =>
+      _products.where((product) => product.category == categoryId).toList();
+
   List<Product> getFeaturedProducts({int limit = 4}) {
     final sortedProducts = List<Product>.from(_products)
       ..sort((a, b) => b.rating.compareTo(a.rating));
     return sortedProducts.take(limit).toList();
   }
 
-  /// Obtiene productos favoritos (simulado)
-  List<Product> getFavoriteProducts() {
-    return _products.where((product) => product.isFavorite).toList();
-  }
+  List<Product> getFavoriteProducts() =>
+      _products.where((product) => product.isFavorite).toList();
 
-  /// Obtiene un producto por su ID
   Product? getProductById(String id) {
     try {
       return _products.firstWhere((product) => product.id == id);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  /// Obtiene todas las categorías
-  List<Category> getAllCategories() {
-    return List.from(_categories);
-  }
+  List<Category> getAllCategories() => List.from(_categories);
 
-  /// Obtiene una categoría por su ID
   Category? getCategoryById(String id) {
     try {
       return _categories.firstWhere((category) => category.id == id);
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
-  /// Convierte un nombre de icono a un widget Icon
+
   static IconData getIconForName(String iconName) {
     switch (iconName) {
       case 'sports_soccer':
