@@ -1,6 +1,4 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../theme/app_colors.dart';
 
 class ChatView extends StatefulWidget {
@@ -13,44 +11,40 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   final List<Map<String, dynamic>> messages = [
     {"text": "Hola, ¿Cómo estás?", "isMe": false},
-    {"text": "¡Bien! ¿y tú?", "isMe": true},
+    {"text": "Bien y tu?!", "isMe": true},
+    {"text": "Muy bien", "isMe": false},
+    {"text": "Gracias!", "isMe": false},
   ];
 
-  final _controller = TextEditingController();
-  final _scrollController = ScrollController();
-  final _picker = ImagePicker();
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void dispose() {
+    // Limpiar controladores para evitar memory leaks
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOut,
-      );
-    });
-  }
+  void _sendMessage() {
+    if (_controller.text.trim().isNotEmpty) {
+      setState(() {
+        messages.add({"text": _controller.text.trim(), "isMe": true});
+      });
+      _controller.clear();
 
-  void _sendText() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    setState(() => messages.add({"text": text, "isMe": true}));
-    _controller.clear();
-    _scrollToBottom();
-  }
-
-  Future<void> _pickImage() async {
-    final img = await _picker.pickImage(source: ImageSource.gallery);
-    if (img == null) return;
-    setState(() => messages.add({"image": img.path, "isMe": true}));
-    _scrollToBottom();
+      // Scroll automático al último mensaje
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    }
   }
 
   @override
@@ -60,105 +54,80 @@ class _ChatViewState extends State<ChatView> {
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             itemCount: messages.length,
-            itemBuilder: (context, i) {
-              final msg = messages[i];
-              final isMe = msg["isMe"] == true;
-
-              Widget content;
-              if (msg["image"] != null) {
-                content = ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: Image.file(
-                    File(msg["image"]),
-                    width: 220,
-                    fit: BoxFit.cover,
-                  ),
-                );
-              } else {
-                content = Text(
-                  msg["text"] ?? "",
-                  style: TextStyle(
-                    color: isMe ? AppColors.blanco : AppColors.textoOscuro,
-                    fontSize: 15,
-                    height: 1.25,
-                  ),
-                );
-              }
-
+            itemBuilder: (context, index) {
+              final msg = messages[index];
               return Align(
-                alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                alignment: msg["isMe"]
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  margin: const EdgeInsets.symmetric(vertical: 5),
                   padding: const EdgeInsets.all(12),
                   constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
+                    maxWidth: MediaQuery.of(context).size.width * 0.8,
                   ),
                   decoration: BoxDecoration(
-                    color: isMe
-                        ? AppColors.azulPrimario
-                        : AppColors.grisClaro.withOpacity(0.25),
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isMe ? 16 : 4),
-                      bottomRight: Radius.circular(isMe ? 4 : 16),
+                    color: msg["isMe"] ? AppColors.azulPrimario : AppColors.grisClaro,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    msg["text"],
+                    style: TextStyle(
+                      color: msg["isMe"] ? AppColors.blanco : AppColors.textoOscuro,
                     ),
                   ),
-                  child: content,
                 ),
               );
             },
           ),
         ),
         const Divider(height: 1),
-        SafeArea(
-          top: false,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-            color: AppColors.blanco,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          color: AppColors.blanco,
+          child: SafeArea(
             child: Row(
               children: [
                 IconButton(
-                  onPressed: _pickImage,
                   icon: Icon(Icons.photo, color: AppColors.azulPrimario),
-                  tooltip: "Enviar imagen",
-                ),
-                IconButton(
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Grabación de audio desactivada."),
+                        content: Text("Función de fotos no implementada"),
                       ),
                     );
                   },
-                  icon: Icon(Icons.mic_none, color: AppColors.amarilloPrimario),
-                  tooltip: "Audio (desactivado)",
+                ),
+                IconButton(
+                  icon: Icon(Icons.mic, color: AppColors.amarilloPrimario),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Función de audio no implementada"),
+                      ),
+                    );
+                  },
                 ),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F2F2),
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _sendText(),
-                      decoration: const InputDecoration(
-                        hintText: "Escribe un mensaje...",
-                        border: InputBorder.none,
+                  child: TextField(
+                    controller: _controller,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendMessage(),
+                    decoration: const InputDecoration(
+                      hintText: "Escribe un mensaje...",
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
                 IconButton(
-                  onPressed: _sendText,
                   icon: Icon(Icons.send, color: AppColors.azulPrimario),
-                  tooltip: "Enviar",
+                  onPressed: _sendMessage,
                 ),
               ],
             ),

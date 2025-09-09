@@ -13,10 +13,7 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/startup',
     routes: [
-      GoRoute(
-        path: '/startup',
-        builder: (context, state) => const StartupScreen(),
-      ),
+      GoRoute(path: '/startup', builder: (context, state) => const StartupScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
 
       ShellRoute(
@@ -35,36 +32,36 @@ class AppRouter {
             path: '/home/profile',
             builder: (context, state) => const ProfileScreen(),
           ),
-          // GoRoute(
-          //   path: '/home/chat/:userName',
-          //   pageBuilder: (context, state) {
-          //     final userName = state.pathParameters['userName']!;
-          //     final avatar = state.uri.queryParameters['avatar'] ?? '';
+          GoRoute(
+            path: '/home/chat/:userName',
+            pageBuilder: (context, state) {
+              final userName = state.pathParameters['userName']!;
+              final avatar = state.uri.queryParameters['avatar'] ?? '';
 
-          //     // CustomTransitionPage evita que se vea la página anterior
-          //     return CustomTransitionPage(
-          //       key: state.pageKey,
-          //       child: ChatPage(userName: userName, avatar: avatar),
-          //       transitionsBuilder:
-          //           (context, animation, secondaryAnimation, child) {
-          //             const begin = Offset(1.0, 0.0);
-          //             const end = Offset.zero;
-          //             const curve = Curves.easeInOut;
+              // CustomTransitionPage evita que se vea la página anterior
+              return CustomTransitionPage(
+                key: state.pageKey,
+                child: ChatPage(userName: userName, avatar: avatar),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      const begin = Offset(1.0, 0.0);
+                      const end = Offset.zero;
+                      const curve = Curves.easeInOut;
 
-          //             final tween = Tween(
-          //               begin: begin,
-          //               end: end,
-          //             ).chain(CurveTween(curve: curve));
-          //             final offsetAnimation = animation.drive(tween);
+                      final tween = Tween(
+                        begin: begin,
+                        end: end,
+                      ).chain(CurveTween(curve: curve));
+                      final offsetAnimation = animation.drive(tween);
 
-          //             return SlideTransition(
-          //               position: offsetAnimation,
-          //               child: child,
-          //             );
-          //           },
-          //     );
-          //   },
-          // ),
+                      return SlideTransition(
+                        position: offsetAnimation,
+                        child: child,
+                      );
+                    },
+              );
+            },
+          ),
         ],
       ),
     ],
