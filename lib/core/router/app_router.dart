@@ -11,7 +11,9 @@ import '../../screens/startup.dart';
 
 // Admin
 import '../../screens/admin_menu_page.dart';
-import '../../screens/admin_users_page.dart';
+import '../../screens/admin_users_page.dart'; 
+import '../../screens/admin_reports_page.dart';
+import '../../screens/admin_report_detail_page.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -70,6 +72,20 @@ class AppRouter {
         path: '/admin/users',
         builder: (context, state) => AdminUsersPage(),
       ),
+
+      GoRoute(
+        path: '/admin/reports',
+        builder: (context, state) => const AdminReportsPage(),
+      ),
+
+      GoRoute(
+        path: '/admin/reports/:id',
+        builder: (context, state) {
+          final reportId = int.tryParse(state.pathParameters['id'] ?? '');
+          return ReportDetailPage(reportId: reportId);
+        },
+      ),
+
     ],
   );
 }
