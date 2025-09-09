@@ -1,5 +1,4 @@
 // app_router.dart
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../screens/login_screen.dart';
 import '../../screens/main_screen.dart';
@@ -36,24 +35,24 @@ class AppRouter {
           GoRoute(
               path: '/home/profile',
               builder: (context, state) => const ProfileScreen()),
-          GoRoute(
-            path: '/home/chat/:userName',
-            pageBuilder: (context, state) {
-              final userName = state.pathParameters['userName']!;
-              final avatar = state.uri.queryParameters['avatar'] ?? '';
-              return CustomTransitionPage(
-                key: state.pageKey,
-                child: ChatPage(userName: userName, avatar: avatar),
-                transitionsBuilder: (context, animation, _, child) {
-                  final tween =
-                      Tween(begin: const Offset(1, 0), end: Offset.zero)
-                          .chain(CurveTween(curve: Curves.easeInOut));
-                  return SlideTransition(
-                      position: animation.drive(tween), child: child);
-                },
-              );
-            },
-          ),
+          // GoRoute(
+          //   path: '/home/chat/:userName',
+          //   pageBuilder: (context, state) {
+          //     final userName = state.pathParameters['userName']!;
+          //     final avatar = state.uri.queryParameters['avatar'] ?? '';
+          //     return CustomTransitionPage(
+          //       key: state.pageKey,
+          //       child: ChatPage(userName: userName, avatar: avatar),
+          //       transitionsBuilder: (context, animation, _, child) {
+          //         final tween =
+          //             Tween(begin: const Offset(1, 0), end: Offset.zero)
+          //                 .chain(CurveTween(curve: Curves.easeInOut));
+          //         return SlideTransition(
+          //             position: animation.drive(tween), child: child);
+          //       },
+          //     );
+          //   },
+          // ),
           // 👇 Nueva ruta para crear publicación
           GoRoute(
               path: '/new_post',

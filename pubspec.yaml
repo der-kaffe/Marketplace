@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  image_picker: ^1.0.7
+
+  path_provider: ^2.1.1
   # Navegación declarativa para Flutter
   go_router: ^13.2.0
 

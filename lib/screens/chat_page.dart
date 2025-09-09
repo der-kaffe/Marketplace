@@ -3,19 +3,17 @@ import 'package:go_router/go_router.dart';
 import '../widgets/chat_view.dart';
 import '../theme/app_colors.dart';
 
-/// Página para mostrar un chat individual
 class ChatPage extends StatelessWidget {
   final String userName;
   final String avatar;
 
-  const ChatPage({super.key, required this.userName, required this.avatar});
+  const ChatPage({Key? key, required this.userName, required this.avatar}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Column(
         children: [
-          // AppBar personalizado
           Container(
             height: kToolbarHeight + MediaQuery.of(context).padding.top,
             color: AppColors.azulPrimario,
@@ -54,11 +52,7 @@ class ChatPage extends StatelessWidget {
               ],
             ),
           ),
-
-          // Contenido del chat
-          const Expanded(
-            child: ChatView(),
-          ),
+          const Expanded(child: ChatView()),
         ],
       ),
     );
