@@ -10,7 +10,7 @@ class ProductService {
       title: 'Smartphone Galaxy S23',
       description: 'Teléfono de última generación con 256GB de memoria',
       price: 699999,
-      imageUrl: 'https://via.placeholder.com/150',
+      imageUrl: 'https://www.reuse.cl/cdn/shop/files/smartphone-samsung-galaxy-s23-fe-256gb-verde-reacondicionado-6283113.png?v=1751675580&width=1000',
       rating: 4.8,
       reviewCount: 120,
       category: 'electronica',

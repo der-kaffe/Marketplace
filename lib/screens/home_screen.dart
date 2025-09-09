@@ -4,6 +4,7 @@ import '../widgets/product_card.dart';
 import '../widgets/category_card.dart';
 import '../services/product_service.dart';
 import '../models/product_model.dart';
+import '../widgets/product_detail_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -184,7 +185,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: product.title,
                     description: product.description,
                     price: product.price,
-                    onTap: () => _showNotImplementedMessage(context, 'Producto: ${product.title}'),
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => ProductDetailModal(product: product),
+                      );
+                    },
                   );
                 },
               ),
