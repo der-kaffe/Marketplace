@@ -204,7 +204,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
               spacing,
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Categoría'),
-                value: category,
+                initialValue: category,
                 items: const [
                   DropdownMenuItem(value: 'electronica', child: Text('Electrónica')),
                   DropdownMenuItem(value: 'ropa', child: Text('Ropa')),

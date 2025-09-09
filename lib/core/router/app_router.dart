@@ -9,6 +9,10 @@ import '../../screens/favorites_screen.dart';
 import '../../screens/profile_screen.dart';
 import '../../screens/new_post_screen.dart';
 
+// Admin
+import '../../screens/admin_menu_page.dart';
+import '../../screens/admin_users_page.dart'; 
+
 class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/login',
@@ -42,6 +46,18 @@ class AppRouter {
           GoRoute(path: '/new_post', builder: (context, state) => const NewPostScreen()),
         ],
       ),
+
+      // Admin
+      GoRoute(
+        path: '/admin',
+        builder: (context, state) => const AdminMenuPage(),
+      ),
+
+      GoRoute(
+        path: '/admin/users',
+        builder: (context, state) => AdminUsersPage(),
+      ),
+
     ],
   );
 }
