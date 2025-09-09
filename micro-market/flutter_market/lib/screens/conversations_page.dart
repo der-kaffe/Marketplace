@@ -1,145 +1,110 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import '../widgets/chat_view.dart';
 import '../theme/app_colors.dart';
+import 'chat_page.dart';
 
 class ConversationsPage extends StatelessWidget {
-  final List<Map<String, String>> conversations = [
+  final List<Map<String, dynamic>> conversations = [
     {
       "name": "Dr. Elisa Jones",
       "lastMessage": "Ok!",
       "time": "9:41 AM",
+      "unread": 2,
       "avatar":
-          "https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg",
+          "https://plus.unsplash.com/premium_photo-1689551670902-19b441a6afde?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cmFuZG9tJTIwcGVvcGxlfGVufDB8fDB8fHww",
     },
     {
       "name": "Juan Pérez",
       "lastMessage": "Nos vemos mañana",
       "time": "8:20 AM",
+      "unread": 0,
       "avatar":
-          "https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg",
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cmFuZG9tJTIwcGVvcGxlfGVufDB8fDB8fHww",
     },
     {
       "name": "María González",
       "lastMessage": "Te mando el link",
       "time": "Ayer",
+      "unread": 5,
       "avatar":
-          "https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg",
+          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8cmFuZG9tJTIwcGVvcGxlfGVufDB8fDB8fHww",
     },
   ];
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      itemCount: conversations.length,
-      itemBuilder: (context, index) {
-        final chat = conversations[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(chat["avatar"]!),
-            onBackgroundImageError: (exception, stackTrace) {
-              print('Error cargando avatar: $exception');
-            },
-          ),
-          title: Text(chat["name"]!),
-          subtitle: Text(chat["lastMessage"]!),
-          trailing: Text(chat["time"]!),
-          onTap: () {
-            print('Navegando a chat con ${chat["name"]}');
-
-            // Usar push en lugar de go para mantener el stack de navegación
-            context.push(
-              '/home/chat/${Uri.encodeComponent(chat["name"]!)}'
-              '?avatar=${Uri.encodeComponent(chat["avatar"]!)}',
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class ChatPage extends StatefulWidget {
-  final String userName;
-  final String avatar;
-
-  const ChatPage({super.key, required this.userName, required this.avatar});
-
-  @override
-  State<ChatPage> createState() => _ChatPageState();
-}
-
-class _ChatPageState extends State<ChatPage> {
-  @override
-  void dispose() {
-    // Limpiar recursos cuando se sale del chat
-    print('Saliendo del chat con ${widget.userName}');
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-          // AppBar personalizado
-          Container(
-            height: kToolbarHeight + MediaQuery.of(context).padding.top,
-            color: AppColors.azulPrimario,
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: MediaQuery.of(context).padding.top,
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: AppColors.blanco),
-                  onPressed: () {
-                    // Usar pop en lugar de go para volver correctamente
-                    context.pop();
-                  },
-                ),
-                CircleAvatar(
-                  backgroundImage: widget.avatar.isNotEmpty
-                      ? NetworkImage(widget.avatar)
-                      : null,
-                  child: widget.avatar.isEmpty
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    widget.userName,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.blanco,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.call, color: AppColors.blanco),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Función de llamada no implementada"),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-          // Contenido del chat
-          Expanded(
-            child: ChatView(
-              key: ValueKey(widget.userName), // Key única para cada chat
-            ),
+      appBar: AppBar(
+        backgroundColor: AppColors.azulPrimario,
+        title: const Text("Chats", style: TextStyle(color: Colors.white)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: () {},
           ),
         ],
+      ),
+      body: ListView.separated(
+        itemCount: conversations.length,
+        separatorBuilder: (_, __) =>
+            Divider(color: AppColors.grisClaro, height: 1),
+        itemBuilder: (context, index) {
+          final chat = conversations[index];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: NetworkImage(chat["avatar"]),
+              backgroundColor: AppColors.grisClaro,
+              onBackgroundImageError: (_, __) {},
+            ),
+            title: Text(
+              chat["name"],
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              chat["lastMessage"],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: AppColors.textoOscuro),
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  chat["time"],
+                  style: TextStyle(color: AppColors.grisOscuro, fontSize: 12),
+                ),
+                if (chat["unread"] > 0)
+                  Container(
+                    margin: const EdgeInsets.only(top: 5),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.azulPrimario,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      "${chat["unread"]}",
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ChatPage(userName: chat["name"], avatar: chat["avatar"]),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.azulPrimario,
+        onPressed: () {
+          // Acción: nuevo chat
+        },
+        child: const Icon(Icons.chat, color: Colors.white),
       ),
     );
   }
