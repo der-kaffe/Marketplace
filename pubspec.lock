@@ -501,9 +501,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-sdks:
-  dart: ">=3.8.0-0 <4.0.0"
-  flutter: ">=3.27.0"
   xdg_directories:
     dependency: transitive
     description:
