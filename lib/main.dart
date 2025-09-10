@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme, // Aplicamos el tema personalizado
       darkTheme: AppTheme.darkTheme, // Tema oscuro opcional
       themeMode: ThemeMode.light, // Por defecto usamos el tema claro
-      
+
       // Usamos el router definido en app_router.dart
       routerDelegate: AppRouter.router.routerDelegate,
       routeInformationParser: AppRouter.router.routeInformationParser,
