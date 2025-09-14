@@ -1,8 +1,10 @@
+// login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../theme/app_colors.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,69 +19,120 @@ class _LoginScreenState extends State<LoginScreen> {
     clientId: kIsWeb
         ? '923310808660-u1lvndctmelhjggu81qem3la55monf1l.apps.googleusercontent.com' // ID para web
         : '923310808660-0e6dchkc7di29grqa0jrcfot2c8mi5c7.apps.googleusercontent.com', // ID para Android
-    scopes: ['email'],
+    scopes: ['email', 'profile', 'openid'],
   );
 
   bool _isLoading = false;
 
   void _loginWithGoogle() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
       if (googleUser == null) {
         print('Inicio de sesión cancelado.');
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
 
       final String userEmail = googleUser.email;
       const List<String> allowedDomains = ['uct.cl', 'alu.uct.cl'];
-
       bool isDomainAllowed =
           allowedDomains.any((domain) => userEmail.endsWith('@$domain'));
 
       if (!isDomainAllowed) {
         print('Dominio de correo no permitido: $userEmail');
         await _googleSignIn.signOut();
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content:
+                  Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
         return;
       }
 
-      print('Acceso permitido: ${googleUser.displayName}');
-      // ignore: use_build_context_synchronously
-      context.go('/home');
+      // --- Obtener autenticación ---
+      final googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+      final String? accessToken = googleAuth.accessToken;
+
+      print('ID Token: $idToken');
+      print('Access Token: $accessToken');
+
+      // --- CASO DE ÉXITO ---
+      print('✅ Acceso permitido: ${googleUser.displayName}');
+
+      // Usar accessToken si idToken es null (solución para web)
+      final String tokenToUse = idToken ?? accessToken ?? '';
+
+      if (tokenToUse.isNotEmpty) {
+        final authService = AuthService();
+        await authService.saveToken(tokenToUse);
+
+        if (mounted) {
+          context.go('/home');
+        }
+      } else {
+        throw Exception('No se pudo obtener ningún token de autenticación');
+      }
     } catch (error) {
-      print('Error al iniciar sesión: $error');
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al iniciar sesión: ${error.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('⚠️ Error al iniciar sesión: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al iniciar sesión: ${error.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  void _loginAsGuest() {
-    context.go('/home');
+  // Mantener login como invitado
+  void _loginAsGuest() async {
+    final authService = AuthService();
+    await authService.saveToken('guest_user_token');
+    if (mounted) {
+      context.go('/home');
+    }
+  }
+
+  // Método para el login del administrador
+  void _loginAsAdmin() async {
+    setState(() => _isLoading = true);
+    try {
+      final authService = AuthService();
+      await authService.saveToken('admin_user_token');
+
+      if (mounted) {
+        context.go('/admin');
+      }
+    } catch (error) {
+      print('⚠️ Error al iniciar sesión como admin: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Error al iniciar sesión como admin: ${error.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -203,11 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: _isLoading
-                              ? null
-                              : () {
-                                  context.go('/admin');
-                                },
+                          onPressed: _isLoading ? null : _loginAsAdmin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
                             foregroundColor: Colors.white,

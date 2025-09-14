@@ -1,24 +1,34 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import 'core/router/app_router.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  runApp(const MyApp());
+  // Configuramos GoogleSignIn solo para Web
+  final GoogleSignIn googleSignIn = GoogleSignIn(
+    clientId: kIsWeb
+        ? "923310808660-u1lvndctmelhjggu81qem3la55monf1l.apps.googleusercontent.com"
+        : null,
+  );
+
+  runApp(MyApp(googleSignIn: googleSignIn));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final GoogleSignIn googleSignIn;
+
+  const MyApp({super.key, required this.googleSignIn});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'MicroMarket',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme, // Aplicamos el tema personalizado
-      darkTheme: AppTheme.darkTheme, // Tema oscuro opcional
-      themeMode: ThemeMode.light, // Por defecto usamos el tema claro
-
-      // Usamos el router definido en app_router.dart
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.light,
       routerDelegate: AppRouter.router.routerDelegate,
       routeInformationParser: AppRouter.router.routeInformationParser,
       routeInformationProvider: AppRouter.router.routeInformationProvider,
