@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../theme/app_colors.dart';
-import 'package:micromarket/services/auth_service.dart';
+import 'package:marketplace/services/auth_service.dart';
 import '../services/auth_service.dart';
 
 // Instancia global para manejar Google Sign-In

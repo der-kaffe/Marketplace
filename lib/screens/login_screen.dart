@@ -1,4 +1,3 @@
-// login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -16,10 +15,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   // Configura GoogleSignIn para la web o para otras plataformas
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: kIsWeb
-        ? '923310808660-u1lvndctmelhjggu81qem3la55monf1l.apps.googleusercontent.com' // ID para web
-        : '923310808660-0e6dchkc7di29grqa0jrcfot2c8mi5c7.apps.googleusercontent.com', // ID para Android
     scopes: ['email', 'profile', 'openid'],
+    clientId: kIsWeb
+        ? '923310808660-u1lvndctmelhjggu81qem3la55monf1l.apps.googleusercontent.com' // Solo para web
+        : null, // Android usa automáticamente la configuración de Google Cloud Console
   );
 
   bool _isLoading = false;
