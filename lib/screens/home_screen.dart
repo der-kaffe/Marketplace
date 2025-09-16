@@ -185,6 +185,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: product.title,
                     description: product.description,
                     price: product.price,
+                      isAvailable: product.isAvailable, // 👈 usamos el estado del producto
+                      onToggleVisibility: () {
+                        setState(() {
+                          _products[index] = product.copyWith(isAvailable: !product.isAvailable);// 👁️ alterna visible/oculto
+                        });
+                      },
                     onTap: () {
                       showModalBottomSheet(
                         context: context,

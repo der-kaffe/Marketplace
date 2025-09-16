@@ -9,6 +9,8 @@ class ProductCard extends StatelessWidget {
   final String? imageUrl;
   final VoidCallback onTap;
   final bool isFavorite;
+  final bool isAvailable;               // 👈 nuevo
+  final VoidCallback onToggleVisibility; // 👈 nuevo
 
   const ProductCard({
     super.key,
@@ -18,66 +20,86 @@ class ProductCard extends StatelessWidget {
     this.imageUrl,
     required this.onTap,
     this.isFavorite = false,
+    required this.isAvailable,           // 👈 requerido
+    required this.onToggleVisibility,    // 👈 requerido
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell( // 👈 para que el resto de la tarjeta siga respondiendo al tap
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Imagen del producto
-            Container(
-              height: 120,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: AppColors.grisPrimario.withOpacity(0.2),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-              ),
-              child: imageUrl != null
-                  ? ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        topRight: Radius.circular(12),
-                      ),
-                      child: Image.network(
-                        imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              color: AppColors.grisPrimario,
-                            ),
-                          );
-                        },
-                      ),
-                    )
-                  : const Center(
-                      child: Icon(
-                        Icons.image,
-                        color: AppColors.grisPrimario,
-                        size: 40,
-                      ),
+            // Imagen con el botón de visibilidad arriba a la derecha
+            Stack(
+              children: [
+                Container(
+                  height: 120,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.grisPrimario.withOpacity(0.2),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
                     ),
+                  ),
+                  child: imageUrl != null
+                      ? ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
+                          ),
+                          child: Image.network(
+                            imageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  color: AppColors.grisPrimario,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.image,
+                            color: AppColors.grisPrimario,
+                            size: 40,
+                          ),
+                        ),
+                ),
+
+                // 👁️ Botón de visibilidad arriba a la derecha
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    icon: Icon(
+                      isAvailable ? Icons.visibility : Icons.visibility_off,
+                      color: isAvailable ? AppColors.azulPrimario : AppColors.grisPrimario,
+                    ),
+                    onPressed: onToggleVisibility, // 👈 este no dispara el modal
+                  ),
+                ),
+              ],
             ),
-            
+
             // Detalles del producto
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título del producto
+                  // Título
                   Text(
                     title,
                     style: const TextStyle(
@@ -91,7 +113,7 @@ class ProductCard extends StatelessWidget {
                   
                   const SizedBox(height: 4),
                   
-                  // Descripción del producto
+                  // Descripción
                   Text(
                     description,
                     style: const TextStyle(
@@ -104,11 +126,10 @@ class ProductCard extends StatelessWidget {
                   
                   const SizedBox(height: 8),
                   
-                  // Precio y botón de favorito
+                  // Precio y favorito
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Precio
                       Text(
                         '\$${price.toStringAsFixed(0)}',
                         style: const TextStyle(
@@ -117,8 +138,6 @@ class ProductCard extends StatelessWidget {
                           color: AppColors.azulOscuro,
                         ),
                       ),
-                      
-                      // Icono de favorito
                       Icon(
                         isFavorite ? Icons.favorite : Icons.favorite_border,
                         color: isFavorite ? AppColors.error : AppColors.grisPrimario,
