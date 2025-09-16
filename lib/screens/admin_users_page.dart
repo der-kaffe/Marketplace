@@ -5,12 +5,14 @@ class UserItem {
   final String name;
   final String email;
   final String subtitle;
+  bool isBanned; 
 
   UserItem({
     required this.id,
     required this.name,
     required this.email,
     this.subtitle = 'Lorem ipsum dolor, consectetur.',
+    this.isBanned = false, 
   });
 }
 
@@ -166,17 +168,37 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           ),
           const SizedBox(width: 12),
           // nombre + subtítulo
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  user.name,
-                  style: const TextStyle(
-                    color: Color(0xFF0078A8),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      user.name,
+                      style: TextStyle(
+                        color: user.isBanned ? Colors.red : const Color(0xFF0078A8),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (user.isBanned)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red[300],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'VETADO',
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -220,6 +242,36 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   child: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
                 ),
               ),
+              const SizedBox(height: 8),
+
+              // Implementación de vetado
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    user.isBanned = !user.isBanned;  // alternar estado
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(user.isBanned ? 'Usuario vetado' : 'Usuario desvetado')),
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: user.isBanned ? Colors.red[100] : Colors.green[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: user.isBanned ? Colors.red : Colors.green,
+                    ),
+                  ),
+                  child: Icon(
+                    user.isBanned ? Icons.block : Icons.check_circle,
+                    color: user.isBanned ? Colors.red : Colors.green,
+                    size: 18,
+                  ),
+                ),
+              ),
+
             ],
           ),
         ],
