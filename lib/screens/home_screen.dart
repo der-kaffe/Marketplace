@@ -5,6 +5,8 @@ import '../widgets/category_card.dart';
 import '../services/product_service.dart';
 import '../models/product_model.dart';
 import '../widgets/product_detail_modal.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -58,6 +60,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 👇 si estamos cargando y aún no hay productos → muestra solo el loader
+    if (_isLoading && _products.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: SpinKitWave( // puedes usar SpinKitFadingCircle también
+            color: AppColors.azulPrimario,
+            size: 50.0,
+          ),
+        ),
+      );
+    }
+
+    // 👇 de lo contrario, muestra el contenido normal
     return Scaffold(
       body: SingleChildScrollView(
         controller: _scrollController,
@@ -176,7 +191,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 itemCount: _products.length + (_isLoading ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index >= _products.length) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: SpinKitFadingCircle(
+                        color: AppColors.azulPrimario,
+                        size: 40.0,
+                      ),
+                    );
                   }
                   
                   final product = _products[index];

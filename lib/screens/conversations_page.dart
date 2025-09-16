@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
 import 'chat_page.dart';
 
@@ -10,6 +11,8 @@ class ConversationsPage extends StatefulWidget {
 }
 
 class _ConversationsPageState extends State<ConversationsPage> {
+  bool _isLoading = true;
+
   final List<Map<String, dynamic>> conversations = [
     {
       "name": "Dr. Elisa Jones",
@@ -37,10 +40,20 @@ class _ConversationsPageState extends State<ConversationsPage> {
     },
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Simula carga inicial (puedes reemplazarlo con fetch real de API)
+    Future.delayed(const Duration(seconds: 1), () {
+      setState(() {
+        _isLoading = false;
+      });
+    });
+  }
+
   void _openChat(int index) async {
     final chat = conversations[index];
 
-    // Abrir la página de chat
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -51,7 +64,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
       ),
     );
 
-    // Al volver, marcar como leído
     setState(() {
       conversations[index]["unread"] = 0;
     });
@@ -73,57 +85,65 @@ class _ConversationsPageState extends State<ConversationsPage> {
           ),
         ],
       ),
-      body: ListView.separated(
-        itemCount: conversations.length,
-        separatorBuilder: (_, __) =>
-            Divider(color: AppColors.grisClaro, height: 1),
-        itemBuilder: (context, index) {
-          final chat = conversations[index];
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundImage: NetworkImage(chat["avatar"]),
-              backgroundColor: AppColors.grisClaro,
-              onBackgroundImageError: (_, __) {},
-            ),
-            title: Text(
-              chat["name"],
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              chat["lastMessage"],
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: AppColors.textoOscuro),
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  chat["time"],
-                  style: TextStyle(color: AppColors.grisOscuro, fontSize: 12),
-                ),
-                if (chat["unread"] > 0)
-                  Container(
-                    margin: const EdgeInsets.only(top: 5),
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.azulPrimario,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      "${chat["unread"]}",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                      ),
-                    ),
+      body: _isLoading
+          ? const Center(
+              child: SpinKitWave(
+                color: AppColors.azulPrimario,
+                size: 40.0,
+              ),
+            )
+          : ListView.separated(
+              itemCount: conversations.length,
+              separatorBuilder: (_, __) =>
+                  Divider(color: AppColors.grisClaro, height: 1),
+              itemBuilder: (context, index) {
+                final chat = conversations[index];
+                return ListTile(
+                  leading: CircleAvatar(
+                    backgroundImage: NetworkImage(chat["avatar"]),
+                    backgroundColor: AppColors.grisClaro,
+                    onBackgroundImageError: (_, __) {},
                   ),
-              ],
+                  title: Text(
+                    chat["name"],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    chat["lastMessage"],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: AppColors.textoOscuro),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        chat["time"],
+                        style: TextStyle(
+                            color: AppColors.grisOscuro, fontSize: 12),
+                      ),
+                      if (chat["unread"] > 0)
+                        Container(
+                          margin: const EdgeInsets.only(top: 5),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: AppColors.azulPrimario,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            "${chat["unread"]}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onTap: () => _openChat(index),
+                );
+              },
             ),
-            onTap: () => _openChat(index),
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.azulPrimario,
         onPressed: () {

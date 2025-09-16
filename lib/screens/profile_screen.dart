@@ -1,7 +1,7 @@
-//profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
 import 'package:marketplace/services/auth_service.dart';
 import '../services/auth_service.dart';
@@ -9,126 +9,153 @@ import '../services/auth_service.dart';
 // Instancia global para manejar Google Sign-In
 final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Simular tiempo de carga
+    Future.delayed(const Duration(seconds: 2), () {
+      setState(() {
+        _isLoading = false;
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.fondoClaro,
-      child: ListView(
-        padding: const EdgeInsets.all(0),
-        children: [
-          // Encabezado del perfil
-          _buildProfileHeader(),
-
-          const SizedBox(height: 20),
-
-          // Información personal
-          _buildInfoSection(
-            title: 'Información Personal',
-            items: [
-              _buildInfoItem(
-                  Icons.person, 'Nombre completo', 'Carlos García López'),
-              _buildInfoItem(Icons.email, 'Email', 'carlos.garcia@ejemplo.com'),
-              _buildInfoItem(Icons.phone, 'Teléfono', '+56 9 1234 5678'),
-              _buildInfoItem(
-                  Icons.location_on, 'Dirección', 'Av. Alemania 0211, Temuco'),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Historial de pedidos
-          _buildInfoSection(
-            title: 'Mis Pedidos',
-            items: [
-              _buildOrderItem(
-                orderNumber: '#12345',
-                date: '30 ago. 2025',
-                status: 'Entregado',
-                amount: 47990,
-                statusColor: Colors.green,
-              ),
-              _buildOrderItem(
-                orderNumber: '#12340',
-                date: '25 ago. 2025',
-                status: 'En proceso',
-                amount: 89990,
-                statusColor: AppColors.amarilloPrimario,
-              ),
-              _buildOrderItem(
-                orderNumber: '#12335',
-                date: '20 ago. 2025',
-                status: 'Cancelado',
-                amount: 25990,
-                statusColor: AppColors.error,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          // Opciones de cuenta
-          _buildInfoSection(
-            title: 'Mi Cuenta',
-            items: [
-              _buildActionItem(
-                icon: Icons.favorite,
-                title: 'Mis Favoritos',
-                color: AppColors.error,
-                onTap: () => _navigateToSection(context, 2),
-              ),
-              _buildActionItem(
-                icon: Icons.notifications,
-                title: 'Notificaciones',
-                color: AppColors.amarilloPrimario,
-                onTap: () => _showFeatureMessage(context, 'Notificaciones'),
-              ),
-              _buildActionItem(
-                icon: Icons.payment,
-                title: 'Métodos de Pago',
+    return _isLoading
+        ? Scaffold(
+            body: Center(
+              child: SpinKitWave(
                 color: AppColors.azulPrimario,
-                onTap: () => _showFeatureMessage(context, 'Métodos de Pago'),
-              ),
-              _buildActionItem(
-                icon: Icons.settings,
-                title: 'Configuración',
-                color: AppColors.grisPrimario,
-                onTap: () => _showFeatureMessage(context, 'Configuración'),
-              ),
-              _buildActionItem(
-                icon: Icons.help_outline,
-                title: 'Ayuda y Soporte',
-                color: AppColors.azulPrimario,
-                onTap: () => _showFeatureMessage(context, 'Ayuda y Soporte'),
-              ),
-              _buildActionItem(
-                icon: Icons.logout,
-                title: 'Cerrar Sesión',
-                color: AppColors.error,
-                onTap: () => _logout(context),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 30),
-
-          // Versión de la aplicación
-          const Center(
-            child: Text(
-              'MicroMarket v1.0.0',
-              style: TextStyle(
-                color: AppColors.textoSecundario,
-                fontSize: 12,
+                size: 50.0,
               ),
             ),
-          ),
+          )
+        : Container(
+            color: AppColors.fondoClaro,
+            child: ListView(
+              padding: const EdgeInsets.all(0),
+              children: [
+                // Encabezado del perfil
+                _buildProfileHeader(),
 
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
+                const SizedBox(height: 20),
+
+                // Información personal
+                _buildInfoSection(
+                  title: 'Información Personal',
+                  items: [
+                    _buildInfoItem(
+                        Icons.person, 'Nombre completo', 'Carlos García López'),
+                    _buildInfoItem(Icons.email, 'Email', 'carlos.garcia@ejemplo.com'),
+                    _buildInfoItem(Icons.phone, 'Teléfono', '+56 9 1234 5678'),
+                    _buildInfoItem(
+                        Icons.location_on, 'Dirección', 'Av. Alemania 0211, Temuco'),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Historial de pedidos
+                _buildInfoSection(
+                  title: 'Mis Pedidos',
+                  items: [
+                    _buildOrderItem(
+                      orderNumber: '#12345',
+                      date: '30 ago. 2025',
+                      status: 'Entregado',
+                      amount: 47990,
+                      statusColor: Colors.green,
+                    ),
+                    _buildOrderItem(
+                      orderNumber: '#12340',
+                      date: '25 ago. 2025',
+                      status: 'En proceso',
+                      amount: 89990,
+                      statusColor: AppColors.amarilloPrimario,
+                    ),
+                    _buildOrderItem(
+                      orderNumber: '#12335',
+                      date: '20 ago. 2025',
+                      status: 'Cancelado',
+                      amount: 25990,
+                      statusColor: AppColors.error,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Opciones de cuenta
+                _buildInfoSection(
+                  title: 'Mi Cuenta',
+                  items: [
+                    _buildActionItem(
+                      icon: Icons.favorite,
+                      title: 'Mis Favoritos',
+                      color: AppColors.error,
+                      onTap: () => _navigateToSection(context, 2),
+                    ),
+                    _buildActionItem(
+                      icon: Icons.notifications,
+                      title: 'Notificaciones',
+                      color: AppColors.amarilloPrimario,
+                      onTap: () => _showFeatureMessage(context, 'Notificaciones'),
+                    ),
+                    _buildActionItem(
+                      icon: Icons.payment,
+                      title: 'Métodos de Pago',
+                      color: AppColors.azulPrimario,
+                      onTap: () => _showFeatureMessage(context, 'Métodos de Pago'),
+                    ),
+                    _buildActionItem(
+                      icon: Icons.settings,
+                      title: 'Configuración',
+                      color: AppColors.grisPrimario,
+                      onTap: () => _showFeatureMessage(context, 'Configuración'),
+                    ),
+                    _buildActionItem(
+                      icon: Icons.help_outline,
+                      title: 'Ayuda y Soporte',
+                      color: AppColors.azulPrimario,
+                      onTap: () => _showFeatureMessage(context, 'Ayuda y Soporte'),
+                    ),
+                    _buildActionItem(
+                      icon: Icons.logout,
+                      title: 'Cerrar Sesión',
+                      color: AppColors.error,
+                      onTap: () => _logout(context),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // Versión de la aplicación
+                const Center(
+                  child: Text(
+                    'MicroMarket v1.0.0',
+                    style: TextStyle(
+                      color: AppColors.textoSecundario,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
   }
 
   // Encabezado del perfil con foto y nombre
