@@ -46,7 +46,12 @@ class _MainScreenState extends State<MainScreen> {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.search, color: AppColors.amarilloPrimario), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.notifications, color: AppColors.amarilloPrimario), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.notifications, color: AppColors.amarilloPrimario),
+            onPressed: () {
+              context.push('/home/notifications');
+            },
+          ),
         ],
         elevation: 0,
       ),

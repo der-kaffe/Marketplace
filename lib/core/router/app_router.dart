@@ -12,6 +12,7 @@ import '../../screens/favorites_screen.dart';
 import '../../screens/profile_screen.dart';
 import '../../screens/new_post_screen.dart';
 import '../../screens/startup.dart';
+import '../../screens/notifications_screen.dart';
 
 // Admin
 import '../../screens/admin_menu_page.dart';
@@ -92,6 +93,11 @@ class AppRouter {
             path: '/new_post',
             builder: (context, state) => const NewPostScreen(),
           ),
+        // Ruta de notificaciones
+        GoRoute(
+              path: '/home/notifications',
+              builder: (context, state) => const NotificationsScreen(),
+            ),
         ],
       ),
 
