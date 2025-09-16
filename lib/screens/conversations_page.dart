@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'chat_page.dart';
 
-class ConversationsPage extends StatelessWidget {
+class ConversationsPage extends StatefulWidget {
+  const ConversationsPage({super.key});
+
+  @override
+  State<ConversationsPage> createState() => _ConversationsPageState();
+}
+
+class _ConversationsPageState extends State<ConversationsPage> {
   final List<Map<String, dynamic>> conversations = [
     {
       "name": "Dr. Elisa Jones",
@@ -10,7 +17,7 @@ class ConversationsPage extends StatelessWidget {
       "time": "9:41 AM",
       "unread": 2,
       "avatar":
-          "https://plus.unsplash.com/premium_photo-1689551670902-19b441a6afde?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cmFuZG9tJTIwcGVvcGxlfGVufDB8fDB8fHww",
+          "https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg",
     },
     {
       "name": "Juan Pérez",
@@ -18,7 +25,7 @@ class ConversationsPage extends StatelessWidget {
       "time": "8:20 AM",
       "unread": 0,
       "avatar":
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8cmFuZG9tJTIwcGVvcGxlfGVufDB8fDB8fHww",
+          "https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg",
     },
     {
       "name": "María González",
@@ -26,9 +33,29 @@ class ConversationsPage extends StatelessWidget {
       "time": "Ayer",
       "unread": 5,
       "avatar":
-          "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OHx8cmFuZG9tJTIwcGVvcGxlfGVufDB8fDB8fHww",
+          "https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg",
     },
   ];
+
+  void _openChat(int index) async {
+    final chat = conversations[index];
+
+    // Abrir la página de chat
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatPage(
+          userName: chat["name"],
+          avatar: chat["avatar"],
+        ),
+      ),
+    );
+
+    // Al volver, marcar como leído
+    setState(() {
+      conversations[index]["unread"] = 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,17 +120,7 @@ class ConversationsPage extends StatelessWidget {
                   ),
               ],
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatPage(
-                    userName: chat["name"],
-                    avatar: chat["avatar"],
-                  ),
-                ),
-              );
-            },
+            onTap: () => _openChat(index),
           );
         },
       ),
