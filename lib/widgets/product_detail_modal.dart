@@ -2,10 +2,28 @@ import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../theme/app_colors.dart';
 
-class ProductDetailModal extends StatelessWidget {
+class ProductDetailModal extends StatefulWidget {
   final Product product;
 
   const ProductDetailModal({super.key, required this.product});
+
+  @override
+  State<ProductDetailModal> createState() => _ProductDetailModalState();
+}
+
+class _ProductDetailModalState extends State<ProductDetailModal> {
+  int _userRating = 0; // ⭐ Valoración seleccionada por el usuario
+
+  void _submitRating() {
+    if (_userRating > 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("¡Gracias por valorar con $_userRating estrellas!"),
+        ),
+      );
+      // Aquí en el futuro -> enviar a Firebase/API
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +48,8 @@ class ProductDetailModal extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
-                    product.imageUrl ?? "https://via.placeholder.com/300",
+                    widget.product.imageUrl ??
+                        "https://via.placeholder.com/300",
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -40,7 +59,7 @@ class ProductDetailModal extends StatelessWidget {
 
                 // Título
                 Text(
-                  product.title,
+                  widget.product.title,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -52,7 +71,7 @@ class ProductDetailModal extends StatelessWidget {
 
                 // Precio
                 Text(
-                  "\$${product.price.toStringAsFixed(0)}",
+                  "\$${widget.product.price.toStringAsFixed(0)}",
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -64,18 +83,74 @@ class ProductDetailModal extends StatelessWidget {
 
                 // Descripción
                 Text(
-                  product.description,
+                  widget.product.description,
                   style: const TextStyle(fontSize: 16),
                 ),
 
                 const SizedBox(height: 16),
 
-                // Rating y reseñas
+                // ⭐ Promedio y reseñas
                 Row(
                   children: [
                     Icon(Icons.star, color: Colors.amber.shade700, size: 20),
                     const SizedBox(width: 4),
-                    Text("${product.rating} (${product.reviewCount} reseñas)"),
+                    Text(
+                      "${widget.product.rating} "
+                      "(${widget.product.reviewCount} reseñas)",
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // ⭐ Valoración interactiva del usuario
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Tu valoración:",
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    Row(
+                      children: List.generate(5, (index) {
+                        return IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            index < _userRating
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber.shade700,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _userRating = index + 1;
+                            });
+                          },
+                        );
+                      }),
+                    ),
+                    if (_userRating > 0)
+                      Text("Seleccionaste: $_userRating estrellas",
+                          style: const TextStyle(fontSize: 13)),
+
+                    const SizedBox(height: 8),
+
+                    // Botón de enviar valoración
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.azulPrimario,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: _userRating > 0 ? _submitRating : null,
+                        child: const Text("Enviar valoración"),
+                      ),
+                    ),
                   ],
                 ),
 
@@ -91,7 +166,6 @@ class ProductDetailModal extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () {
-                      // 🚀 Aquí luego integran mensajería real
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text("Próximamente: contactar vendedor"),
