@@ -76,9 +76,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }
-  @override
+  }  @override
   Widget build(BuildContext context) {
+    // 👇 si estamos cargando y aún no hay productos → muestra solo el loader
     if (_isLoading && _products.isEmpty) {
       return const Scaffold(
         body: Center(
@@ -90,178 +90,199 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final screenWidth = MediaQuery.of(context).size.width;
-
+    // 👇 de lo contrario, muestra el contenido normal
     return Scaffold(
-      body: ListView(
+      backgroundColor: AppColors.fondoClaro,
+      body: SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // 🔹 Banner promocional
-          _buildPromoBanner(context),
-
-          const SizedBox(height: 24),
-
-          // 🔹 Categorías
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Categorías',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              TextButton(
-                onPressed: () {
-                  _showNotImplementedMessage(context, 'Ver todas las categorías');
-                },
-                child: const Text('Ver todas'),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          SizedBox(
-            height: 120,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                CategoryCard(
-                  icon: Icons.sports_soccer,
-                  title: 'Deportes',
-                  color: Colors.blue,
-                  onTap: () => _showNotImplementedMessage(context, 'Categoría: Deportes'),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Banner de bienvenida con gradiente
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.azulPrimario, AppColors.azulPrimario.withOpacity(0.8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                CategoryCard(
-                  icon: Icons.devices,
-                  title: 'Electrónica',
-                  color: AppColors.amarilloPrimario,
-                  onTap: () => _showNotImplementedMessage(context, 'Categoría: Electrónica'),
-                ),
-                CategoryCard(
-                  icon: Icons.checkroom,
-                  title: 'Ropa',
-                  color: Colors.orange,
-                  onTap: () => _showNotImplementedMessage(context, 'Categoría: Ropa'),
-                ),
-                CategoryCard(
-                  icon: Icons.diamond,
-                  title: 'Joyas',
-                  color: Colors.purple,
-                  onTap: () => _showNotImplementedMessage(context, 'Categoría: Joyas'),
-                ),
-                CategoryCard(
-                  icon: Icons.spa,
-                  title: 'Belleza',
-                  color: Colors.pink,
-                  onTap: () => _showNotImplementedMessage(context, 'Categoría: Belleza'),
-                ),
-                CategoryCard(
-                  icon: Icons.chair,
-                  title: 'Hogar',
-                  color: Colors.green,
-                  onTap: () => _showNotImplementedMessage(context, 'Categoría: Hogar'),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // 🔹 Productos destacados
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Productos destacados',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              TextButton(
-                onPressed: () {
-                  _showNotImplementedMessage(context, 'Ver todos los productos');
-                },
-                child: const Text('Ver todos'),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 220,
-              // 🔹 Ajuste dinámico para pantallas pequeñas
-              childAspectRatio: screenWidth < 380 ? 0.65 : 0.70,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemCount: _products.length + (_isLoading ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index >= _products.length) {
-                return const Center(
-                  child: SpinKitFadingCircle(
-                    color: AppColors.azulPrimario,
-                    size: 40.0,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.azulPrimario.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                );
-              }
-
-              final product = _products[index];
-              return ProductCard(
-                imageUrl: product.imageUrl,
-                title: product.title,
-                description: product.description,
-                price: product.price,
-                isAvailable: product.isAvailable,
-                onToggleVisibility: () {
-                  setState(() {
-                    _products[index] = product.copyWith(
-                      isAvailable: !product.isAvailable,
-                    );
-                  });
-                },
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => ProductDetailModal(product: product),
-                  );
-                },
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // 🔹 Promociones
-          const Text(
-            'Promociones',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-
-          const SizedBox(height: 12),
-
-          _buildPromotionCard(
-            context,
-            'Desayuno Completo',
-            '20% de descuento',
-            AppColors.amarilloPrimario,
-          ),
-
-          const SizedBox(height: 10),
-
-          _buildPromotionCard(
-            context,
-            'Combo Almuerzo',
-            '2x1 los miércoles',
-            AppColors.azulPrimario,
-          ),
-
-          const SizedBox(height: 24),
-        ],
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '¡Bienvenido al MicroMarket!',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Descubre productos increíbles de la comunidad UCT',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  
+                  // Categorías
+                  const Text(
+                    'Categorías',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.azulPrimario,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  // Lista horizontal de categorías (dinámico desde el servicio)
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _productService.getAllCategories().length,
+                      itemBuilder: (context, index) {
+                        final category = _productService.getAllCategories()[index];
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            left: index == 0 ? 16 : 8,
+                            right: index == _productService.getAllCategories().length - 1 ? 16 : 0,
+                          ),
+                          child: CategoryCard(
+                            icon: ProductService.getIconForName(category.iconName),
+                            title: category.name,
+                            color: _getCategoryColor(index),
+                            onTap: () => _showNotImplementedMessage(context, 'Categoría: ${category.name}'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                  
+                  // Productos destacados con card mejorada
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.grey.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.amarilloPrimario.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.star,
+                                color: AppColors.amarilloPrimario,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Productos destacados',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.azulPrimario,
+                              ),
+                            ),
+                          ],
+                        ),              
+                        const SizedBox(height: 20),
+                        
+                        // Productos destacados en grid con infinite scroll
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 0.75,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                          ),
+                          itemCount: _products.length + (_isLoading ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (index >= _products.length) {
+                              return const Center(
+                                child: SpinKitFadingCircle(
+                                  color: AppColors.azulPrimario,
+                                  size: 40.0,
+                                ),
+                              );
+                            }
+                            
+                            final product = _products[index];
+                            return ProductCard(
+                              imageUrl: product.imageUrl,
+                              title: product.title,
+                              description: product.description,
+                              price: product.price,
+                              isAvailable: product.isAvailable,
+                              onToggleVisibility: () {
+                                setState(() {
+                                  _products[index] = product.copyWith(isAvailable: !product.isAvailable);
+                                });
+                              },
+                              onTap: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => ProductDetailModal(product: product),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

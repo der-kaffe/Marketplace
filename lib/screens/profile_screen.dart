@@ -611,16 +611,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );      },
     );
   }
-
   // Método para obtener el valor correcto del dropdown de campus
   String _getCampusDropdownValue() {
     final campusOptions = [
       'Campus',
       'Campus Norte',
       'Campus San Francisco', 
-      'Campus Villarrica',
-      'Campus Los Ángeles',
-      'Campus Puerto Montt'
+      'Campus Menchaca lira',
+      'Campus Rivas del canto'
     ];
     
     if (campusOptions.contains(_direccion)) {
