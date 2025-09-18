@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/report_detail_widgets.dart';
 
 class ReportDetailPage extends StatefulWidget {
   final int? reportId;
@@ -11,7 +12,7 @@ class ReportDetailPage extends StatefulWidget {
 
 class _ReportDetailPageState extends State<ReportDetailPage> {
   String reportStatus = 'Pendiente';
-  String internalNotes = '';
+  final TextEditingController _notesController = TextEditingController();
 
   final report = {
     'title': 'Contenido inapropiado',
@@ -21,6 +22,12 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     'relacionadoCon': 'Publicación: "Oferta de trabajo falsa"',
     'evidencia': 'https://picsum.photos/400/300',
   };
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +43,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // título principal
               Text(
                 report['title']!,
                 style: textTheme.titleLarge?.copyWith(
@@ -45,32 +53,17 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               ),
               const SizedBox(height: 12),
 
-              _buildInfoRow('Descripción', report['description']!),
-              _buildInfoRow('Reportado por', report['reporter']!),
-              _buildInfoRow('Fecha', report['fecha']!),
-              _buildInfoRow('Relacionado con', report['relacionadoCon']!),
+              // info básica
+              InfoRow(label: 'Descripción', value: report['description']!),
+              InfoRow(label: 'Reportado por', value: report['reporter']!),
+              InfoRow(label: 'Fecha', value: report['fecha']!),
+              InfoRow(label: 'Relacionado con', value: report['relacionadoCon']!),
 
               const SizedBox(height: 20),
-              Text(
-                'Evidencia:',
-                style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
 
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  report['evidencia']!,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(child: CircularProgressIndicator());
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Text('Error al cargar la imagen.');
-                  },
-                ),
-              ),
+              Text('Evidencia:', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              EvidenceViewer(imageUrl: report['evidencia']!),
 
               const SizedBox(height: 24),
               _buildStatusToggle(context),
@@ -80,33 +73,18 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
               const SizedBox(height: 24),
               TextField(
+                controller: _notesController,
                 decoration: const InputDecoration(
                   labelText: 'Notas internas',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
-                onChanged: (value) => internalNotes = value,
+                onChanged: (value) {
+                  // aquí se guarda en tiempo real si quieres enviar luego a la API
+                },
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black87, fontSize: 15),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            TextSpan(text: value),
-          ],
         ),
       ),
     );
@@ -124,7 +102,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: reportStatus == 'Pendiente' ? Colors.green : Colors.grey,
-            padding: const EdgeInsets.symmetric(vertical: 14), // Clave aquí
+            padding: const EdgeInsets.symmetric(vertical: 14),
             textStyle: const TextStyle(fontSize: 16),
           ),
           onPressed: () {
@@ -144,7 +122,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           },
           child: Text(
             reportStatus == 'Pendiente' ? 'Marcar como revisado' : 'Marcar como pendiente',
-            textAlign: TextAlign.center,
           ),
         ),
       ],
@@ -158,7 +135,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.redAccent,
-            padding: const EdgeInsets.symmetric(vertical: 14), // Ajuste clave
+            padding: const EdgeInsets.symmetric(vertical: 14),
             textStyle: const TextStyle(fontSize: 16),
           ),
           onPressed: () {
@@ -173,7 +150,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orangeAccent,
-            padding: const EdgeInsets.symmetric(vertical: 14), // Ajuste clave
+            padding: const EdgeInsets.symmetric(vertical: 14),
             textStyle: const TextStyle(fontSize: 16),
           ),
           onPressed: () {
