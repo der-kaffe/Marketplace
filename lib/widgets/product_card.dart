@@ -31,7 +31,7 @@ class ProductCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      child: InkWell( // 👈 para que el resto de la tarjeta siga respondiendo al tap
+      child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
@@ -85,21 +85,23 @@ class ProductCard extends StatelessWidget {
                   child: IconButton(
                     icon: Icon(
                       isAvailable ? Icons.visibility : Icons.visibility_off,
-                      color: isAvailable ? AppColors.azulPrimario : AppColors.grisPrimario,
+                      color: isAvailable
+                          ? AppColors.azulPrimario
+                          : AppColors.grisPrimario,
                     ),
-                    onPressed: onToggleVisibility, // 👈 este no dispara el modal
+                    onPressed: onToggleVisibility,
                   ),
                 ),
               ],
             ),
 
-            // Detalles del producto
+            // 👇 sección de detalles optimizada
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min, // 👈 evita forzar altura extra
                 children: [
-                  // Título
                   Text(
                     title,
                     style: const TextStyle(
@@ -110,10 +112,7 @@ class ProductCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  
                   const SizedBox(height: 4),
-                  
-                  // Descripción
                   Text(
                     description,
                     style: const TextStyle(
@@ -123,10 +122,9 @@ class ProductCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  
                   const SizedBox(height: 8),
-                  
-                  // Precio y favorito
+
+                  // Precio y favorito alineados al fondo
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -139,8 +137,12 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                       Icon(
-                        isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: isFavorite ? AppColors.error : AppColors.grisPrimario,
+                        isFavorite
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: isFavorite
+                            ? AppColors.error
+                            : AppColors.grisPrimario,
                       ),
                     ],
                   ),
