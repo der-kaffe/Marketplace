@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../widgets/report_card.dart';
 
 class ReportItem {
   final int id;
@@ -93,48 +94,47 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   }
 
   Widget _buildReportCard(ReportItem report) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4F4), // rojo claro
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.report_gmailerrorred, color: Colors.red[700], size: 34),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  report.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.redAccent),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  report.description,
-                  style: TextStyle(color: Colors.grey[700], fontSize: 12),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Reportado por: ${report.reporter}',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                ),
-              ],
-            ),
+    return ReportCard(
+      id: report.id,
+      title: report.title,
+      description: report.description,
+      reporter: report.reporter,
+      onView: () {
+        // navega al detalle (usa push para mantener historial)
+        context.push('/admin/reports/${report.id}');
+      },
+      onResolve: () {
+        // ejemplo: solo simulamos
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reporte ${report.id} marcado como resuelto.')),
+        );
+        // Aquí puedes llamar tu API para marcar resuelto
+      },
+      onDelete: () {
+        // ejemplo: confirmar eliminación
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Confirmar'),
+            content: const Text('¿Eliminar este reporte?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  setState(() {
+                    _reports.removeWhere((r) => r.id == report.id);
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Reporte eliminado.')),
+                  );
+                },
+                child: const Text('Eliminar'),
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.visibility_outlined, color: Colors.blue),
-            tooltip: 'Ver detalles',
-            onPressed: () {
-              context.push('/admin/reports/${report.id}');
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
