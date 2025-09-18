@@ -147,8 +147,7 @@ class ProductService {
       rating: 4.4,
       reviewCount: 130,
       category: 'deportes',
-    ),
-    Product(
+    ),    Product(
       id: '15',
       title: 'Vestido de Fiesta',
       description: 'Vestido elegante para ocasiones especiales',
@@ -158,15 +157,101 @@ class ProductService {
       reviewCount: 140,
       category: 'ropa',
     ),
+    // Productos para las nuevas categorías
+    Product(
+      id: '16',
+      title: 'Toyota Corolla 2020',
+      description: 'Automóvil en excelente estado, único dueño',
+      price: 12500000,
+      imageUrl: _defaultImage,
+      rating: 4.8,
+      reviewCount: 45,
+      category: 'vehiculos',
+    ),
+    Product(
+      id: '17',
+      title: 'Casa en Las Condes',
+      description: 'Casa de 3 dormitorios con jardín',
+      price: 180000000,
+      imageUrl: _defaultImage,
+      rating: 4.9,
+      reviewCount: 12,
+      category: 'inmuebles',
+    ),
+    Product(
+      id: '18',
+      title: 'Cuna de Bebé',
+      description: 'Cuna convertible con colchón incluido',
+      price: 159990,
+      imageUrl: _defaultImage,
+      rating: 4.6,
+      reviewCount: 78,
+      category: 'bebes_ninos',
+    ),
+    Product(
+      id: '19',
+      title: 'LEGO Creator 3-en-1',
+      description: 'Set de construcción para niños de 8+ años',
+      price: 89990,
+      imageUrl: _defaultImage,
+      rating: 4.8,
+      reviewCount: 156,
+      category: 'juguetes',
+    ),
+    Product(
+      id: '20',
+      title: 'Taladro Inalámbrico',
+      description: 'Taladro de 18V con baterías incluidas',
+      price: 69990,
+      imageUrl: _defaultImage,
+      rating: 4.5,
+      reviewCount: 89,
+      category: 'herramientas',
+    ),
+    Product(
+      id: '21',
+      title: 'Casa para Perro',
+      description: 'Casa resistente al agua para mascotas medianas',
+      price: 49990,
+      imageUrl: _defaultImage,
+      rating: 4.7,
+      reviewCount: 67,
+      category: 'mascotas',
+    ),
+    Product(
+      id: '22',
+      title: 'Servicio de Limpieza',
+      description: 'Limpieza profunda de hogar por 4 horas',
+      price: 25000,
+      imageUrl: _defaultImage,
+      rating: 4.9,
+      reviewCount: 234,
+      category: 'servicios',
+    ),
+    Product(
+      id: '23',
+      title: 'Alquiler Sala de Eventos',
+      description: 'Sala para 50 personas con equipamiento',
+      price: 80000,
+      imageUrl: _defaultImage,
+      rating: 4.6,
+      reviewCount: 43,
+      category: 'alquileres',
+    ),
   ];
-
   /// Lista de categorías simuladas
   final List<Category> _categories = [
     const Category(
-      id: 'deportes',
-      name: 'Deportes',
-      description: 'Artículos deportivos y equipamiento',
-      iconName: 'sports_soccer',
+      id: 'vehiculos',
+      name: 'Vehículos',
+      description: 'Autos, motos y accesorios automotrices',
+      iconName: 'directions_car',
+    ),
+    const Category(
+      id: 'inmuebles',
+      name: 'Propiedades / Inmuebles',
+      description: 'Compra y venta de propiedades',
+      iconName: 'home',
     ),
     const Category(
       id: 'electronica',
@@ -175,10 +260,46 @@ class ProductService {
       iconName: 'devices',
     ),
     const Category(
+      id: 'hogar',
+      name: 'Hogar y jardín',
+      description: 'Muebles, decoración y jardinería',
+      iconName: 'chair',
+    ),
+    const Category(
       id: 'ropa',
-      name: 'Ropa',
-      description: 'Moda para todas las edades',
+      name: 'Moda y accesorios',
+      description: 'Ropa, zapatos y accesorios para todas las edades',
       iconName: 'checkroom',
+    ),
+    const Category(
+      id: 'bebes_ninos',
+      name: 'Bebés y niños',
+      description: 'Productos para bebés y niños',
+      iconName: 'child_care',
+    ),
+    const Category(
+      id: 'juguetes',
+      name: 'Juguetes y juegos',
+      description: 'Juguetes, juegos de mesa y entretenimiento',
+      iconName: 'toys',
+    ),
+    const Category(
+      id: 'herramientas',
+      name: 'Herramientas',
+      description: 'Herramientas de trabajo y bricolaje',
+      iconName: 'build',
+    ),
+    const Category(
+      id: 'deportes',
+      name: 'Deportes y ocio',
+      description: 'Artículos deportivos y recreación',
+      iconName: 'sports_soccer',
+    ),
+    const Category(
+      id: 'mascotas',
+      name: 'Mascotas y productos para animales',
+      description: 'Accesorios y productos para mascotas',
+      iconName: 'pets',
     ),
     const Category(
       id: 'joyas',
@@ -193,10 +314,16 @@ class ProductService {
       iconName: 'spa',
     ),
     const Category(
-      id: 'hogar',
-      name: 'Hogar',
-      description: 'Muebles y decoración',
-      iconName: 'chair',
+      id: 'servicios',
+      name: 'Servicios',
+      description: 'Servicios profesionales y técnicos',
+      iconName: 'work',
+    ),
+    const Category(
+      id: 'alquileres',
+      name: 'Alquileres',
+      description: 'Alquiler de productos y espacios',
+      iconName: 'apartment',
     ),
   ];
 
@@ -241,21 +368,36 @@ class ProductService {
       return null;
     }
   }
-
   static IconData getIconForName(String iconName) {
     switch (iconName) {
-      case 'sports_soccer':
-        return Icons.sports_soccer;
+      case 'directions_car':
+        return Icons.directions_car;
+      case 'home':
+        return Icons.home;
       case 'devices':
         return Icons.devices;
+      case 'chair':
+        return Icons.chair;
       case 'checkroom':
         return Icons.checkroom;
+      case 'child_care':
+        return Icons.child_care;
+      case 'toys':
+        return Icons.toys;
+      case 'build':
+        return Icons.build;
+      case 'sports_soccer':
+        return Icons.sports_soccer;
+      case 'pets':
+        return Icons.pets;
       case 'diamond':
         return Icons.diamond;
       case 'spa':
         return Icons.spa;
-      case 'chair':
-        return Icons.chair;
+      case 'work':
+        return Icons.work;
+      case 'apartment':
+        return Icons.apartment;
       default:
         return Icons.category;
     }

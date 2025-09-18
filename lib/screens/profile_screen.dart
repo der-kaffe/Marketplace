@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
-import 'package:marketplace/services/auth_service.dart';
 import '../services/auth_service.dart';
 
 // Instancia global para manejar Google Sign-In
@@ -18,6 +17,10 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
+  
+  // Variables para campos editables(por el momento solo teléfono y dirección, los otros no deberian ser editables)
+  String _direccion = 'Campus';
+  String _telefono = '+56 9 1234 5678';
 
   @override
   void initState() {
@@ -49,18 +52,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Encabezado del perfil
                 _buildProfileHeader(),
 
-                const SizedBox(height: 20),
-
-                // Información personal
+                const SizedBox(height: 20),                // Información personal
                 _buildInfoSection(
                   title: 'Información Personal',
                   items: [
                     _buildInfoItem(
                         Icons.person, 'Nombre completo', 'Carlos García López'),
                     _buildInfoItem(Icons.email, 'Email', 'carlos.garcia@ejemplo.com'),
-                    _buildInfoItem(Icons.phone, 'Teléfono', '+56 9 1234 5678'),
-                    _buildInfoItem(
-                        Icons.location_on, 'Dirección', 'Av. Alemania 0211, Temuco'),
+                    _buildEditableInfoItem(Icons.phone, 'Teléfono', _telefono, () => _editField('teléfono')),
+                    _buildEditableInfoItem(
+                        Icons.location_on, 'Campus/Dirección', _direccion, () => _editField('dirección')),
                   ],
                 ),
 
@@ -94,9 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 16),
-
-                // Opciones de cuenta
+                const SizedBox(height: 16),                // Opciones de cuenta
                 _buildInfoSection(
                   title: 'Mi Cuenta',
                   items: [
@@ -105,24 +104,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: 'Mis Favoritos',
                       color: AppColors.error,
                       onTap: () => _navigateToSection(context, 2),
-                    ),
-                    _buildActionItem(
+                    ),                    _buildActionItem(
                       icon: Icons.notifications,
                       title: 'Notificaciones',
                       color: AppColors.amarilloPrimario,
                       onTap: () => _showFeatureMessage(context, 'Notificaciones'),
-                    ),
-                    _buildActionItem(
-                      icon: Icons.payment,
-                      title: 'Métodos de Pago',
-                      color: AppColors.azulPrimario,
-                      onTap: () => _showFeatureMessage(context, 'Métodos de Pago'),
-                    ),
-                    _buildActionItem(
-                      icon: Icons.settings,
-                      title: 'Configuración',
-                      color: AppColors.grisPrimario,
-                      onTap: () => _showFeatureMessage(context, 'Configuración'),
                     ),
                     _buildActionItem(
                       icon: Icons.help_outline,
@@ -212,7 +198,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text(
-              'Cliente Premium',
+              'Usuario',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -496,8 +482,150 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text('Confirmar'),
             ),
           ],
-        );
-      },
+        );      },
     );
+  }
+
+  // Widget para campos editables
+  Widget _buildEditableInfoItem(IconData icon, String label, String value, VoidCallback onEdit) {
+    return InkWell(
+      onTap: onEdit,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.azulPrimario.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 20, color: AppColors.azulPrimario),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 14, color: AppColors.textoSecundario)),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textoOscuro),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.edit, color: AppColors.grisPrimario, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Método para editar campos
+  void _editField(String fieldType) {
+    String currentValue = fieldType == 'teléfono' ? _telefono : _direccion;
+    TextEditingController controller = TextEditingController(text: currentValue);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Editar $fieldType'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (fieldType == 'dirección') ...[
+                const Text(
+                  'Selecciona tu ubicación:',
+                  style: TextStyle(fontSize: 14, color: AppColors.textoSecundario),
+                ),
+                const SizedBox(height: 12),                DropdownButtonFormField<String>(
+                  value: _getCampusDropdownValue(),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Ubicación',
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Campus', child: Text('Campus UCT - Sede Principal')),
+                    DropdownMenuItem(value: 'Campus Norte', child: Text('Campus Norte UCT')),
+                    DropdownMenuItem(value: 'Campus San Francisco', child: Text('Campus San Francisco')),
+                    DropdownMenuItem(value: 'Campus Menchaca lira', child: Text('Campus Menchaca lira')),
+                    DropdownMenuItem(value: 'Campus Rivas del canto', child: Text('Campus Rivas del canto')),
+                    DropdownMenuItem(value: 'Dirección personalizada', child: Text('Dirección personalizada')),
+                  ],
+                  onChanged: (value) {
+                    if (value != 'Dirección personalizada') {
+                      controller.text = value ?? 'Campus';
+                    } else {
+                      controller.text = _direccion.contains('Campus') ? '' : _direccion;
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: controller,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  labelText: fieldType == 'teléfono' ? 'Número de teléfono' : 'Dirección detallada',
+                  hintText: fieldType == 'teléfono' 
+                    ? '+56 9 1234 5678' 
+                    : 'Ej: Av. Alemania 0211, Temuco',
+                ),
+                keyboardType: fieldType == 'teléfono' ? TextInputType.phone : TextInputType.text,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  if (fieldType == 'teléfono') {
+                    _telefono = controller.text.trim();
+                  } else {
+                    _direccion = controller.text.trim();
+                  }
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('$fieldType actualizado correctamente'),
+                    backgroundColor: AppColors.exito,
+                  ),
+                );
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );      },
+    );
+  }
+
+  // Método para obtener el valor correcto del dropdown de campus
+  String _getCampusDropdownValue() {
+    final campusOptions = [
+      'Campus',
+      'Campus Norte',
+      'Campus San Francisco', 
+      'Campus Villarrica',
+      'Campus Los Ángeles',
+      'Campus Puerto Montt'
+    ];
+    
+    if (campusOptions.contains(_direccion)) {
+      return _direccion;
+    }
+    return 'Dirección personalizada';
   }
 }

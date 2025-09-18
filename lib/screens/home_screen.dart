@@ -35,7 +35,27 @@ class _HomeScreenState extends State<HomeScreen> {
           !_isLoading) {
         _loadMore();
       }
-    });
+    });  }
+
+  // Método para asignar colores a las categorías dinámicamente
+  Color _getCategoryColor(int index) {
+    final colors = [
+      Colors.blue,                      // Vehículos
+      AppColors.azulPrimario,          // Inmuebles  
+      AppColors.amarilloPrimario,      // Electrónica
+      Colors.green,                    // Hogar y jardín
+      Colors.orange,                   // Moda y accesorios
+      Colors.pink,                     // Bebés y niños
+      Colors.red,                      // Juguetes y juegos
+      Colors.brown,                    // Herramientas
+      Colors.blue,                     // Deportes y ocio
+      Colors.purple,                   // Mascotas
+      Colors.purple,                   // Joyas
+      Colors.pink,                     // Belleza
+      Colors.teal,                     // Servicios
+      Colors.indigo,                   // Alquileres
+    ];
+    return colors[index % colors.length];
   }
 
   Future<void> _loadMore() async {
@@ -57,7 +77,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading && _products.isEmpty) {
@@ -246,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
+
   // Método para mostrar mensaje cuando una función aún no está implementada
   void _showNotImplementedMessage(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -255,146 +274,6 @@ class _HomeScreenState extends State<HomeScreen> {
         behavior: SnackBarBehavior.floating,
         backgroundColor: AppColors.azulPrimario,
         duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  // Widget para el banner promocional (original)
-  Widget _buildPromoBanner(BuildContext context) {
-    return Container(
-      height: 180,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.azulPrimario, Color(0xFF003F7F)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomRight: Radius.circular(16),
-              ),
-              child: Opacity(
-                opacity: 0.2,
-                child: Image.network(
-                  'https://via.placeholder.com/200',
-                  width: 150,
-                  height: 150,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  '¡Bienvenido a MicroMarket!',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Encuentra los mejores productos de la UCT',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    _showNotImplementedMessage(context, 'Explorar productos');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.amarilloPrimario,
-                    foregroundColor: Colors.black,
-                  ),
-                  child: const Text('Explorar'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  // Widget para las tarjetas de promoción (original)
-  Widget _buildPromotionCard(BuildContext context, String title, String subtitle, Color color) {
-    return GestureDetector(
-      onTap: () => _showNotImplementedMessage(context, 'Promoción: $title'),
-      child: Container(
-        width: double.infinity,
-        height: 100,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: color.withOpacity(0.2),
-          border: Border.all(color: color.withOpacity(0.5), width: 1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 8,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  bottomLeft: Radius.circular(16),
-                ),
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: Colors.black.withOpacity(0.7),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.local_offer,
-                      color: color,
-                      size: 40,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
