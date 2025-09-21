@@ -65,7 +65,28 @@ class AppRouter {
       ),
       GoRoute(
         path: '/login',
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const LoginScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            // Animación de desplazamiento de abajo hacia arriba
+            const begin = Offset(0.0, 1.0); // Comienza desde abajo
+            const end = Offset.zero; // Termina en posición normal
+            const curve = Curves.easeOutQuart; // Curva suave para el movimiento
+            
+            var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+            var offsetAnimation = animation.drive(tween);
+            
+            return SlideTransition(
+              position: offsetAnimation,
+              child: FadeTransition(
+                opacity: animation,
+                child: child,
+              ),
+            );
+          },
+          transitionDuration: const Duration(milliseconds: 700),
+        ),
       ),
 
       // Rutas principales de la aplicación dentro de un ShellRoute para la barra de navegación
