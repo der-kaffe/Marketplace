@@ -11,7 +11,8 @@ class Product {
   final bool isAvailable;
   final bool isFavorite;
 
-  // 👤 Nuevo: datos del vendedor
+  // 👤 Datos del vendedor
+  final String sellerId;
   final String? sellerName;
   final String? sellerAvatar;
 
@@ -26,6 +27,7 @@ class Product {
     required this.category,
     this.isAvailable = true,
     this.isFavorite = false,
+    required this.sellerId,
     this.sellerName,
     this.sellerAvatar,
   });
@@ -42,6 +44,7 @@ class Product {
     String? category,
     bool? isAvailable,
     bool? isFavorite,
+    String? sellerId,
     String? sellerName,
     String? sellerAvatar,
   }) {
@@ -56,6 +59,7 @@ class Product {
       category: category ?? this.category,
       isAvailable: isAvailable ?? this.isAvailable,
       isFavorite: isFavorite ?? this.isFavorite,
+      sellerId: sellerId ?? this.sellerId,
       sellerName: sellerName ?? this.sellerName,
       sellerAvatar: sellerAvatar ?? this.sellerAvatar,
     );
@@ -74,6 +78,7 @@ class Product {
       'category': category,
       'isAvailable': isAvailable,
       'isFavorite': isFavorite,
+      'sellerId': sellerId,
       'sellerName': sellerName,
       'sellerAvatar': sellerAvatar,
     };
@@ -92,6 +97,7 @@ class Product {
       category: json['category'] as String,
       isAvailable: json['isAvailable'] as bool? ?? true,
       isFavorite: json['isFavorite'] as bool? ?? false,
+      sellerId: json['sellerId'] as String,
       sellerName: json['sellerName'] as String?,
       sellerAvatar: json['sellerAvatar'] as String?,
     );

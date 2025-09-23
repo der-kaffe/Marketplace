@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
+import '../models/seller_model.dart';
 import '../theme/app_colors.dart';
+import '../screens/seller_profile_page.dart';
+import '../services/product_service.dart';
 
 class ProductDetailModal extends StatefulWidget {
   final Product product;
@@ -12,7 +15,7 @@ class ProductDetailModal extends StatefulWidget {
 }
 
 class _ProductDetailModalState extends State<ProductDetailModal> {
-  int _userRating = 0; // ⭐ Valoración seleccionada por el usuario
+  int _userRating = 0;
 
   void _submitRating() {
     if (_userRating > 0) {
@@ -43,7 +46,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Imagen
+                // Imagen del producto
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
@@ -65,7 +68,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     color: AppColors.azulPrimario,
                   ),
                 ),
-
                 const SizedBox(height: 8),
 
                 // Precio
@@ -77,7 +79,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     color: AppColors.azulOscuro,
                   ),
                 ),
-
                 const SizedBox(height: 16),
 
                 // Descripción
@@ -85,7 +86,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   widget.product.description,
                   style: const TextStyle(fontSize: 16),
                 ),
-
                 const SizedBox(height: 16),
 
                 // ⭐ Promedio y reseñas
@@ -94,16 +94,14 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     Icon(Icons.star, color: Colors.amber.shade700, size: 20),
                     const SizedBox(width: 4),
                     Text(
-                      "${widget.product.rating} "
-                      "(${widget.product.reviewCount} reseñas)",
+                      "${widget.product.rating} (${widget.product.reviewCount} reseñas)",
                       style: const TextStyle(fontSize: 14),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 12),
 
-                // ⭐ Valoración interactiva del usuario
+                // ⭐ Valoración interactiva
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -134,10 +132,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     if (_userRating > 0)
                       Text("Seleccionaste: $_userRating estrellas",
                           style: const TextStyle(fontSize: 13)),
-
                     const SizedBox(height: 8),
-
-                    // Botón de enviar valoración
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -152,32 +147,41 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 24),
 
-                // Perfil del vendedor 👤
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundImage: NetworkImage(
-                        widget.product.sellerAvatar ??
-                            "https://via.placeholder.com/150",
+                // Perfil del vendedor clickable
+                InkWell(
+                  onTap: () {
+                    final seller = ProductService().getSellerInfo(widget.product.sellerId);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SellerProfilePage(seller: seller),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        widget.product.sellerName ?? "Vendedor desconocido",
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                    );
+                  },
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundImage: NetworkImage(
+                          widget.product.sellerAvatar ??
+                              "https://via.placeholder.com/150",
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          widget.product.sellerName ?? "Vendedor desconocido",
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-
                 const SizedBox(height: 16),
 
                 // Botón de contactar
@@ -192,8 +196,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text("Próximamente: contactar vendedor"),
-                        ),
+                            content: Text("Próximamente: contactar vendedor")),
                       );
                     },
                     icon: const Icon(Icons.chat_bubble_outline),

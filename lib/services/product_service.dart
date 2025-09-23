@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
+import '../models/seller_model.dart';
 
-/// Clase para gestionar los productos de la aplicación
 class ProductService {
   static const String _defaultImage = 'assets/producto_sin_foto.jpg';
 
-  /// Lista de productos simulados para la aplicación
+  final List<String> _campusUcTemuco = [
+    "Campus San Francisco",
+    "Campus Los Castaños",
+    "Campus Manuel Montt",
+    "Campus San Juan Pablo II"
+  ];
+
   final List<Product> _products = [
     Product(
       id: '1',
@@ -17,6 +23,8 @@ class ProductService {
       rating: 4.8,
       reviewCount: 120,
       category: 'electronica',
+      isAvailable: true,
+      sellerId: 'seller1',
       sellerName: 'Juan Pérez',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
@@ -25,10 +33,12 @@ class ProductService {
       title: 'Zapatillas Running',
       description: 'Zapatillas deportivas para running con suela amortiguada',
       price: 89990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://assets.adidas.com/images/w_600,f_auto,q_auto/123456_adidas-running-shoes.jpg',
       rating: 4.6,
       reviewCount: 95,
       category: 'deportes',
+      sellerId: 'seller2',
       sellerName: 'Laura Gómez',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
@@ -37,10 +47,12 @@ class ProductService {
       title: 'Chaqueta de Cuero',
       description: 'Chaqueta de cuero genuino con forro interior',
       price: 129990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.shopify.com/s/files/1/0271/3135/9281/products/chaqueta_cuero_negro_600x600.jpg',
       rating: 4.5,
       reviewCount: 78,
       category: 'ropa',
+      sellerId: 'seller3',
       sellerName: 'Carlos López',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
@@ -49,10 +61,12 @@ class ProductService {
       title: 'Anillo de Plata',
       description: 'Anillo de plata 925 con diseño minimalista',
       price: 35000,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.shopify.com/s/files/1/0269/4393/9899/products/anillo-plata-minimalista-600x600.jpg',
       rating: 4.7,
       reviewCount: 105,
       category: 'joyas',
+      sellerId: 'seller4',
       sellerName: 'Ana Torres',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
     ),
@@ -62,10 +76,12 @@ class ProductService {
       description:
           'Set completo de maquillaje con paleta de sombras y labiales',
       price: 45990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2018/03/13/21/28/makeup-3225174_1280.jpg',
       rating: 4.9,
       reviewCount: 150,
       category: 'belleza',
+      sellerId: 'seller5',
       sellerName: 'Marta Fernández',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/5.jpg',
     ),
@@ -74,183 +90,253 @@ class ProductService {
       title: 'Lámpara Moderna',
       description: 'Lámpara de mesa con diseño contemporáneo',
       price: 39990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2017/01/31/17/47/lamp-2029073_1280.jpg',
       rating: 4.4,
       reviewCount: 65,
       category: 'hogar',
+      sellerId: 'seller6',
+      sellerName: 'Pedro Martínez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/6.jpg',
     ),
     Product(
       id: '7',
       title: 'Audífonos Bluetooth',
       description: 'Sonido de alta calidad con cancelación de ruido',
       price: 54990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/11/29/10/07/headphones-1868617_1280.jpg',
       rating: 4.3,
       reviewCount: 210,
       category: 'electronica',
+      sellerId: 'seller1',
+      sellerName: 'Juan Pérez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
     Product(
       id: '8',
       title: 'Pelota de Fútbol',
       description: 'Pelota oficial tamaño 5',
       price: 15990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2014/12/27/15/41/football-581074_1280.jpg',
       rating: 4.1,
       reviewCount: 88,
       category: 'deportes',
+      sellerId: 'seller2',
+      sellerName: 'Laura Gómez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
     Product(
       id: '9',
       title: 'Polera Estampada',
       description: 'Polera 100% algodón con diseño original',
       price: 12990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/03/27/21/50/t-shirt-1280007_1280.jpg',
       rating: 4.2,
       reviewCount: 67,
       category: 'ropa',
+      sellerId: 'seller3',
+      sellerName: 'Carlos López',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
     Product(
       id: '10',
       title: 'Collar de Acero',
       description: 'Collar con dije minimalista',
       price: 24990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2017/03/14/02/12/necklace-2132311_1280.jpg',
       rating: 4.6,
       reviewCount: 50,
       category: 'joyas',
+      sellerId: 'seller4',
+      sellerName: 'Ana Torres',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
     ),
     Product(
       id: '11',
       title: 'Perfume Floral',
       description: 'Aroma fresco y duradero',
       price: 69990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/03/31/19/54/perfume-1299396_1280.jpg',
       rating: 4.8,
       reviewCount: 190,
       category: 'belleza',
+      sellerId: 'seller5',
+      sellerName: 'Marta Fernández',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/5.jpg',
     ),
     Product(
       id: '12',
       title: 'Sillón Reclinable',
       description: 'Comodidad premium para tu sala de estar',
       price: 299990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/03/27/22/22/armchair-1280950_1280.jpg',
       rating: 4.9,
       reviewCount: 73,
       category: 'hogar',
+      sellerId: 'seller6',
+      sellerName: 'Pedro Martínez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/6.jpg',
     ),
     Product(
       id: '13',
       title: 'Smartwatch Fit',
       description: 'Monitorea tu actividad física y salud',
       price: 89990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2018/01/17/07/26/smartwatch-3080846_1280.jpg',
       rating: 4.5,
       reviewCount: 220,
       category: 'electronica',
+      sellerId: 'seller1',
+      sellerName: 'Juan Pérez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
     Product(
       id: '14',
       title: 'Raqueta de Tenis',
       description: 'Raqueta profesional ligera y resistente',
       price: 75990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2017/06/22/19/12/tennis-2434815_1280.jpg',
       rating: 4.4,
       reviewCount: 130,
       category: 'deportes',
+      sellerId: 'seller2',
+      sellerName: 'Laura Gómez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
     Product(
       id: '15',
       title: 'Vestido de Fiesta',
       description: 'Vestido elegante para ocasiones especiales',
       price: 119990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/03/27/21/52/dress-1280011_1280.jpg',
       rating: 4.7,
       reviewCount: 140,
       category: 'ropa',
+      sellerId: 'seller3',
+      sellerName: 'Carlos López',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
-    // Productos para las nuevas categorías
     Product(
       id: '16',
       title: 'Toyota Corolla 2020',
       description: 'Automóvil en excelente estado, único dueño',
       price: 12500000,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2014/10/23/18/05/car-500234_1280.jpg',
       rating: 4.8,
       reviewCount: 45,
       category: 'vehiculos',
+      sellerId: 'seller7',
+      sellerName: 'Ricardo Silva',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/7.jpg',
     ),
     Product(
       id: '17',
       title: 'Casa en Las Condes',
       description: 'Casa de 3 dormitorios con jardín',
       price: 180000000,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/11/29/03/53/architecture-1867187_1280.jpg',
       rating: 4.9,
       reviewCount: 12,
       category: 'inmuebles',
+      sellerId: 'seller8',
+      sellerName: 'Valentina Rojas',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/8.jpg',
     ),
     Product(
       id: '18',
       title: 'Cuna de Bebé',
       description: 'Cuna convertible con colchón incluido',
       price: 159990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2017/07/02/20/15/crib-2471391_1280.jpg',
       rating: 4.6,
       reviewCount: 78,
       category: 'bebes_ninos',
+      sellerId: 'seller9',
+      sellerName: 'Sofía Herrera',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/9.jpg',
     ),
     Product(
       id: '19',
       title: 'LEGO Creator 3-en-1',
       description: 'Set de construcción para niños de 8+ años',
       price: 89990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2016/03/31/19/58/lego-1299401_1280.jpg',
       rating: 4.8,
       reviewCount: 156,
       category: 'juguetes',
+      sellerId: 'seller9',
+      sellerName: 'Sofía Herrera',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/9.jpg',
     ),
     Product(
       id: '20',
       title: 'Taladro Inalámbrico',
       description: 'Taladro de 18V con baterías incluidas',
       price: 69990,
-      imageUrl: _defaultImage,
+      imageUrl:
+          'https://cdn.pixabay.com/photo/2017/07/21/19/55/drill-2523361_1280.jpg',
       rating: 4.5,
       reviewCount: 89,
       category: 'herramientas',
-    ),
-    Product(
-      id: '21',
-      title: 'Casa para Perro',
-      description: 'Casa resistente al agua para mascotas medianas',
-      price: 49990,
-      imageUrl: _defaultImage,
-      rating: 4.7,
-      reviewCount: 67,
-      category: 'mascotas',
-    ),
-    Product(
-      id: '22',
-      title: 'Servicio de Limpieza',
-      description: 'Limpieza profunda de hogar por 4 horas',
-      price: 25000,
-      imageUrl: _defaultImage,
-      rating: 4.9,
-      reviewCount: 234,
-      category: 'servicios',
-    ),
-    Product(
-      id: '23',
-      title: 'Alquiler Sala de Eventos',
-      description: 'Sala para 50 personas con equipamiento',
-      price: 80000,
-      imageUrl: _defaultImage,
-      rating: 4.6,
-      reviewCount: 43,
-      category: 'alquileres',
+      sellerId: 'seller10',
+      sellerName: 'Ignacio Muñoz',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/10.jpg',
     ),
   ];
+
+  /// Obtiene info dinámica del vendedor
+  Seller getSellerInfo(String sellerId) {
+    final sellerProducts =
+        _products.where((p) => p.sellerId == sellerId).toList();
+
+    if (sellerProducts.isEmpty) {
+      return Seller(
+        name: "Vendedor desconocido",
+        avatar: "https://via.placeholder.com/150",
+        location: _campusUcTemuco[0],
+        reputation: 0.0,
+        totalSales: 0,
+        activeListings: 0,
+        soldListings: 0,
+      );
+    }
+
+    final firstProduct = sellerProducts.first;
+    final totalSales = sellerProducts.length;
+    final activeListings = sellerProducts.where((p) => p.isAvailable).length;
+    final soldListings = sellerProducts.where((p) => !p.isAvailable).length;
+
+    // Campus aleatorio
+    final location = (_campusUcTemuco..shuffle()).first;
+
+    // Reputación promedio
+    final reputation =
+        sellerProducts.map((p) => p.rating).reduce((a, b) => a + b) /
+            sellerProducts.length;
+
+    return Seller(
+      name: firstProduct.sellerName ?? "Vendedor",
+      avatar: firstProduct.sellerAvatar ?? "https://via.placeholder.com/150",
+      location: location,
+      reputation: reputation,
+      totalSales: totalSales,
+      activeListings: activeListings,
+      soldListings: soldListings,
+    );
+  }
 
   /// Lista de categorías simuladas
   final List<Category> _categories = [
