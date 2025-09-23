@@ -149,39 +149,41 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                 ),
                 const SizedBox(height: 24),
 
-                // Perfil del vendedor clickable
-                InkWell(
-                  onTap: () {
-                    final seller = ProductService().getSellerInfo(widget.product.sellerId);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SellerProfilePage(seller: seller),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.azulPrimario,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  },
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 28,
-                        backgroundImage: NetworkImage(
-                          widget.product.sellerAvatar ??
-                              "https://via.placeholder.com/150",
+                      elevation: 5,
+                      shadowColor: Colors.black45,
+                    ),
+                    icon: CircleAvatar(
+                      radius: 20,
+                      backgroundImage: NetworkImage(
+                        widget.product.sellerAvatar ?? "https://via.placeholder.com/150",
+                      ),
+                    ),
+                    label: Text(
+                      "Ver perfil del vendedor: ${widget.product.sellerName ?? 'Desconocido'}",
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      final seller = ProductService().getSellerInfo(widget.product.sellerId);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SellerProfilePage(seller: seller),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          widget.product.sellerName ?? "Vendedor desconocido",
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
+
                 const SizedBox(height: 16),
 
                 // Botón de contactar
