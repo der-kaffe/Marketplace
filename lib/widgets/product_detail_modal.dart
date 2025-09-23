@@ -21,7 +21,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
           content: Text("¡Gracias por valorar con $_userRating estrellas!"),
         ),
       );
-      // Aquí en el futuro -> enviar a Firebase/API
     }
   }
 
@@ -155,6 +154,31 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                 ),
 
                 const SizedBox(height: 24),
+
+                // Perfil del vendedor 👤
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundImage: NetworkImage(
+                        widget.product.sellerAvatar ??
+                            "https://via.placeholder.com/150",
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.product.sellerName ?? "Vendedor desconocido",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
 
                 // Botón de contactar
                 SizedBox(

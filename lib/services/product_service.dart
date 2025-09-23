@@ -17,16 +17,20 @@ class ProductService {
       rating: 4.8,
       reviewCount: 120,
       category: 'electronica',
+      sellerName: 'Juan Pérez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
     Product(
       id: '2',
       title: 'Zapatillas Running',
       description: 'Zapatillas deportivas para running con suela amortiguada',
       price: 89990,
-      imageUrl: _defaultImage, // 👈 ahora usa la local
+      imageUrl: _defaultImage,
       rating: 4.6,
       reviewCount: 95,
       category: 'deportes',
+      sellerName: 'Laura Gómez',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
     Product(
       id: '3',
@@ -37,6 +41,8 @@ class ProductService {
       rating: 4.5,
       reviewCount: 78,
       category: 'ropa',
+      sellerName: 'Carlos López',
+      sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
     Product(
       id: '4',
@@ -47,16 +53,21 @@ class ProductService {
       rating: 4.7,
       reviewCount: 105,
       category: 'joyas',
+      sellerName: 'Ana Torres',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
     ),
     Product(
       id: '5',
       title: 'Set de Maquillaje',
-      description: 'Set completo de maquillaje con paleta de sombras y labiales',
+      description:
+          'Set completo de maquillaje con paleta de sombras y labiales',
       price: 45990,
       imageUrl: _defaultImage,
       rating: 4.9,
       reviewCount: 150,
       category: 'belleza',
+      sellerName: 'Marta Fernández',
+      sellerAvatar: 'https://randomuser.me/api/portraits/women/5.jpg',
     ),
     Product(
       id: '6',
@@ -147,7 +158,8 @@ class ProductService {
       rating: 4.4,
       reviewCount: 130,
       category: 'deportes',
-    ),    Product(
+    ),
+    Product(
       id: '15',
       title: 'Vestido de Fiesta',
       description: 'Vestido elegante para ocasiones especiales',
@@ -239,6 +251,7 @@ class ProductService {
       category: 'alquileres',
     ),
   ];
+
   /// Lista de categorías simuladas
   final List<Category> _categories = [
     const Category(
@@ -331,7 +344,8 @@ class ProductService {
   Future<List<Product>> fetchProducts({int page = 0, int limit = 6}) async {
     await Future.delayed(const Duration(seconds: 1)); // simula red
     final start = page * limit;
-    final end = (start + limit > _products.length) ? _products.length : start + limit;
+    final end =
+        (start + limit > _products.length) ? _products.length : start + limit;
     if (start >= _products.length) return [];
     return _products.sublist(start, end);
   }
@@ -368,6 +382,7 @@ class ProductService {
       return null;
     }
   }
+
   static IconData getIconForName(String iconName) {
     switch (iconName) {
       case 'directions_car':

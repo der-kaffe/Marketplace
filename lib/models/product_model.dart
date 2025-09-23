@@ -11,6 +11,10 @@ class Product {
   final bool isAvailable;
   final bool isFavorite;
 
+  // 👤 Nuevo: datos del vendedor
+  final String? sellerName;
+  final String? sellerAvatar;
+
   const Product({
     required this.id,
     required this.title,
@@ -22,6 +26,8 @@ class Product {
     required this.category,
     this.isAvailable = true,
     this.isFavorite = false,
+    this.sellerName,
+    this.sellerAvatar,
   });
 
   /// Crea una copia del producto con algunos campos modificados
@@ -36,6 +42,8 @@ class Product {
     String? category,
     bool? isAvailable,
     bool? isFavorite,
+    String? sellerName,
+    String? sellerAvatar,
   }) {
     return Product(
       id: id ?? this.id,
@@ -48,6 +56,8 @@ class Product {
       category: category ?? this.category,
       isAvailable: isAvailable ?? this.isAvailable,
       isFavorite: isFavorite ?? this.isFavorite,
+      sellerName: sellerName ?? this.sellerName,
+      sellerAvatar: sellerAvatar ?? this.sellerAvatar,
     );
   }
 
@@ -64,6 +74,8 @@ class Product {
       'category': category,
       'isAvailable': isAvailable,
       'isFavorite': isFavorite,
+      'sellerName': sellerName,
+      'sellerAvatar': sellerAvatar,
     };
   }
 
@@ -80,6 +92,8 @@ class Product {
       category: json['category'] as String,
       isAvailable: json['isAvailable'] as bool? ?? true,
       isFavorite: json['isFavorite'] as bool? ?? false,
+      sellerName: json['sellerName'] as String?,
+      sellerAvatar: json['sellerAvatar'] as String?,
     );
   }
 }
