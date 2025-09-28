@@ -42,9 +42,8 @@ class ProductCard extends StatelessWidget {
                 children: [
                   Container(
                     height: constraints.maxHeight * 0.45, // 45% de la altura
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.grisPrimario.withOpacity(0.2),
+                    width: double.infinity,                    decoration: BoxDecoration(
+                      color: AppColors.grisPrimario.withValues(alpha: 0.2),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         topRight: Radius.circular(12),

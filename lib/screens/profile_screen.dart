@@ -169,7 +169,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               border: Border.all(color: AppColors.blanco, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
+                  color: Colors.black.withValues(alpha: 0.2),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
@@ -240,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.blanco.withOpacity(0.8),
+              color: AppColors.blanco.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -252,7 +252,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       height: 30,
       width: 1,
-      color: AppColors.blanco.withOpacity(0.3),
+      color: AppColors.blanco.withValues(alpha: 0.3),
     );
   }
 
@@ -267,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -302,7 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.azulPrimario.withOpacity(0.1),
+              color: AppColors.azulPrimario.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 20, color: AppColors.azulPrimario),
@@ -344,7 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.azulPrimario.withOpacity(0.1),
+              color: AppColors.azulPrimario.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child:
@@ -381,7 +381,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                          color: statusColor.withOpacity(0.1),
+                          color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4)),
                       child: Text(status,
                           style: TextStyle(
@@ -414,7 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, size: 20, color: color),
             ),
@@ -497,7 +497,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.azulPrimario.withOpacity(0.1),
+                color: AppColors.azulPrimario.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 20, color: AppColors.azulPrimario),

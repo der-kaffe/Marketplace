@@ -101,6 +101,46 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _passwordController.dispose();
     super.dispose();
   }
+  // Login con email y password (nuevo método)
+  void _loginWithEmailPassword() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor completa todos los campos'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final authService = AuthService();
+      final response = await authService.loginWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+
+      if (response.ok && mounted) {
+        context.go('/home');
+      }
+    } catch (error) {
+      print('⚠️ Error al iniciar sesión: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${error.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   void _loginWithGoogle() async {
     setState(() => _isLoading = true);
@@ -138,33 +178,31 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       // --- Obtener autenticación ---
       final googleAuth = await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
-      final String? accessToken = googleAuth.accessToken;
 
-      print('ID Token: $idToken');
-      print('Access Token: $accessToken');
-
-      // --- CASO DE ÉXITO ---
-      print('✅ Acceso permitido: ${googleUser.displayName}');
-
-      // Usar accessToken si idToken es null (solución para web)
-      final String tokenToUse = idToken ?? accessToken ?? '';
-
-      if (tokenToUse.isNotEmpty) {
+      if (idToken != null) {
+        // Usar la nueva API
         final authService = AuthService();
-        await authService.saveToken(tokenToUse);
+        final response = await authService.loginWithGoogle(
+          idToken: idToken,
+          email: googleUser.email,
+          name: googleUser.displayName ?? '',
+          googleId: googleUser.id,
+          avatarUrl: googleUser.photoUrl,
+        );
 
-        if (mounted) {
+        if (response.ok && mounted) {
+          print('✅ Login con Google exitoso: ${response.user?.name}');
           context.go('/home');
         }
       } else {
-        throw Exception('No se pudo obtener ningún token de autenticación');
+        throw Exception('No se pudo obtener token de Google');
       }
     } catch (error) {
-      print('⚠️ Error al iniciar sesión: $error');
+      print('⚠️ Error al iniciar sesión con Google: $error');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al iniciar sesión: ${error.toString()}'),
+            content: Text('Error: ${error.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -236,7 +274,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       // 1. Imagen de fondo
                       Image.asset('assets/universidad.jpg', fit: BoxFit.cover),
                       // 2. Capa de color azul con opacidad
-                      Container(color: const Color(0xFF005A8A).withOpacity(0.6)),
+                      Container(color: const Color(0xFF005A8A).withValues(alpha: 0.6)),
                     ],
                   ),
                 ),
@@ -374,16 +412,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               ),
                             ],
                           ),
-                          const SizedBox(height: 20),
-                          // Botón Login azul
+                          const SizedBox(height: 20),                          // Botón Login azul
                           SizedBox(
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : () {
-                                // Por ahora usa Google login
-                                _loginWithGoogle();
-                              },
+                              onPressed: _isLoading ? null : _loginWithEmailPassword,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.azulPrimario,
                                 foregroundColor: Colors.white,
@@ -476,7 +510,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _loginAsAdmin,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red.withOpacity(0.8),
+                                    backgroundColor: Colors.red.withValues(alpha: 0.8),
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(25),

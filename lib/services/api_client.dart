@@ -1,0 +1,444 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../core/config/api_config.dart';
+
+class ApiClient {
+  final String baseUrl;
+  String? _token;
+
+  ApiClient({required this.baseUrl});
+
+  // Configurar token de autenticación
+  void setToken(String token) {
+    _token = token;
+  }
+
+  // Eliminar token
+  void clearToken() {
+    _token = null;
+  }
+
+  // Headers comunes
+  Map<String, String> get _headers {
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (_token != null) {
+      headers['Authorization'] = 'Bearer $_token';
+    }
+    
+    return headers;
+  }
+
+  // Manejo de respuestas
+  Map<String, dynamic> _handleResponse(http.Response response) {
+    final body = json.decode(response.body);
+    
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return body;
+    } else {
+      throw ApiException(
+        message: body['message'] ?? 'Error desconocido',
+        statusCode: response.statusCode,
+        errors: body['errors'],
+      );
+    }
+  }
+
+  // Health check
+  Future<Map<String, dynamic>> health() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/health'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException(message: 'Error de conexión: $e');
+    }
+  }
+
+  // AUTH ENDPOINTS
+
+  // Login con email y password
+  Future<LoginResponse> login(String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/login'),
+        headers: _headers,
+        body: json.encode({
+          'email': email,
+          'password': password,
+        }),
+      );
+      
+      final data = _handleResponse(response);
+      return LoginResponse.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Registro
+  Future<LoginResponse> register(String email, String password, String name) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/register'),
+        headers: _headers,
+        body: json.encode({
+          'email': email,
+          'password': password,
+          'name': name,
+        }),
+      );
+      
+      final data = _handleResponse(response);
+      return LoginResponse.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Login con Google
+  Future<LoginResponse> loginWithGoogle({
+    required String idToken,
+    required String email,
+    required String name,
+    String? googleId,
+    String? avatarUrl,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/auth/google'),
+        headers: _headers,
+        body: json.encode({
+          'idToken': idToken,
+          'email': email,
+          'name': name,
+          'googleId': googleId,
+          'avatarUrl': avatarUrl,
+        }),
+      );
+      
+      final data = _handleResponse(response);
+      return LoginResponse.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // USER ENDPOINTS
+
+  // Obtener perfil del usuario actual
+  Future<Map<String, dynamic>> getUserProfile() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/users/profile'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // PRODUCT ENDPOINTS
+
+  // Listar productos
+  Future<ProductsResponse> getProducts({
+    String? category,
+    String? search,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      
+      if (category != null) queryParams['category'] = category;
+      if (search != null) queryParams['search'] = search;
+      
+      final uri = Uri.parse('$baseUrl/api/products').replace(
+        queryParameters: queryParams,
+      );
+      
+      final response = await http.get(uri, headers: _headers);
+      final data = _handleResponse(response);
+      return ProductsResponse.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Obtener producto por ID
+  Future<Map<String, dynamic>> getProduct(int id) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/products/$id'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Crear producto
+  Future<Map<String, dynamic>> createProduct({
+    required String title,
+    required String description,
+    required double price,
+    required String category,
+    String? conditionType,
+    List<String>? images,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/products'),
+        headers: _headers,
+        body: json.encode({
+          'title': title,
+          'description': description,
+          'price': price,
+          'category': category,
+          'condition_type': conditionType ?? 'used',
+          'images': images ?? [],
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Obtener categorías
+  Future<List<Category>> getCategories() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/products/categories/list'),
+        headers: _headers,
+      );
+      final data = _handleResponse(response);
+      return (data['categories'] as List)
+          .map((cat) => Category.fromJson(cat))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
+
+// Helper para obtener la URL base según la plataforma
+String getDefaultBaseUrl() {
+  return ApiConfig.baseUrl;
+}
+
+// Modelos de respuesta
+class LoginResponse {
+  final bool ok;
+  final String message;
+  final String? token;
+  final String? refreshToken;
+  final User? user;
+
+  LoginResponse({
+    required this.ok,
+    required this.message,
+    this.token,
+    this.refreshToken,
+    this.user,
+  });
+
+  factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    final data = json['data'];
+    return LoginResponse(
+      ok: json['ok'] ?? false,
+      message: json['message'] ?? '',
+      token: data?['accessToken'],
+      refreshToken: data?['refreshToken'],
+      user: data?['user'] != null ? User.fromJson(data['user']) : null,
+    );
+  }
+}
+
+class User {
+  final int id;
+  final String email;
+  final String name;
+  final String role;
+  final String? username;
+  final String? campus;
+  final double? reputation;
+
+  User({
+    required this.id,
+    required this.email,
+    required this.name,
+    required this.role,
+    this.username,
+    this.campus,
+    this.reputation,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'],
+      email: json['email'],
+      name: json['name'],
+      role: json['role'],
+      username: json['username'],
+      campus: json['campus'],
+      reputation: json['reputation']?.toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'name': name,
+      'role': role,
+      'username': username,
+      'campus': campus,
+      'reputation': reputation,
+    };
+  }
+}
+
+class ProductsResponse {
+  final bool ok;
+  final List<Product> products;
+  final Pagination pagination;
+
+  ProductsResponse({
+    required this.ok,
+    required this.products,
+    required this.pagination,
+  });
+
+  factory ProductsResponse.fromJson(Map<String, dynamic> json) {
+    return ProductsResponse(
+      ok: json['ok'] ?? false,
+      products: (json['products'] as List? ?? [])
+          .map((p) => Product.fromJson(p))
+          .toList(),
+      pagination: Pagination.fromJson(json['pagination'] ?? {}),
+    );
+  }
+}
+
+class Product {
+  final int id;
+  final String title;
+  final String description;
+  final double price;
+  final String category;
+  final String conditionType;
+  final List<String> images;
+  final bool isAvailable;
+  final bool isFeatured;
+  final DateTime createdAt;
+  final String sellerName;
+  final String sellerEmail;
+
+  Product({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.price,
+    required this.category,
+    required this.conditionType,
+    required this.images,
+    required this.isAvailable,
+    required this.isFeatured,
+    required this.createdAt,
+    required this.sellerName,
+    required this.sellerEmail,
+  });
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'],
+      title: json['title'],
+      description: json['description'],
+      price: double.parse(json['price'].toString()),
+      category: json['category'],
+      conditionType: json['condition_type'],
+      images: json['images'] != null 
+          ? List<String>.from(json['images'])
+          : [],
+      isAvailable: json['is_available'] ?? true,
+      isFeatured: json['is_featured'] ?? false,
+      createdAt: DateTime.parse(json['created_at']),
+      sellerName: json['seller_name'] ?? '',
+      sellerEmail: json['seller_email'] ?? '',
+    );
+  }
+}
+
+class Category {
+  final int id;
+  final String name;
+  final String? description;
+  final String? icon;
+  final bool isActive;
+
+  Category({
+    required this.id,
+    required this.name,
+    this.description,
+    this.icon,
+    required this.isActive,
+  });
+
+  factory Category.fromJson(Map<String, dynamic> json) {
+    return Category(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      icon: json['icon'],
+      isActive: json['is_active'] ?? true,
+    );
+  }
+}
+
+class Pagination {
+  final int page;
+  final int limit;
+  final int total;
+
+  Pagination({
+    required this.page,
+    required this.limit,
+    required this.total,
+  });
+
+  factory Pagination.fromJson(Map<String, dynamic> json) {
+    return Pagination(
+      page: json['page'] ?? 1,
+      limit: json['limit'] ?? 20,
+      total: json['total'] ?? 0,
+    );
+  }
+}
+
+// Excepción personalizada para errores de API
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  final List<dynamic>? errors;
+
+  ApiException({
+    required this.message,
+    this.statusCode,
+    this.errors,
+  });
+
+  @override
+  String toString() {
+    return 'ApiException: $message (Status: $statusCode)';
+  }
+}

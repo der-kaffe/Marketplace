@@ -98,7 +98,7 @@ class _ChatViewState extends State<ChatView> {
                   decoration: BoxDecoration(
                     color: isMe
                         ? AppColors.azulPrimario
-                        : AppColors.grisClaro.withOpacity(0.25),
+                        : AppColors.grisClaro.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(16),
                       topRight: const Radius.circular(16),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:math';
 
 class StartupScreen extends StatelessWidget {
   const StartupScreen({super.key});
@@ -19,11 +18,10 @@ class StartupScreen extends StatelessWidget {
               clipper: WaveClipper(),
               child: Stack(
                 fit: StackFit.expand,
-                children: [
-                  // 1. Imagen de fondo local
+                children: [                  // 1. Imagen de fondo local
                   Image.asset('assets/universidad.jpg', fit: BoxFit.cover),
                   // 2. Capa de color azul con opacidad
-                  Container(color: const Color(0xFF005A8A).withOpacity(0.75)),
+                  Container(color: const Color(0xFF005A8A).withValues(alpha: 0.75)),
                   // 3. Líneas blancas estilo topografía
                 ],
               ),
