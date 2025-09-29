@@ -10,7 +10,7 @@ class CustomBottomNavigation extends StatelessWidget {
     super.key,
     required this.currentIndex,
     required this.onTap,
-    required this.onNewPost, // 👈 requerido
+    required this.onNewPost, 
   });
 
   @override
@@ -18,21 +18,38 @@ class CustomBottomNavigation extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.azulPrimario,
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+        borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(0), topRight: Radius.circular(0)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _NavItem(icon: Icons.home, label: 'Home', isSelected: currentIndex == 0, onTap: () => onTap(0)),
-            _NavItem(icon: Icons.message, label: 'Mensajes', isSelected: currentIndex == 1, onTap: () => onTap(1)),
+            _NavItem(
+                icon: Icons.home,
+                label: 'Home',
+                isSelected: currentIndex == 0,
+                onTap: () => onTap(0)),
+            _NavItem(
+                icon: Icons.message,
+                label: 'Mensajes',
+                isSelected: currentIndex == 1,
+                onTap: () => onTap(1)),
 
             // 👇 Botón central grande "Nuevo"
             _NewPostButton(onTap: onNewPost),
 
-            _NavItem(icon: Icons.favorite, label: 'Favoritos', isSelected: currentIndex == 2, onTap: () => onTap(2)),
-            _NavItem(icon: Icons.person, label: 'Perfil', isSelected: currentIndex == 3, onTap: () => onTap(3)),
+            _NavItem(
+                icon: Icons.favorite,
+                label: 'Favoritos',
+                isSelected: currentIndex == 2,
+                onTap: () => onTap(2)),
+            _NavItem(
+                icon: Icons.person,
+                label: 'Perfil',
+                isSelected: currentIndex == 3,
+                onTap: () => onTap(3)),
           ],
         ),
       ),
@@ -57,7 +74,10 @@ class _NewPostButton extends StatelessWidget {
           decoration: const BoxDecoration(
             color: AppColors.amarilloPrimario,
             shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))],
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black26, blurRadius: 8, offset: Offset(0, 3))
+            ],
           ),
           child: const Icon(Icons.add, size: 30, color: AppColors.azulPrimario),
         ),
@@ -91,7 +111,10 @@ class _NavItem extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(color: color, fontSize: isSelected ? 12 : 11, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+            style: TextStyle(
+                color: color,
+                fontSize: isSelected ? 12 : 11,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
           ),
         ],
       ),
