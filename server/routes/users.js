@@ -1,11 +1,12 @@
 const express = require('express');
 const { prisma } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const AppError = require('../utils/AppError');
 
 const router = express.Router();
 
 // GET /api/users/profile - Obtener perfil del usuario actual
-router.get('/profile', authenticateToken, async (req, res) => {
+router.get('/profile', authenticateToken, async (req, res, next) => {
   try {
     const user = await prisma.cuentas.findUnique({
       where: { id: req.user.userId },
@@ -17,15 +18,17 @@ router.get('/profile', authenticateToken, async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({
-        ok: false,
-        message: 'Usuario no encontrado'
-      });
+      throw new AppError(
+        "Usuario no encontrado",
+        "USER_NOT_FOUND",
+        404,
+        { field: "id" }
+      );
     }
 
     res.json({
-      ok: true,
-      user: {
+      success: true,
+      data: {
         id: user.id,
         correo: user.correo,
         usuario: user.usuario,
@@ -41,22 +44,20 @@ router.get('/profile', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error obteniendo perfil:', error);
-    res.status(500).json({
-      ok: false,
-      message: 'Error interno del servidor'
-    });
+    next(error); // lo captura el errorHandler
   }
 });
 
 // GET /api/users - Listar usuarios (solo admin)
-router.get('/', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, async (req, res, next) => {
   try {
     if (req.user.role !== 'Administrador') {
-      return res.status(403).json({
-        ok: false,
-        message: 'Acceso denegado'
-      });
+      throw new AppError(
+        "Acceso denegado",
+        "FORBIDDEN",
+        403,
+        { requiredRole: "Administrador" }
+      );
     }
 
     const users = await prisma.cuentas.findMany({
@@ -71,8 +72,10 @@ router.get('/', authenticateToken, async (req, res) => {
     });
 
     res.json({
-      ok: true,      users: users.map(user => ({
-        id: user.id,        correo: user.correo,
+      success: true,
+      data: users.map(user => ({
+        id: user.id,
+        correo: user.correo,
         usuario: user.usuario,
         nombre: user.nombre,
         apellido: user.apellido,
@@ -86,11 +89,7 @@ router.get('/', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error listando usuarios:', error);
-    res.status(500).json({
-      ok: false,
-      message: 'Error interno del servidor'
-    });
+    next(error);
   }
 });
 

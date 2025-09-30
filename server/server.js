@@ -80,23 +80,17 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 
 // Middleware de manejo de errores
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  
-  if (err.message === 'No permitido por CORS') {
-    return res.status(403).json({ error: 'CORS: Origen no permitido' });
-  }
-  
-  res.status(500).json({ 
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Error interno del servidor',
-    timestamp: new Date().toISOString()
-  });
-});
+const errorHandler = require('./middleware/errorHandler');
+app.use(errorHandler);
 
 // Ruta 404
 app.use('*', (req, res) => {
-  res.status(404).json({ 
-    error: 'Ruta no encontrada',
+  res.status(404).json({
+    success: false,
+    error: {
+      code: "NOT_FOUND",
+      message: "Ruta no encontrada"
+    },
     path: req.originalUrl,
     timestamp: new Date().toISOString()
   });

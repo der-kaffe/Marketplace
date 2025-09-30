@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const AppError = require('../utils/AppError');
 
 // Middleware para verificar JWT
 const authenticateToken = (req, res, next) => {
@@ -6,20 +7,22 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({
-      ok: false,
-      message: 'Token de acceso requerido'
-    });
+    return next(new AppError(
+      "Token de acceso requerido",
+      "TOKEN_REQUIRED",
+      401
+    ));
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({
-        ok: false,
-        message: 'Token inválido o expirado'
-      });
+      return next(new AppError(
+        "Token inválido o expirado",
+        "TOKEN_INVALID",
+        403
+      ));
     }
-    
+
     req.user = user;
     next();
   });
@@ -28,10 +31,12 @@ const authenticateToken = (req, res, next) => {
 // Middleware para verificar rol de admin
 const requireAdmin = (req, res, next) => {
   if (req.user.role !== 'ADMIN') {
-    return res.status(403).json({
-      ok: false,
-      message: 'Acceso denegado: se requieren permisos de administrador'
-    });
+    return next(new AppError(
+      "Acceso denegado: se requieren permisos de administrador",
+      "FORBIDDEN_ADMIN",
+      403,
+      { requiredRole: "ADMIN" }
+    ));
   }
   next();
 };
@@ -39,10 +44,12 @@ const requireAdmin = (req, res, next) => {
 // Middleware para verificar rol de vendedor o admin
 const requireVendor = (req, res, next) => {
   if (!['ADMIN', 'VENDEDOR'].includes(req.user.role)) {
-    return res.status(403).json({
-      ok: false,
-      message: 'Acceso denegado: se requieren permisos de vendedor'
-    });
+    return next(new AppError(
+      "Acceso denegado: se requieren permisos de vendedor",
+      "FORBIDDEN_VENDOR",
+      403,
+      { requiredRoles: ["ADMIN", "VENDEDOR"] }
+    ));
   }
   next();
 };
