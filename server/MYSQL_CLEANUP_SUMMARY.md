@@ -104,8 +104,3 @@ El proyecto ahora es:
    npm run db:seed
    npm run dev
    ```
-
-El proyecto está ahora **COMPLETAMENTE LIBRE DE MYSQL** y listo para usar con PostgreSQL.
-
----
-*Limpieza completada el: 30 de septiembre de 2025*

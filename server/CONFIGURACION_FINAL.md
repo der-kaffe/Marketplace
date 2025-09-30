@@ -65,5 +65,3 @@ npm run dev          # Iniciar servidor
 
 ## 🎉 ¡La migración está 100% completa!
 
-Todos los archivos han sido actualizados y están listos para PostgreSQL.
-Solo necesitas configurar la base de datos y ¡comenzar a usar!

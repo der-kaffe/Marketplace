@@ -1,4 +1,3 @@
-Genial 🚀, aquí te dejo un **README.md** para tu módulo de **autenticación (`routes/auth.js`)**, bien documentado y listo para que tu equipo lo use:
 
 ````markdown
 # 📌 API de Autenticación

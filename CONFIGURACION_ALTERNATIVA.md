@@ -158,12 +158,3 @@ Si prefieres usar PostgreSQL (recomendado):
 DB_PASSWORD=tu_password_mysql
 ```
 
-## Próximos Pasos
-
-Una vez que tengas el servidor funcionando (demo o MySQL), podrás:
-
-1. **Probar la API** en http://localhost:3001/api/health
-2. **Usar tu app Flutter** con login de email/password
-3. **Añadir más productos y usuarios**
-
-¿Cuál opción prefieres usar?
