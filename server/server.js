@@ -9,6 +9,7 @@ const { testConnection, closeConnection } = require('./config/database');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
+const publicationsRoutes = require('./routes/publications');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -78,6 +79,7 @@ app.get('/api/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/publications', publicationsRoutes);
 
 // Middleware de manejo de errores
 const errorHandler = require('./middleware/errorHandler');
