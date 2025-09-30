@@ -1,10 +1,10 @@
-# Configuración Alternativa - Sin Base de Datos
+# Configuración Alternativa - Modo Demo
 
-Si tienes problemas configurando MySQL, puedes usar el servidor en modo "demo" sin base de datos.
+Si necesitas probar rápidamente sin configurar PostgreSQL, puedes usar el servidor en modo "demo" con datos en memoria.
 
-## Opción 1: Modo Demo (Recomendado para pruebas)
+## Opción 1: Modo Demo (Para pruebas rápidas)
 
-Vamos a configurar el servidor para que funcione con datos en memoria sin necesidad de MySQL.
+Servidor con datos en memoria, sin necesidad de base de datos externa.
 
 ### Crear servidor demo:
 
@@ -129,36 +129,32 @@ cd server
 node demo-server.js
 ```
 
-## Opción 2: Configuración Manual de MySQL
+## Opción 2: Configuración con PostgreSQL + Prisma
 
-Si prefieres usar MySQL:
+Si prefieres usar PostgreSQL (recomendado):
 
-1. **Abre MySQL Workbench o MySQL Command Line**
-2. **Conecta con tus credenciales actuales**
-3. **Ejecuta este script SQL:**
+1. **Instalar PostgreSQL:**
+   - Descargar desde: https://www.postgresql.org/download/
+   - O usar Docker: `docker run --name postgres -e POSTGRES_PASSWORD=password -d -p 5432:5432 postgres`
 
-```sql
-CREATE DATABASE IF NOT EXISTS marketplace;
-USE marketplace;
+2. **Configurar variables de entorno:**
+   ```bash
+   cd server
+   # Editar .env con tu configuración
+   ```
 
-CREATE TABLE users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    role ENUM('student', 'admin', 'guest') DEFAULT 'student',
-    email_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+3. **Configurar base de datos:**
+   ```bash
+   npm install
+   npm run db:push
+   npm run db:seed
+   npm run dev
+   ```
 
-INSERT INTO users (email, password, name, role, email_verified) VALUES 
-('demo@uct.cl', '$2a$10$8ZJQJRGOp5GE9q.PLUYQUeIwJvMxXqYdR7lJpOHYzW3z2IzZxrqfu', 'Usuario Demo', 'student', TRUE);
-```
-
-4. **Actualiza el archivo `server/.env` con tus credenciales:**
-
-```env
-DB_USER=tu_usuario_mysql
+4. **Usuarios por defecto creados:**
+   - admin@uct.cl / admin123 (ADMIN)
+   - vendedor@uct.cl / vendor123 (VENDEDOR)
+   - cliente@alu.uct.cl / client123 (CLIENTE)
 DB_PASSWORD=tu_password_mysql
 ```
 

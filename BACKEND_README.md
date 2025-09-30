@@ -1,61 +1,66 @@
 # Marketplace UCT - Backend Setup
 
-Este proyecto incluye un backend Node.js con MySQL para la aplicación Flutter Marketplace.
+Este proyecto incluye un backend Node.js con PostgreSQL y Prisma ORM para la aplicación Flutter Marketplace.
 
 ## 🚀 Configuración Rápida
 
 ### Prerrequisitos
 - Node.js 18+ instalado
-- MySQL 8.0+ instalado (XAMPP, MySQL Workbench, o instalación directa)
+- PostgreSQL 12+ instalado
 
 ### Opción 1: Con Docker (Recomendado)
 ```bash
-docker-compose up -d
+# Iniciar PostgreSQL con Docker
+docker run --name postgres -e POSTGRES_PASSWORD=password -d -p 5432:5432 postgres
+
 cd server
 npm install
+npm run db:push
+npm run db:seed
 npm run dev
 ```
 
-### Opción 2: Sin Docker (MySQL local)
+### Opción 2: PostgreSQL local
 
-1. **Instalar MySQL:**
-   - Descargar e instalar MySQL desde: https://dev.mysql.com/downloads/mysql/
-   - O usar XAMPP: https://www.apachefriends.org/download.html
+1. **Instalar PostgreSQL:**
+   - Descargar desde: https://www.postgresql.org/download/
+   - O usar Docker como se muestra arriba
 
-2. **Configurar Base de Datos:**
-   ```sql
-   CREATE DATABASE marketplace;
-   CREATE USER 'marketuser'@'localhost' IDENTIFIED BY 'market123';
-   GRANT ALL PRIVILEGES ON marketplace.* TO 'marketuser'@'localhost';
-   FLUSH PRIVILEGES;
+2. **Configurar variables de entorno:**
+   - Editar `server/.env` con tu configuración:
+   ```env
+   DATABASE_URL="postgresql://username:password@localhost:5432/marketplace"
    ```
 
-3. **Ejecutar script SQL:**
-   - Importar el archivo `server/sql/init.sql` en MySQL Workbench o phpMyAdmin
+3. **Configurar base de datos:**
+   ```bash
+   cd server
+   npm install
+   npm run db:push     # Aplicar schema
+   npm run db:seed     # Datos iniciales
+   npm run dev         # Iniciar servidor
+   ```
 
-4. **Iniciar el servidor:**
-   - Hacer doble clic en `start-server.bat`
-   - O manualmente:
-     ```bash
-     cd server
-     npm install
-     npm run dev
-     ```
+### Opción 3: Servicios en la nube
+- **Neon**: https://neon.tech (PostgreSQL serverless)
+- **Supabase**: https://supabase.com
+- **Railway**: https://railway.app
 
 ## 📁 Estructura del Backend
 
 ```
 server/
 ├── config/
-│   └── database.js          # Configuración MySQL
+│   └── database.js          # Configuración Prisma
 ├── middleware/
 │   └── auth.js              # Middleware de autenticación JWT
+├── prisma/
+│   ├── schema.prisma        # Schema de base de datos
+│   └── seed.js              # Datos iniciales
 ├── routes/
 │   ├── auth.js              # Rutas de autenticación
 │   ├── users.js             # Rutas de usuarios
 │   └── products.js          # Rutas de productos
-├── sql/
-│   └── init.sql             # Script de inicialización DB
 ├── .env                     # Variables de entorno
 ├── package.json
 └── server.js               # Servidor principal
@@ -65,15 +70,13 @@ server/
 
 ### Variables de Entorno (.env)
 ```env
+DATABASE_URL="postgresql://username:password@localhost:5432/marketplace"
 PORT=3001
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=marketuser
-DB_PASSWORD=market123
-DB_NAME=marketplace
-JWT_SECRET=tu_jwt_secret_muy_seguro_aqui_2024_marketplace
-CORS_ORIGIN=http://localhost:*,http://127.0.0.1:*
+JWT_SECRET=marketplace_jwt_secret_super_seguro_cambiar_en_produccion_2024
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://localhost:3000,http://localhost:8080
 NODE_ENV=development
+BCRYPT_ROUNDS=12
 ```
 
 ## 📊 Endpoints de la API
@@ -96,14 +99,28 @@ NODE_ENV=development
 ### Health Check
 - `GET /api/health` - Estado del servidor y DB
 
-## 🧪 Usuarios de Prueba
+## 🧪 Usuarios de Prueba (después del seed)
 
 | Email | Password | Rol |
 |-------|----------|-----|
-| demo@uct.cl | demo123 | student |
-| admin@uct.cl | demo123 | admin |
+| admin@uct.cl | admin123 | ADMIN |
+| vendedor@uct.cl | vendor123 | VENDEDOR |
+| cliente@alu.uct.cl | client123 | CLIENTE |
 
-## 🛠️ Testing de la API
+## 🛠️ Scripts Disponibles
+
+```bash
+npm run dev          # Iniciar servidor en desarrollo
+npm run start        # Iniciar servidor en producción
+npm run db:generate  # Generar cliente Prisma
+npm run db:push      # Aplicar schema sin migraciones
+npm run db:migrate   # Crear y aplicar migraciones
+npm run db:seed      # Poblar con datos iniciales
+npm run db:studio    # Abrir Prisma Studio
+npm run verify       # Verificar configuración
+```
+
+## 🧪 Testing de la API
 
 ### Con curl:
 ```bash
@@ -113,23 +130,20 @@ curl http://localhost:3001/api/health
 # Login
 curl -X POST http://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"demo@uct.cl","password":"demo123"}'
+  -d '{"email":"admin@uct.cl","password":"admin123"}'
 
 # Listar productos
 curl http://localhost:3001/api/products
 ```
 
-### Con Postman:
-Importar la colección desde: `server/postman/marketplace-api.postman_collection.json` (próximamente)
+## 🔍 Panel de Administración de Base de Datos
 
-## 🔍 Panel de Administración MySQL
-
-Si usas Docker:
-- Adminer: http://localhost:8080
-- Servidor: `mysql`
-- Usuario: `marketuser`
-- Password: `market123`
-- Base de datos: `marketplace`
+### Prisma Studio (Recomendado)
+```bash
+npm run db:studio
+```
+- URL: http://localhost:5555
+- Interfaz visual para explorar y editar datos
 
 ## ⚡ Flutter Integration
 

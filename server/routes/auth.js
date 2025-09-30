@@ -2,7 +2,11 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { pool } = require('../config/database');
+const { prisma } = require('../config/database'); express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
+const { prisma } = require('../config/database');
 
 const router = express.Router();
 
@@ -31,41 +35,39 @@ router.post('/login', [
   handleValidationErrors
 ], async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body;    // Buscar usuario
+    const user = await prisma.cuentas.findFirst({
+      where: {
+        correo: email,
+        estadoId: 1 // Estado activo
+      },
+      include: {
+        rol: true,
+        estado: true
+      }
+    });
 
-    // Buscar usuario
-    const [users] = await pool.query(
-      'SELECT id, email, password, name, role, is_active FROM users WHERE email = ? AND is_active = TRUE',
-      [email]
-    );
-
-    if (users.length === 0) {
+    if (!user) {
       return res.status(401).json({
         ok: false,
         message: 'Credenciales inválidas'
       });
-    }
-
-    const user = users[0];
-
-    // Verificar password
-    const passwordMatch = await bcrypt.compare(password, user.password);
+    }    // Verificar password
+    const passwordMatch = await bcrypt.compare(password, user.contrasena);
     if (!passwordMatch) {
       return res.status(401).json({
         ok: false,
         message: 'Credenciales inválidas'
       });
-    }
-
-    // Generar JWT
+    }    // Generar JWT
     const token = jwt.sign(
       { 
         userId: user.id, 
-        email: user.email, 
-        role: user.role 
+        email: user.correo, 
+        role: user.rol.nombre 
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
     res.json({
@@ -74,9 +76,12 @@ router.post('/login', [
       token,
       user: {
         id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
+        email: user.correo,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        role: user.rol.nombre,
+        campus: user.campus,
+        reputacion: user.reputacion
       }
     });
 
@@ -104,56 +109,90 @@ router.post('/register', [
   body('password')
     .isLength({ min: 6 })
     .withMessage('Password debe tener al menos 6 caracteres'),
-  body('name')
+  body('nombre')
     .isLength({ min: 2 })
     .withMessage('Nombre debe tener al menos 2 caracteres'),
+  body('usuario')
+    .isLength({ min: 3 })
+    .withMessage('Usuario debe tener al menos 3 caracteres'),
   handleValidationErrors
 ], async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, nombre, usuario } = req.body;
 
-    // Verificar si el usuario ya existe
-    const [existingUsers] = await pool.query(
-      'SELECT id FROM users WHERE email = ?',
-      [email]
-    );
+    // Verificar si el usuario ya existe (por correo o usuario)
+    const existingUser = await prisma.cuentas.findFirst({
+      where: {
+        OR: [
+          { correo: email },
+          { usuario: usuario }
+        ]
+      }
+    });
 
-    if (existingUsers.length > 0) {
+    if (existingUser) {
+      const campo = existingUser.correo === email ? 'correo' : 'usuario';
       return res.status(409).json({
         ok: false,
-        message: 'El usuario ya existe'
+        message: `El ${campo} ya está en uso`
       });
     }
 
     // Hashear password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+
+    // Determinar rol según email
+    const rolId = email.endsWith('@uct.cl') ? 2 : 3; // 2 = Vendedor, 3 = Cliente
 
     // Crear usuario
-    const [result] = await pool.query(
-      'INSERT INTO users (email, password, name, role, email_verified) VALUES (?, ?, ?, ?, ?)',
-      [email, hashedPassword, name, 'student', true]
-    );
+    const newUser = await prisma.cuentas.create({
+      data: {
+        correo: email,
+        contrasena: hashedPassword,
+        nombre: nombre,
+        usuario: usuario,
+        apellido: '', // Se puede actualizar después
+        rolId: rolId,
+        estadoId: 1, // Estado activo
+        campus: 'Campus Temuco'
+      },
+      include: {
+        rol: true,
+        estado: true
+      }    });
+
+    // Crear resumen inicial del usuario
+    await prisma.resumenUsuario.create({
+      data: {
+        usuarioId: newUser.id,
+        totalProductos: 0,
+        totalVentas: 0,
+        totalCompras: 0,
+        promedioCalificacion: 0.0
+      }
+    });
 
     // Generar JWT
     const token = jwt.sign(
       { 
-        userId: result.insertId, 
-        email, 
-        role: 'student' 
+        userId: newUser.id, 
+        email: newUser.correo, 
+        role: newUser.rol.nombre 
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );    res.status(201).json({
       ok: true,
       message: 'Usuario registrado exitosamente',
       token,
       user: {
-        id: result.insertId,
-        email,
-        name,
-        role: 'student'
+        id: newUser.id,
+        correo: newUser.correo,
+        usuario: newUser.usuario,
+        nombre: newUser.nombre,
+        apellido: newUser.apellido,
+        role: newUser.rol.nombre,
+        campus: newUser.campus
       }
     });
 
@@ -182,47 +221,64 @@ router.post('/google', [
         ok: false,
         message: 'Solo se permiten correos de @uct.cl o @alu.uct.cl'
       });
-    }
+    }    // Buscar usuario existente
+    let user = await prisma.cuentas.findFirst({
+      where: {
+        correo: email,
+        estadoId: 1 // Estado activo
+      },
+      include: {
+        rol: true,
+        estado: true
+      }
+    });
 
-    // Buscar o crear usuario
-    let [users] = await pool.query(
-      'SELECT id, email, name, role, is_active FROM users WHERE email = ? OR google_id = ?',
-      [email, googleId]
-    );
-
-    let user;
-    if (users.length === 0) {
+    if (!user) {
+      // Determinar rol según email
+      const rolId = email.endsWith('@uct.cl') ? 2 : 3; // 2 = Vendedor, 3 = Cliente
+      
+      // Generar usuario único basado en el nombre
+      const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
+      const usuario = `${baseUsuario}_${Date.now()}`;
+      
       // Crear nuevo usuario
-      const [result] = await pool.query(
-        'INSERT INTO users (email, password, name, role, google_id, avatar_url, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [email, '', name, 'student', googleId, avatarUrl, true]
-      );
-      
-      user = {
-        id: result.insertId,
-        email,
-        name,
-        role: 'student'
-      };
-    } else {
-      user = users[0];
-      
-      // Actualizar información de Google si es necesario
-      await pool.query(
-        'UPDATE users SET google_id = ?, avatar_url = ?, name = ? WHERE id = ?',
-        [googleId, avatarUrl, name, user.id]
-      );
-    }
+      user = await prisma.cuentas.create({
+        data: {
+          correo: email,
+          contrasena: '', // Google auth no requiere password
+          nombre: name,
+          usuario: usuario,
+          apellido: '',
+          rolId: rolId,
+          estadoId: 1, // Estado activo
+          campus: 'Campus Temuco'
+        },
+        include: {
+          rol: true,
+          estado: true
+        }
+      });
+
+      // Crear resumen inicial del usuario
+      await prisma.resumenUsuario.create({
+        data: {
+          usuarioId: user.id,
+          totalProductos: 0,
+          totalVentas: 0,
+          totalCompras: 0,
+          promedioCalificacion: 0.0
+        }
+      });    }
 
     // Generar JWT
     const token = jwt.sign(
       { 
         userId: user.id, 
-        email: user.email, 
-        role: user.role 
+        email: user.correo, 
+        role: user.rol.nombre 
       },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
     res.json({
@@ -231,9 +287,12 @@ router.post('/google', [
       token,
       user: {
         id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
+        correo: user.correo,
+        usuario: user.usuario,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        role: user.rol.nombre,
+        campus: user.campus
       }
     });
 

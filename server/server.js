@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { testConnection } = require('./config/database');
+const { testConnection, closeConnection } = require('./config/database');
 
 // Importar rutas
 const authRoutes = require('./routes/auth');
@@ -109,22 +109,28 @@ async function startServer() {
     const dbConnected = await testConnection();
     if (!dbConnected) {
       console.error('❌ No se pudo conectar a la base de datos');
-      console.log('\n💡 Asegúrate de que MySQL esté corriendo y las credenciales sean correctas');
-      console.log('   Revisa el archivo .env y la configuración de MySQL');
+      console.log('\n💡 Asegúrate de que PostgreSQL esté corriendo y las credenciales sean correctas');
+      console.log('   Revisa el archivo .env y configura DATABASE_URL para PostgreSQL');
+      console.log('   Ejemplo: DATABASE_URL="postgresql://username:password@localhost:5432/marketplace"');
       process.exit(1);
     }
     
     app.listen(PORT, async () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-      console.log(`📊 Panel de administración: http://localhost:8080 (si usas Docker)`);
+      console.log(`🗄️  PostgreSQL con Prisma configurado`);
       console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📝 Entorno: ${process.env.NODE_ENV}`);
+      console.log(`🎨 Prisma Studio: npm run db:studio`);
       
       // Ejecutar tests automáticamente en desarrollo
       if (process.env.NODE_ENV === 'development') {
         setTimeout(async () => {
-          const { testAPI } = require('./scripts/test-api');
-          await testAPI();
+          try {
+            const { testAPI } = require('./scripts/test-api');
+            await testAPI();
+          } catch (error) {
+            console.log('⚠️  Test API no disponible aún');
+          }
         }, 1000);
       }
     });
@@ -133,5 +139,18 @@ async function startServer() {
     process.exit(1);
   }
 }
+
+// Manejo de cierre graceful
+process.on('SIGINT', async () => {
+  console.log('\n🔄 Cerrando servidor...');
+  await closeConnection();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\n🔄 Cerrando servidor...');
+  await closeConnection();
+  process.exit(0);
+});
 
 startServer();

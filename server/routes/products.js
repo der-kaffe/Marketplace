@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { pool } = require('../config/database');
+const { prisma } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -10,43 +10,82 @@ router.get('/', async (req, res) => {
   try {
     const { category, search, page = 1, limit = 20 } = req.query;
     
-    let query = `
-      SELECT 
-        p.id, p.title, p.description, p.price, p.category, p.condition_type,
-        p.images, p.is_available, p.is_featured, p.created_at,
-        u.name as seller_name, u.email as seller_email
-      FROM products p
-      JOIN users u ON p.user_id = u.id
-      WHERE p.is_available = TRUE
-    `;
-    
-    const queryParams = [];
+    // Construir filtros para la nueva estructura
+    const where = {
+      estadoId: 1 // Solo productos disponibles
+    };
     
     if (category) {
-      query += ' AND p.category = ?';
-      queryParams.push(category);
+      where.categoria = {
+        nombre: { contains: category, mode: 'insensitive' }
+      };
     }
     
     if (search) {
-      query += ' AND (p.title LIKE ? OR p.description LIKE ?)';
-      queryParams.push(`%${search}%`, `%${search}%`);
+      where.OR = [
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { descripcion: { contains: search, mode: 'insensitive' } }
+      ];
     }
     
-    query += ' ORDER BY p.is_featured DESC, p.created_at DESC';
-    query += ' LIMIT ? OFFSET ?';
+    const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    const offset = (page - 1) * limit;
-    queryParams.push(parseInt(limit), offset);
-    
-    const [products] = await pool.query(query, queryParams);
+    // Obtener productos con información del vendedor y categoría
+    const products = await prisma.productos.findMany({
+      where,
+      include: {
+        vendedor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            correo: true,
+            campus: true,
+            reputacion: true
+          }
+        },
+        categoria: true,
+        estado: true,
+        imagenes: true
+      },
+      orderBy: [
+        { fechaAgregado: 'desc' }
+      ],
+      skip,
+      take: parseInt(limit)
+    });
+
+    // Obtener total para paginación
+    const total = await prisma.productos.count({ where });
 
     res.json({
       ok: true,
-      products,
+      products: products.map(product => ({
+        id: product.id,
+        nombre: product.nombre,
+        descripcion: product.descripcion,
+        precioAnterior: product.precioAnterior,
+        precioActual: product.precioActual,
+        categoria: product.categoria?.nombre,
+        calificacion: product.calificacion,
+        cantidad: product.cantidad,
+        estado: product.estado.nombre,
+        fechaAgregado: product.fechaAgregado,
+        imagenes: product.imagenes,
+        vendedor: {
+          id: product.vendedor.id,
+          nombre: product.vendedor.nombre,
+          apellido: product.vendedor.apellido,
+          correo: product.vendedor.correo,
+          campus: product.vendedor.campus,
+          reputacion: product.vendedor.reputacion
+        }
+      })),
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: products.length
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
       }
     });
 
@@ -62,19 +101,28 @@ router.get('/', async (req, res) => {
 // GET /api/products/:id - Obtener producto por ID
 router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params;    const product = await prisma.productos.findUnique({
+      where: { 
+        id: parseInt(id)
+      },
+      include: {
+        vendedor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            correo: true,
+            campus: true,
+            reputacion: true
+          }
+        },
+        categoria: true,
+        estado: true,
+        imagenes: true
+      }
+    });
 
-    const [products] = await pool.query(`
-      SELECT 
-        p.id, p.title, p.description, p.price, p.category, p.condition_type,
-        p.images, p.is_available, p.is_featured, p.created_at,
-        u.id as seller_id, u.name as seller_name, u.email as seller_email, u.avatar_url as seller_avatar
-      FROM products p
-      JOIN users u ON p.user_id = u.id
-      WHERE p.id = ?
-    `, [id]);
-
-    if (products.length === 0) {
+    if (!product || product.estadoId !== 1) {
       return res.status(404).json({
         ok: false,
         message: 'Producto no encontrado'
@@ -83,7 +131,20 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       ok: true,
-      product: products[0]
+      product: {
+        id: product.id,
+        nombre: product.nombre,
+        descripcion: product.descripcion,
+        precioAnterior: product.precioAnterior,
+        precioActual: product.precioActual,
+        categoria: product.categoria?.nombre,
+        calificacion: product.calificacion,
+        cantidad: product.cantidad,
+        estado: product.estado.nombre,
+        fechaAgregado: product.fechaAgregado,
+        imagenes: product.imagenes,
+        vendedor: product.vendedor
+      }
     });
 
   } catch (error) {
@@ -97,10 +158,10 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/products - Crear producto
 router.post('/', authenticateToken, [
-  body('title').isLength({ min: 3 }).withMessage('Título debe tener al menos 3 caracteres'),
-  body('description').isLength({ min: 10 }).withMessage('Descripción debe tener al menos 10 caracteres'),
-  body('price').isFloat({ min: 0 }).withMessage('Precio debe ser un número positivo'),
-  body('category').isIn(['academic', 'technology', 'books', 'services', 'other']).withMessage('Categoría inválida')
+  body('nombre').isLength({ min: 3 }).withMessage('Nombre debe tener al menos 3 caracteres'),
+  body('descripcion').isLength({ min: 10 }).withMessage('Descripción debe tener al menos 10 caracteres'),
+  body('precioActual').isFloat({ min: 0 }).withMessage('Precio debe ser un número positivo'),
+  body('categoriaId').isInt({ min: 1 }).withMessage('Debe seleccionar una categoría válida')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -112,17 +173,57 @@ router.post('/', authenticateToken, [
       });
     }
 
-    const { title, description, price, category, condition_type, images } = req.body;
+    const { 
+      nombre, 
+      descripcion, 
+      precioAnterior, 
+      precioActual,
+      categoriaId,
+      cantidad
+    } = req.body;
 
-    const [result] = await pool.query(
-      'INSERT INTO products (user_id, title, description, price, category, condition_type, images) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [req.user.userId, title, description, price, category, condition_type || 'used', JSON.stringify(images || [])]
-    );
+    // Verificar que la categoría existe
+    const categoria = await prisma.categorias.findUnique({
+      where: { id: parseInt(categoriaId) }
+    });
+
+    if (!categoria) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Categoría no encontrada'
+      });
+    }
+
+    const newProduct = await prisma.productos.create({
+      data: {
+        nombre,
+        descripcion,
+        precioAnterior: precioAnterior ? parseFloat(precioAnterior) : null,
+        precioActual: parseFloat(precioActual),
+        categoriaId: parseInt(categoriaId),
+        vendedorId: req.user.userId,
+        cantidad: cantidad ? parseInt(cantidad) : 1,
+        estadoId: 1, // Estado "Disponible"
+        calificacion: 0.0
+      },
+      include: {
+        categoria: true,
+        vendedor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            correo: true
+          }
+        },
+        estado: true
+      }
+    });
 
     res.status(201).json({
       ok: true,
       message: 'Producto creado exitosamente',
-      productId: result.insertId
+      product: newProduct
     });
 
   } catch (error) {
@@ -137,13 +238,27 @@ router.post('/', authenticateToken, [
 // GET /api/products/categories - Obtener categorías
 router.get('/categories/list', async (req, res) => {
   try {
-    const [categories] = await pool.query(
-      'SELECT * FROM categories WHERE is_active = TRUE ORDER BY name'
-    );
+    const categories = await prisma.categorias.findMany({
+      orderBy: {
+        nombre: 'asc'
+      },
+      include: {
+        subcategorias: true,
+        categoriaPadre: true
+      }
+    });
 
     res.json({
       ok: true,
-      categories
+      categories: categories.map(cat => ({
+        id: cat.id,
+        nombre: cat.nombre,
+        categoriaPadreId: cat.categoriaPadreId,
+        subcategorias: cat.subcategorias?.map(sub => ({
+          id: sub.id,
+          nombre: sub.nombre
+        })) || []
+      }))
     });
 
   } catch (error) {

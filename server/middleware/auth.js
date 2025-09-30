@@ -27,7 +27,7 @@ const authenticateToken = (req, res, next) => {
 
 // Middleware para verificar rol de admin
 const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'ADMIN') {
     return res.status(403).json({
       ok: false,
       message: 'Acceso denegado: se requieren permisos de administrador'
@@ -36,7 +36,19 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Middleware para verificar rol de vendedor o admin
+const requireVendor = (req, res, next) => {
+  if (!['ADMIN', 'VENDEDOR'].includes(req.user.role)) {
+    return res.status(403).json({
+      ok: false,
+      message: 'Acceso denegado: se requieren permisos de vendedor'
+    });
+  }
+  next();
+};
+
 module.exports = {
   authenticateToken,
-  requireAdmin
+  requireAdmin,
+  requireVendor
 };
