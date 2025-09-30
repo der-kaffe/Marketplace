@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
-import '../core/config/api_config.dart';
 
 class ApiClient {
   final String baseUrl;
@@ -233,7 +233,14 @@ class ApiClient {
 
 // Helper para obtener la URL base según la plataforma
 String getDefaultBaseUrl() {
-  return ApiConfig.baseUrl;
+  if (kIsWeb) {
+    // Para web: usar localhost
+    return 'http://localhost:3001';
+  } else {
+    // Para Android emulador: usar 10.0.2.2
+    // Para dispositivo físico: usar la IP de tu computadora
+    return 'http://10.0.2.2:3001';
+  }
 }
 
 // Modelos de respuesta
@@ -241,25 +248,21 @@ class LoginResponse {
   final bool ok;
   final String message;
   final String? token;
-  final String? refreshToken;
   final User? user;
 
   LoginResponse({
     required this.ok,
     required this.message,
     this.token,
-    this.refreshToken,
     this.user,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
-    final data = json['data'];
     return LoginResponse(
       ok: json['ok'] ?? false,
       message: json['message'] ?? '',
-      token: data?['accessToken'],
-      refreshToken: data?['refreshToken'],
-      user: data?['user'] != null ? User.fromJson(data['user']) : null,
+      token: json['token'],
+      user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
 }
@@ -269,18 +272,12 @@ class User {
   final String email;
   final String name;
   final String role;
-  final String? username;
-  final String? campus;
-  final double? reputation;
 
   User({
     required this.id,
     required this.email,
     required this.name,
     required this.role,
-    this.username,
-    this.campus,
-    this.reputation,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -289,22 +286,7 @@ class User {
       email: json['email'],
       name: json['name'],
       role: json['role'],
-      username: json['username'],
-      campus: json['campus'],
-      reputation: json['reputation']?.toDouble(),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'email': email,
-      'name': name,
-      'role': role,
-      'username': username,
-      'campus': campus,
-      'reputation': reputation,
-    };
   }
 }
 

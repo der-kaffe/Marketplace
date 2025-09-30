@@ -234,8 +234,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     fit: StackFit.expand,
                     children: [
                       // 1. Imagen de fondo
-                      Image.asset('assets/universidad.jpg', fit: BoxFit.cover),                      // 2. Capa de color azul con opacidad
-                      Container(color: const Color(0xFF005A8A).withValues(alpha: 0.6)),
+                      Image.asset('assets/universidad.jpg', fit: BoxFit.cover),
+                      // 2. Capa de color azul con opacidad
+                      Container(color: const Color(0xFF005A8A).withOpacity(0.6)),
                     ],
                   ),
                 ),
@@ -474,7 +475,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: _isLoading ? null : _loginAsAdmin,
-                                  style: ElevatedButton.styleFrom(                                    backgroundColor: Colors.red.withValues(alpha: 0.8),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red.withOpacity(0.8),
                                     foregroundColor: Colors.white,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(25),

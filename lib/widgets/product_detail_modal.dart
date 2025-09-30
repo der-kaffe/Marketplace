@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
+import '../models/seller_model.dart';
 import '../theme/app_colors.dart';
 import '../screens/seller_profile_page.dart';
 import '../services/product_service.dart';

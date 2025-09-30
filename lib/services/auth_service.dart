@@ -43,10 +43,16 @@ class AuthService {
     _apiClient.clearToken();
     _currentUser = null;
   }
+
   // Guardar datos del usuario
   Future<void> saveUserData(User user) async {
     _currentUser = user;
-    await _storage.write(key: _userKey, value: json.encode(user.toJson()));
+    await _storage.write(key: _userKey, value: json.encode({
+      'id': user.id,
+      'email': user.email,
+      'name': user.name,
+      'role': user.role,
+    }));
   }
 
   // Cargar datos del usuario

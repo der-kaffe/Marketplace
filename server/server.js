@@ -6,7 +6,7 @@ const rateLimit = require('express-rate-limit');
 const { testConnection } = require('./config/database');
 
 // Importar rutas
-const authRoutes = require('./routes/auth-marketplace');
+const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 
@@ -119,8 +119,14 @@ async function startServer() {
       console.log(`📊 Panel de administración: http://localhost:8080 (si usas Docker)`);
       console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📝 Entorno: ${process.env.NODE_ENV}`);
-        // Servidor listo para desarrollo
-      console.log('🚀 Servidor marketplace listo para recibir conexiones');
+      
+      // Ejecutar tests automáticamente en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        setTimeout(async () => {
+          const { testAPI } = require('./scripts/test-api');
+          await testAPI();
+        }, 1000);
+      }
     });
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
