@@ -246,6 +246,48 @@ async function main() {
 
     console.log('✅ Resúmenes de usuario creados');
 
+    // Crear 50 usuarios de prueba @alu.uct.cl
+    const usuariosDePrueba = [];
+    for (let i = 1; i <= 50; i++) {
+      const password = await bcrypt.hash('test1234', 12);
+      usuariosDePrueba.push({
+        nombre: `Usuario${i}`,
+        apellido: `Apellido${i}`,
+        correo: `usuario${i}@alu.uct.cl`,
+        usuario: `usuario${i}`,
+        contrasena: password,
+        rolId: clienteRole.id,
+        estadoId: estadoActivo.id,
+        campus: 'Campus Temuco',
+        reputacion: parseFloat((Math.random() * 5).toFixed(2))
+      });
+    }
+
+    await prisma.cuentas.createMany({
+      data: usuariosDePrueba,
+      skipDuplicates: true,
+    });
+
+    console.log('✅ 50 usuarios de prueba creados');
+
+    // Crear 100 publicaciones realistas
+    const publicaciones = [];
+    for (let i = 1; i <= 100; i++) {
+      publicaciones.push({
+        titulo: `Publicación ${i}`,
+        cuerpo: `Esta es una publicación de ejemplo número ${i}. Información interesante sobre productos o servicios.`,
+        usuarioId: Math.floor(Math.random() * 50) + 4, // Evitar IDs 1, 2 y 3 (admin, vendor, client)
+        estado: 'Activa',
+        fecha: new Date()
+      });
+    }
+
+    await prisma.publicaciones.createMany({
+      data: publicaciones,
+    });
+
+    console.log('✅ 100 publicaciones creadas');
+
     console.log('\n🎉 Seeding completado exitosamente!');
     console.log('\n📋 Usuarios creados:');
     console.log('👤 Admin: admin@uct.cl / admin123');
