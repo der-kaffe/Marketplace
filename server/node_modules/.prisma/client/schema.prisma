@@ -121,6 +121,8 @@ model Productos {
   carrito       Carrito[]
   imagenes      ImagenesProducto[]
   reportes      Reportes[]         @relation("ProductoReportado")
+  // Favoritos ahora referencian Productos
+  favoritos     Favoritos[]
 
   @@index([estadoId])
   @@index([categoriaId])
@@ -304,8 +306,8 @@ model Publicaciones {
   // Relaciones
   usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
-  // 👇 Nueva relación
-  favoritos Favoritos[]
+  // Se elimina relación con Favoritos (ahora favoritos apuntan a Productos)
+  // favoritos Favoritos[]
 
   @@index([usuarioId])
   @@map("publicaciones")
@@ -420,15 +422,15 @@ model MetricasDiarias {
 }
 
 model Favoritos {
-  id            Int      @id @default(autoincrement())
-  usuarioId     Int      @map("usuario_id")
-  publicacionId Int      @map("publicacion_id")
-  fecha         DateTime @default(now())
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int      @map("usuario_id")
+  productoId Int      @map("producto_id")
+  fecha      DateTime @default(now())
 
   // Relaciones
-  usuario     Cuentas       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  publicacion Publicaciones @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  usuario  Cuentas   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
-  @@unique([usuarioId, publicacionId]) // evita duplicados
+  @@unique([usuarioId, productoId]) // evita duplicados por usuario-producto
   @@map("favoritos")
 }

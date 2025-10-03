@@ -10,9 +10,46 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const publicationsRoutes = require('./routes/publications');
+const favoritesRoutes = require('./routes/favorites');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isDev = process.env.NODE_ENV !== 'production';
+
+// CORS
+// En desarrollo: reflejar cualquier Origin automáticamente.
+// En producción: validar contra CORS_ORIGIN, soportando comodín al final (ej. http://localhost:*).
+const rawOrigins = process.env.CORS_ORIGIN || '';
+const originList = (rawOrigins || (isDev ? '*' : '')).split(',').map(o => o.trim()).filter(Boolean);
+
+const corsOptions = isDev
+  ? {
+      origin: true, // refleja el origin recibido
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }
+  : {
+      origin: function (origin, callback) {
+        if (!origin) return callback(null, true); // Postman/mobile
+        if (originList.length === 0) return callback(new Error('No permitido por CORS'));
+        const isAllowed = originList.some((allowed) => {
+          if (allowed === '*') return true;
+          if (allowed.endsWith('*')) {
+            const base = allowed.slice(0, -1);
+            return origin.startsWith(base);
+          }
+          return origin === allowed;
+        });
+        return isAllowed ? callback(null, true) : callback(new Error('No permitido por CORS'));
+      },
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    };
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // preflight universal
 
 // Middleware de seguridad
 app.use(helmet());
@@ -24,31 +61,6 @@ const limiter = rateLimit({
   message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.'
 });
 app.use(limiter);
-
-// CORS
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Permitir requests sin origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = process.env.CORS_ORIGIN.split(',');
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (allowedOrigin.includes('*')) {
-        const baseUrl = allowedOrigin.replace('*', '');
-        return origin.startsWith(baseUrl);
-      }
-      return origin === allowedOrigin;
-    });
-    
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS'));
-    }
-  },
-  credentials: true
-};
-app.use(cors(corsOptions));
 
 // Middleware para parsing
 app.use(express.json({ limit: '10mb' }));
@@ -80,6 +92,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/publications', publicationsRoutes);
+app.use('/api/favorites', favoritesRoutes);
 
 // Middleware de manejo de errores
 const errorHandler = require('./middleware/errorHandler');
