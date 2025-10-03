@@ -15,6 +15,9 @@ const chatRoutes = require('./routes/chat');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
+
 // Rutas de chat
 app.use('/api/chat', chatRoutes);
 

@@ -1,21 +1,43 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
 class UserItem {
   final int id;
-  final String name;
-  final String email;
-  final String subtitle;
-  bool isBanned; 
+  final String nombre;
+  final String apellido;
+  final String correo;
+  final int rolId;
+  final int estadoId;
+  final String campus;
+  bool isBanned;
 
   UserItem({
     required this.id,
-    required this.name,
-    required this.email,
-    this.subtitle = 'Lorem ipsum dolor, consectetur.',
-    this.isBanned = false, 
+    required this.nombre,
+    required this.apellido,
+    required this.correo,
+    required this.rolId,
+    required this.estadoId,
+    required this.campus,
+    this.isBanned = false,
   });
+
+  factory UserItem.fromJson(Map<String, dynamic> json) {
+    return UserItem(
+      id: json['id'],
+      nombre: json['nombre'] ?? '',
+      apellido: json['apellido'] ?? '',
+      correo: json['correo'] ?? '',
+      rolId: json['rolId'] ?? 0,
+      estadoId: json['estadoId'] ?? 0,
+      campus: json['campus'] ?? '',
+      // si tu backend expone estadoId == X para baneado, puedes mapearlo aquí
+      isBanned: (json['estadoId'] == 2), // ejemplo: 2 = baneado
+    );
+  }
 }
 
 class AdminUsersPage extends StatefulWidget {
@@ -26,34 +48,68 @@ class AdminUsersPage extends StatefulWidget {
 }
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
-  // Datos de ejemplo: reemplaza por la llamada a tu API
-  final List<UserItem> _users = [
-    UserItem(id: 1, name: 'Juan Pérez', email: 'juan@ejemplo.com'),
-    UserItem(id: 2, name: 'María Gómez', email: 'maria@ejemplo.com'),
-    UserItem(id: 3, name: 'Luis Fernández', email: 'luis@ejemplo.com'),
-    UserItem(id: 4, name: 'Usuario 4', email: 'usuario4@ejemplo.com'),
-    UserItem(id: 5, name: 'Usuario 5', email: 'usuario5@ejemplo.com'),
-    UserItem(id: 6, name: 'Usuario 6', email: 'usuario6@ejemplo.com'),
-  ];
+  List<UserItem> _users = [];
+  bool _loading = true;
 
   Future<void> _refreshUsers() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    setState(() {
-    });
+    try {
+      setState(() => _loading = true);
+
+      final authService = AuthService();
+      final token = await authService.getToken();
+
+      final response = await http.get(
+        Uri.parse("http://10.0.2.2:3001/api/admin/users"),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> rawUsers = data['users'] ?? [];
+
+        setState(() {
+          _users = rawUsers.map((j) => UserItem.fromJson(j)).toList();
+        });
+      } else {
+        debugPrint("Error al obtener usuarios: ${response.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al cargar usuarios')),
+        );
+      }
+    } catch (e) {
+      debugPrint("Error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshUsers();
   }
 
   void _onEdit(UserItem user) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Editar: ${user.name} (a implementar)')),
+      SnackBar(content: Text('Editar: ${user.nombre} (a implementar)')),
     );
   }
 
   void _onDelete(UserItem user) async {
+    // aquí puedes llamar a DELETE /api/admin/users/:id en backend
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Confirmar eliminación'),
-        content: Text('¿Eliminar al usuario "${user.name}"?'),
+        content: Text('¿Eliminar al usuario "${user.nombre}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
           TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
@@ -62,12 +118,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
 
     if (!mounted) return;
-
     if (confirmed == true) {
       setState(() {
         _users.removeWhere((u) => u.id == user.id);
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario eliminado')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario eliminado (API pendiente)')),
+      );
     }
   }
 
@@ -87,14 +144,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               SizedBox(height: 6),
               Text(
                 'Panel de usuarios',
-                style: TextStyle(fontSize: 13, color: Color(0xFFF6B400)), // amarillo suave
+                style: TextStyle(fontSize: 13, color: Color(0xFFF6B400)),
               ),
             ],
           ),
-
           const Spacer(),
-
-          // Badge con número de usuarios (círculo)
           Container(
             width: 86,
             height: 86,
@@ -131,6 +185,76 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
   }
 
+  Widget _buildUserCard(UserItem user) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFFCFB),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: Colors.white,
+            child: Icon(Icons.person, color: user.isBanned ? Colors.red : const Color(0xFF00A8E8)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      "${user.nombre} ${user.apellido}",
+                      style: TextStyle(
+                        color: user.isBanned ? Colors.red : const Color(0xFF0078A8),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    if (user.isBanned)
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'VETADO',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  user.correo,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.edit, color: Color(0xFF00A8E8)),
+                onPressed: () => _onEdit(user),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () => _onDelete(user),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTitle() {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 12.0),
@@ -143,143 +267,6 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
   }
 
-  Widget _buildUserCard(UserItem user) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 12.0),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEFFCFB), // aqua claro
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          // avatar
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: Color(0xFF00A8E8).withAlpha(38), width: 1.5),
-            ),
-            child: CircleAvatar(
-              backgroundColor: Colors.transparent,
-              child: Icon(Icons.person, size: 28, color: Color(0xFF00A8E8)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // nombre + subtítulo
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      user.name,
-                      style: TextStyle(
-                        color: user.isBanned ? Colors.red : const Color(0xFF0078A8),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    if (user.isBanned)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red[300],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text(
-                            'VETADO',
-                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.subtitle,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-
-          // acciones (editar / eliminar)
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Edit icon (azul)
-              InkWell(
-                onTap: () => _onEdit(user),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Color(0xFF00A8E8).withAlpha(38)),
-                  ),
-                  child: const Icon(Icons.edit, color: Color(0xFF00A8E8), size: 18),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Delete icon (rojo)
-              InkWell(
-                onTap: () => _onDelete(user),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withAlpha(31)),
-                  ),
-                  child: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Implementación de vetado
-              InkWell(
-                onTap: () {
-                  setState(() {
-                    user.isBanned = !user.isBanned;  // alternar estado
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(user.isBanned ? 'Usuario vetado' : 'Usuario desvetado')),
-                  );
-                },
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: user.isBanned ? Colors.red[100] : Colors.green[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: user.isBanned ? Colors.red : Colors.green,
-                    ),
-                  ),
-                  child: Icon(
-                    user.isBanned ? Icons.block : Icons.check_circle,
-                    color: user.isBanned ? Colors.red : Colors.green,
-                    size: 18,
-                  ),
-                ),
-              ),
-
-            ],
-          ),
-        ],
-      ),
-    );
-  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -295,73 +282,54 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           ),
         ],
       ),
-      // floating action button parecido al diseño
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF00A8E8),
         onPressed: () {
-          // pantalla para agregar usuario
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agregar usuario (a implementar)')));
         },
         child: const Icon(Icons.add, size: 28),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refreshUsers,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(context),
-              const Divider(height: 0, thickness: 0.5),
-              _buildTitle(),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 20, top: 6),
-                  itemCount: _users.length,
-                  itemBuilder: (context, index) {
-                    final u = _users[index];
-                    return _buildUserCard(u);
-                  },
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _refreshUsers,
+                child: ListView(
+                  children: [
+                    _buildHeader(context),
+                    const Divider(height: 0, thickness: 0.5),
+                    _buildTitle(),
+                    ..._users.map((u) => _buildUserCard(u)).toList(),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),      ),
+      ),
     );
   }
 
   void _logout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Cerrar sesión'),
-          content: const Text('¿Estás seguro de que deseas cerrar la sesión de administrador?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-
-                try {
-                  final authService = AuthService();
-                  await authService.logout();
-                } catch (e) {
-                  debugPrint("Error al cerrar sesión: $e");
-                }
-
-                // Ir a login
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              },
-              child: const Text('Confirmar'),
-            ),
-          ],
-        );
-      },
+      builder: (_) => AlertDialog(
+        title: const Text('Cerrar sesión'),
+        content: const Text('¿Estás seguro de que deseas cerrar la sesión de administrador?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                final authService = AuthService();
+                await authService.logout();
+              } catch (e) {
+                debugPrint("Error al cerrar sesión: $e");
+              }
+              if (context.mounted) context.go('/login');
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
     );
   }
 }
