@@ -1,2 +1,25 @@
-# Ignorar archivo de variables de entorno
+# Dependencias
+node_modules/
+vendor/
+
+# Variables de entorno
 .env
+.env.local
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build/Dist
+dist/
+build/
+out/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
