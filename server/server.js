@@ -10,9 +10,13 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const publicationsRoutes = require('./routes/publications');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Rutas de chat
+app.use('/api/chat', chatRoutes);
 
 // Middleware de seguridad
 app.use(helmet());
