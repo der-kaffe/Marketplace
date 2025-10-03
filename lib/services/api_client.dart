@@ -229,6 +229,60 @@ class ApiClient {
       rethrow;
     }
   }
+
+  // FAVORITES ENDPOINTS
+
+  // Obtener favoritos del usuario
+  Future<FavoritesResponse> getProductFavorites({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+      
+      final uri = Uri.parse('$baseUrl/api/favorites').replace(
+        queryParameters: queryParams,
+      );
+      
+      final response = await http.get(uri, headers: _headers);
+      final data = _handleResponse(response);
+      return FavoritesResponse.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Agregar producto a favoritos
+  Future<Map<String, dynamic>> addProductFavorite({required int productoId}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/favorites'),
+        headers: _headers,
+        body: json.encode({
+          'productoId': productoId,
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Eliminar producto de favoritos
+  Future<Map<String, dynamic>> removeProductFavorite({required int productoId}) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/favorites/$productoId'),
+        headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 // Helper para obtener la URL base según la plataforma
@@ -403,6 +457,71 @@ class Pagination {
       page: json['page'] ?? 1,
       limit: json['limit'] ?? 20,
       total: json['total'] ?? 0,
+    );
+  }
+}
+
+// Respuesta de favoritos
+class FavoritesResponse {
+  final bool ok;
+  final List<FavoritedProduct> favorites;
+  final Pagination pagination;
+
+  FavoritesResponse({
+    required this.ok,
+    required this.favorites,
+    required this.pagination,
+  });
+
+  factory FavoritesResponse.fromJson(Map<String, dynamic> json) {
+    return FavoritesResponse(
+      ok: json['ok'] ?? false,
+      favorites: (json['favorites'] as List? ?? [])
+          .map((f) => FavoritedProduct.fromJson(f))
+          .toList(),
+      pagination: Pagination.fromJson(json['pagination'] ?? {}),
+    );
+  }
+}
+
+// Producto favorito
+class FavoritedProduct {
+  final int id;
+  final int usuarioId;
+  final int productoId;
+  final DateTime fecha;
+  final String nombre;
+  final String? categoria;
+  final double? precioActual;
+  final String vendedorNombre;
+
+  FavoritedProduct({
+    required this.id,
+    required this.usuarioId,
+    required this.productoId,
+    required this.fecha,
+    required this.nombre,
+    this.categoria,
+    this.precioActual,
+    required this.vendedorNombre,
+  });
+
+  factory FavoritedProduct.fromJson(Map<String, dynamic> json) {
+    // Adaptamos para manejar tanto la estructura directa como anidada
+    final producto = json['producto'];
+    final vendedor = producto?['vendedor'];
+    
+    return FavoritedProduct(
+      id: json['id'],
+      usuarioId: json['usuarioId'] ?? json['usuario_id'],
+      productoId: json['productoId'] ?? json['producto_id'],
+      fecha: DateTime.parse(json['fecha']),
+      nombre: producto?['nombre'] ?? json['nombre'] ?? '',
+      categoria: producto?['categoria']?['nombre'] ?? json['categoria'],
+      precioActual: producto?['precioActual'] != null 
+          ? double.tryParse(producto['precioActual'].toString())
+          : null,
+      vendedorNombre: vendedor?['nombre'] ?? json['vendedorNombre'] ?? '',
     );
   }
 }
