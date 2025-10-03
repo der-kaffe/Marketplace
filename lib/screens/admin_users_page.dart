@@ -104,7 +104,6 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   }
 
   void _onDelete(UserItem user) async {
-    // aquí puedes llamar a DELETE /api/admin/users/:id en backend
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -117,13 +116,30 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       ),
     );
 
-    if (!mounted) return;
-    if (confirmed == true) {
-      setState(() {
-        _users.removeWhere((u) => u.id == user.id);
-      });
+    if (!mounted || confirmed != true) return;
+
+    try {
+      final response = await http.delete(
+        Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}"), // ⚠️ usa tu baseUrl
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _users.removeWhere((u) => u.id == user.id);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario eliminado correctamente')),
+        );
+      } else {
+        final error = response.body;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar usuario: $error')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario eliminado (API pendiente)')),
+        SnackBar(content: Text('Error de conexión: $e')),
       );
     }
   }

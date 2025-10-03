@@ -32,4 +32,30 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// Eliminar usuario por id (por ahora "async", sin token)
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verificamos si existe
+    const user = await prisma.cuentas.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Eliminar
+    await prisma.cuentas.delete({
+      where: { id: parseInt(id) }
+    });
+
+    res.json({ success: true, message: 'Usuario eliminado correctamente' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error eliminando usuario' });
+  }
+});
+
 module.exports = router;
