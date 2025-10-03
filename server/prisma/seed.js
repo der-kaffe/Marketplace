@@ -95,34 +95,39 @@ async function main() {
     console.log('✅ Estados de reportes creados');
 
     // Crear categorías principales
+    await prisma.categorias.deleteMany();
+
     const categoriaElectronicos = await prisma.categorias.create({
-      data: { id: 1, nombre: 'Electrónicos' }
+      data: { nombre: 'Electrónicos' }
     });
 
     const categoriaLibros = await prisma.categorias.create({
-      data: { id: 2, nombre: 'Libros' }
+      data: { nombre: 'Libros' }
     });
 
     const categoriaDeportes = await prisma.categorias.create({
-      data: { id: 3, nombre: 'Deportes' }
+      data: { nombre: 'Deportes' }
     });
 
     // Subcategorías
     await prisma.categorias.create({
-      data: { id: 4, nombre: 'Computadoras', categoriaPadreId: 1 }
+      data: { nombre: 'Computadoras', categoriaPadreId: categoriaElectronicos.id }
     });
 
     await prisma.categorias.create({
-      data: { id: 5, nombre: 'Smartphones', categoriaPadreId: 1 }
+      data: { nombre: 'Smartphones', categoriaPadreId: categoriaElectronicos.id }
     });
 
     await prisma.categorias.create({
-      data: { id: 6, nombre: 'Académicos', categoriaPadreId: 2 }
+      data: { nombre: 'Académicos', categoriaPadreId: categoriaLibros.id }
     });
 
     console.log('✅ Categorías creadas');
 
     // Crear usuarios
+    await prisma.cuentas.deleteMany();
+
+
     const adminPassword = await bcrypt.hash('admin123', 12);
     const admin = await prisma.cuentas.create({
       data: {
@@ -171,36 +176,49 @@ async function main() {
     console.log('✅ Usuarios creados');
 
     // Crear productos de ejemplo
+    const subComputadoras = await prisma.categorias.create({
+      data: { nombre: 'Computadoras', categoriaPadreId: categoriaElectronicos.id }
+    });
+
+    const subSmartphones = await prisma.categorias.create({
+      data: { nombre: 'Smartphones', categoriaPadreId: categoriaElectronicos.id }
+    });
+
+    const subAcademicos = await prisma.categorias.create({
+      data: { nombre: 'Académicos', categoriaPadreId: categoriaLibros.id }
+    });
+
+
     const productos = [
       {
         nombre: 'Laptop Dell Inspiron 15',
-        categoriaId: 4, // Computadoras
+        categoriaId: subComputadoras.id,
         vendedorId: vendor.id,
         precioAnterior: 900000,
         precioActual: 850000,
-        descripcion: 'Laptop en excelente estado, ideal para estudiantes. Procesador Intel i5, 8GB RAM, 256GB SSD.',
+        descripcion: 'Laptop en excelente estado...',
         calificacion: 4.5,
         cantidad: 1,
         estadoId: estadoDisponible.id
       },
       {
         nombre: 'iPhone 12 64GB',
-        categoriaId: 5, // Smartphones
+        categoriaId: subSmartphones.id,
         vendedorId: admin.id,
         precioAnterior: 700000,
         precioActual: 650000,
-        descripcion: 'iPhone 12 en muy buen estado. Incluye cargador original y funda protectora.',
+        descripcion: 'iPhone 12 en muy buen estado...',
         calificacion: 4.8,
         cantidad: 1,
         estadoId: estadoDisponible.id
       },
       {
         nombre: 'Cálculo: Una Variable - James Stewart',
-        categoriaId: 6, // Académicos
+        categoriaId: subAcademicos.id,
         vendedorId: vendor.id,
         precioAnterior: 50000,
         precioActual: 45000,
-        descripcion: 'Libro de cálculo en excelente estado. Edición 8va. Perfecto para estudiantes de ingeniería.',
+        descripcion: 'Libro de cálculo en excelente estado...',
         calificacion: 4.2,
         cantidad: 1,
         estadoId: estadoDisponible.id
@@ -271,16 +289,23 @@ async function main() {
     console.log('✅ 50 usuarios de prueba creados');
 
     // Crear 100 publicaciones realistas
+
+    const usuarios = await prisma.cuentas.findMany({
+      select: { id: true }
+    });
+
     const publicaciones = [];
     for (let i = 1; i <= 100; i++) {
+      const randomUser = usuarios[Math.floor(Math.random() * usuarios.length)];
       publicaciones.push({
         titulo: `Publicación ${i}`,
         cuerpo: `Esta es una publicación de ejemplo número ${i}. Información interesante sobre productos o servicios.`,
-        usuarioId: Math.floor(Math.random() * 50) + 4, // Evitar IDs 1, 2 y 3 (admin, vendor, client)
+        usuarioId: randomUser.id,
         estado: 'Activa',
         fecha: new Date()
       });
     }
+
 
     await prisma.publicaciones.createMany({
       data: publicaciones,
