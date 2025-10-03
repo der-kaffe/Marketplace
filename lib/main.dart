@@ -4,8 +4,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'core/router/app_router.dart';
 import 'theme/app_theme.dart';
+import 'services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inicializar AuthService
+  await AuthService().initialize();
+  
   // Configuramos GoogleSignIn solo para Web
   final GoogleSignIn googleSignIn = GoogleSignIn(
     clientId: kIsWeb
