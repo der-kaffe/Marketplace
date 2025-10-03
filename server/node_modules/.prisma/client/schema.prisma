@@ -299,6 +299,7 @@ model Publicaciones {
   usuarioId Int      @map("usuario_id")
   estado    String?  @db.VarChar(255)
   fecha     DateTime @default(now())
+  visto     Boolean  @default(false)
 
   // Relaciones
   usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)

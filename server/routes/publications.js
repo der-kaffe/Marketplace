@@ -101,4 +101,52 @@ router.post(
   }
 );
 
+// ---------------- DELETE /api/publications/:id ----------------
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    const deleted = await prisma.publicaciones.delete({
+      where: { id }
+    });
+
+    res.json({ ok: true, message: 'Publicación eliminada', deleted });
+  } catch (error) {
+    console.error('Error eliminando publicación:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+// ---------------- PATCH /api/publications/:id/visto ----------------
+router.patch('/:id/visto', authenticateToken, async (req, res) => {
+  try {
+    const updated = await prisma.publicaciones.update({
+      where: { id: parseInt(req.params.id) },
+      data: { visto: true }
+    });
+    res.json({ ok: true, message: 'Publicación marcada como vista', updated });
+  } catch (error) {
+    res.status(500).json({ ok: false, message: 'Error interno' });
+  }
+});
+
+// ---------------- PUT /api/publications/:id ----------------
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { titulo, cuerpo, estado } = req.body;
+
+    const updated = await prisma.publicaciones.update({
+      where: { id: parseInt(req.params.id) },
+      data: { titulo, cuerpo, estado }
+    });
+
+    res.json({ ok: true, message: 'Publicación actualizada', updated });
+  } catch (error) {
+    console.error('Error actualizando publicación:', error);
+    res.status(500).json({ ok: false, message: 'Error interno' });
+  }
+});
+
+
+
 module.exports = router;
