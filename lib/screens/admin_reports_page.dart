@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/report_card.dart';
+import '../services/auth_service.dart';
 
 class ReportItem {
   final int id;
@@ -137,11 +138,21 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       },
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Reportes'),
+        backgroundColor: Colors.deepOrange,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Cerrar Sesión',
+            onPressed: () => _logout(context),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshReports,
@@ -170,8 +181,43 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
               ),
             ],
           ),
-        ),
-      ),
+        ),      ),
+    );
+  }
+
+  void _logout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar sesión'),
+          content: const Text('¿Estás seguro de que deseas cerrar la sesión de administrador?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+
+                try {
+                  final authService = AuthService();
+                  await authService.logout();
+                } catch (e) {
+                  debugPrint("Error al cerrar sesión: $e");
+                }
+
+                // Ir a login
+                if (context.mounted) {
+                  context.go('/login');
+                }
+              },
+              child: const Text('Confirmar'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
