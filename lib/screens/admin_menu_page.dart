@@ -2,25 +2,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/auth_service.dart';
 
 class AdminMenuPage extends StatelessWidget {
   const AdminMenuPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(      appBar: AppBar(
+    return Scaffold(
+      appBar: AppBar(
         title: const Text('Panel de Administrador'),
         backgroundColor: Colors.redAccent,
         centerTitle: true,
         elevation: 4,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar Sesión',
-            onPressed: () => _logout(context),
-          ),
-        ],
       ),
       body: Container(
         width: double.infinity,
@@ -41,12 +34,10 @@ class AdminMenuPage extends StatelessWidget {
               ),
               margin: const EdgeInsets.all(24),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),                child: Column(
+                padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Información de sesión
-                    _buildSessionInfo(),
-                    const SizedBox(height: 16),
                     const Text(
                       'Acciones Administrativas',
                       style: TextStyle(
@@ -107,105 +98,8 @@ class AdminMenuPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        onPressed: onTap,      ),    );
-  }
-
-  Widget _buildSessionInfo() {
-    final authService = AuthService();
-    final user = authService.currentUser;
-    final authType = authService.authType;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.shade200),
+        onPressed: onTap,
       ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.admin_panel_settings, color: Colors.redAccent),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Administrador: ${user?.name ?? 'Admin'}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.info_outline, size: 16, color: Colors.grey),
-              const SizedBox(width: 8),
-              Text(
-                'Sesión: ${_getAuthTypeDisplay(authType)}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getAuthTypeDisplay(String? authType) {
-    switch (authType) {
-      case 'google':
-        return 'Google Auth';
-      case 'email':
-        return 'Email/Password';
-      case 'admin':
-        return 'Modo Admin';
-      case 'guest':
-        return 'Modo Invitado';
-      default:
-        return 'Desconocido';
-    }
-  }
-
-  void _logout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Cerrar sesión'),
-          content: const Text('¿Estás seguro de que deseas cerrar la sesión de administrador?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-
-                try {
-                  final authService = AuthService();
-                  await authService.logout();
-                } catch (e) {
-                  debugPrint("Error al cerrar sesión: $e");
-                }
-
-                // Ir a login
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              },
-              child: const Text('Confirmar'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

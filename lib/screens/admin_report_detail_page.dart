@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/report_detail_widgets.dart';
-import '../services/auth_service.dart';
-import 'package:go_router/go_router.dart';
 
 class ReportDetailPage extends StatefulWidget {
   final int? reportId;
@@ -35,15 +33,9 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(      appBar: AppBar(
+    return Scaffold(
+      appBar: AppBar(
         title: const Text('Detalle del Reporte'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar Sesión',
-            onPressed: () => _logout(context),
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -168,43 +160,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
           },
           icon: const Icon(Icons.block),
           label: const Text('Suspender usuario'),
-        ),      ],
-    );
-  }
-
-  void _logout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Cerrar sesión'),
-          content: const Text('¿Estás seguro de que deseas cerrar la sesión de administrador?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-
-                try {
-                  final authService = AuthService();
-                  await authService.logout();
-                } catch (e) {
-                  debugPrint("Error al cerrar sesión: $e");
-                }
-
-                // Ir a login
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              },
-              child: const Text('Confirmar'),
-            ),
-          ],
-        );
-      },
+        ),
+      ],
     );
   }
 }

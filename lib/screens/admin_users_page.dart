@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import 'package:go_router/go_router.dart';
 
 class UserItem {
   final int id;
@@ -280,21 +278,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
+    // NO AppBar aquí: mantengo el gesto/botón de volver nativo del sistema.
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Administrar Usuarios'),
-        backgroundColor: Colors.blueAccent,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar Sesión',
-            onPressed: () => _logout(context),
-          ),
-        ],
-      ),
       // floating action button parecido al diseño
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF00A8E8),
@@ -325,43 +314,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               ),
             ],
           ),
-        ),      ),
-    );
-  }
-
-  void _logout(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Cerrar sesión'),
-          content: const Text('¿Estás seguro de que deseas cerrar la sesión de administrador?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-
-                try {
-                  final authService = AuthService();
-                  await authService.logout();
-                } catch (e) {
-                  debugPrint("Error al cerrar sesión: $e");
-                }
-
-                // Ir a login
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              },
-              child: const Text('Confirmar'),
-            ),
-          ],
-        );
-      },
+        ),
+      ),
     );
   }
 }

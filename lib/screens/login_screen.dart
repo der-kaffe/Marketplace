@@ -81,6 +81,7 @@ class _LoginScreenState extends State<LoginScreen>
     _animationController.dispose();
     super.dispose();
   }
+
   Future<void> _loginWithGoogle() async {
     setState(() => _isLoading = true);
 
@@ -113,25 +114,14 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken;
-      
-      if (idToken != null) {
+      final tokenToUse = googleAuth.idToken ?? googleAuth.accessToken ?? '';
+
+      if (tokenToUse.isNotEmpty) {
         final authService = AuthService();
-        final response = await authService.loginWithGoogle(
-          idToken: idToken,
-          email: googleUser.email,
-          name: googleUser.displayName ?? 'Usuario',
-          googleId: googleUser.id,
-          avatarUrl: googleUser.photoUrl,
-        );
-        
-        if (response.ok && mounted) {
-          context.go('/home');
-        } else {
-          throw Exception(response.message);
-        }
+        await authService.saveToken(tokenToUse);
+        if (mounted) context.go('/home');
       } else {
-        throw Exception('No se pudo obtener un token de Google válido');
+        throw Exception('No se pudo obtener un token válido');
       }
     } catch (error) {
       if (mounted) {
@@ -148,30 +138,16 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _loginAsGuest() async {
-    setState(() => _isLoading = true);
-    try {
-      final authService = AuthService();
-      await authService.loginAsGuest();
-      if (mounted) context.go('/home');
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${error.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    final authService = AuthService();
+    await authService.saveToken('guest_user_token');
+    if (mounted) context.go('/home');
   }
 
   void _loginAsAdmin() async {
     setState(() => _isLoading = true);
     try {
       final authService = AuthService();
-      await authService.loginAsAdmin();
+      await authService.saveToken('admin_user_token');
       if (mounted) context.go('/admin');
     } catch (error) {
       if (mounted) {
