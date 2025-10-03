@@ -10,12 +10,14 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const publicationsRoutes = require('./routes/publications');
+const chatRoutes = require('./routes/chat');
 const favoritesRoutes = require('./routes/favorites');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const isDev = process.env.NODE_ENV !== 'production';
 
+app.use('/api/chat', chatRoutes);
 // CORS
 // En desarrollo: reflejar cualquier Origin automáticamente.
 // En producción: validar contra CORS_ORIGIN, soportando comodín al final (ej. http://localhost:*).

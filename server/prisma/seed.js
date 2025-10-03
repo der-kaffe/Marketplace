@@ -94,40 +94,41 @@ async function main() {
 
     console.log('✅ Estados de reportes creados');
 
+    
     // Crear categorías principales
     await prisma.categorias.deleteMany();
-
+    
     const categoriaElectronicos = await prisma.categorias.create({
       data: { nombre: 'Electrónicos' }
     });
-
+    
     const categoriaLibros = await prisma.categorias.create({
       data: { nombre: 'Libros' }
     });
-
+    
     const categoriaDeportes = await prisma.categorias.create({
       data: { nombre: 'Deportes' }
     });
-
+    
     // Subcategorías
     await prisma.categorias.create({
       data: { nombre: 'Computadoras', categoriaPadreId: categoriaElectronicos.id }
     });
-
+    
     await prisma.categorias.create({
       data: { nombre: 'Smartphones', categoriaPadreId: categoriaElectronicos.id }
     });
-
+    
     await prisma.categorias.create({
       data: { nombre: 'Académicos', categoriaPadreId: categoriaLibros.id }
     });
-
+    
     console.log('✅ Categorías creadas');
-
+    
     // Crear usuarios
     await prisma.cuentas.deleteMany();
-
-
+    
+    
     const adminPassword = await bcrypt.hash('admin123', 12);
     const admin = await prisma.cuentas.create({
       data: {
@@ -142,7 +143,7 @@ async function main() {
         reputacion: 5.0
       }
     });
-
+    
     const vendorPassword = await bcrypt.hash('vendor123', 12);
     const vendor = await prisma.cuentas.create({
       data: {
@@ -157,7 +158,7 @@ async function main() {
         reputacion: 4.5
       }
     });
-
+    
     const clientPassword = await bcrypt.hash('client123', 12);
     const client = await prisma.cuentas.create({
       data: {
@@ -172,8 +173,26 @@ async function main() {
         reputacion: 0.0
       }
     });
-
+    
     console.log('✅ Usuarios creados');
+    
+// --- MENSAJES DE PRUEBA ---
+const usuariosParaMensajes = [admin, vendor, client];
+
+const mensajesDePrueba = [
+  { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿tienes más laptops en venta?" },
+  { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Hola Admin, sí, me queda una más disponible 😉" },
+  { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿el libro de cálculo sigue disponible?" },
+  { remitenteId: vendor.id, destinatarioId: client.id, contenido: "Sí, María, aún lo tengo disponible 📚" },
+  { remitenteId: client.id, destinatarioId: admin.id, contenido: "Admin, ¿me podrías dar más info del iPhone?" },
+  { remitenteId: admin.id, destinatarioId: client.id, contenido: "Claro, está casi nuevo, lo entrego con cargador 🔌" }
+];
+
+await prisma.mensajes.createMany({
+  data: mensajesDePrueba.map(m => ({ ...m, fechaEnvio: new Date() }))
+});
+
+console.log("✅ Mensajes de prueba creados");
 
     // Crear productos de ejemplo
     const subComputadoras = await prisma.categorias.create({
