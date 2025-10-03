@@ -13,17 +13,17 @@ datasource db {
 
 // Modelo principal de usuarios - basado en migration.sql
 model Cuentas {
-  id              Int      @id @default(autoincrement())
-  nombre          String   @db.VarChar(50)
-  apellido        String?  @db.VarChar(50)
-  correo          String   @unique @db.VarChar(255)
-  usuario         String   @unique @db.VarChar(255)
-  contrasena      String   @db.VarChar(255)
-  rolId           Int      @map("rol_id")
-  estadoId        Int      @map("estado_id")
-  fechaRegistro   DateTime @default(now()) @map("fecha_registro")
-  campus          String?  @db.VarChar(100)
-  reputacion      Decimal  @default(0.00) @db.Decimal(5, 2)
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(50)
+  apellido      String?  @db.VarChar(50)
+  correo        String   @unique @db.VarChar(255)
+  usuario       String   @unique @db.VarChar(255)
+  contrasena    String   @db.VarChar(255)
+  rolId         Int      @map("rol_id")
+  estadoId      Int      @map("estado_id")
+  fechaRegistro DateTime @default(now()) @map("fecha_registro")
+  campus        String?  @db.VarChar(100)
+  reputacion    Decimal  @default(0.00) @db.Decimal(5, 2)
 
   // Relaciones
   rol                     Roles                    @relation(fields: [rolId], references: [id])
@@ -48,6 +48,9 @@ model Cuentas {
   resumenUsuario          ResumenUsuario?
   siguiendo               Seguidores[]             @relation("UsuarioSigue")
   seguidores              Seguidores[]             @relation("UsuarioSeguido")
+
+  // 👇 Nueva relación
+  favoritos Favoritos[]
 
   @@index([rolId])
   @@index([estadoId])
@@ -74,14 +77,14 @@ model EstadosUsuario {
 
 // Categorías (con jerarquía)
 model Categorias {
-  id                Int          @id @default(autoincrement())
-  nombre            String       @db.VarChar(255)
-  categoriaPadreId  Int?         @map("categoria_padre_id")
-  
+  id               Int    @id @default(autoincrement())
+  nombre           String @db.VarChar(255)
+  categoriaPadreId Int?   @map("categoria_padre_id")
+
   // Relaciones
-  categoriaPadre    Categorias?  @relation("CategoriaHijos", fields: [categoriaPadreId], references: [id])
-  subcategorias     Categorias[] @relation("CategoriaHijos")
-  productos         Productos[]
+  categoriaPadre Categorias?  @relation("CategoriaHijos", fields: [categoriaPadreId], references: [id])
+  subcategorias  Categorias[] @relation("CategoriaHijos")
+  productos      Productos[]
 
   @@index([categoriaPadreId])
   @@map("categorias")
@@ -98,26 +101,26 @@ model EstadosProducto {
 
 // Productos basado en migration.sql
 model Productos {
-  id              Int              @id @default(autoincrement())
-  nombre          String           @db.VarChar(100)
-  categoriaId     Int?             @map("categoria_id")
-  vendedorId      Int              @map("vendedor_id")
-  precioAnterior  Decimal?         @map("precio_anterior") @db.Decimal(10, 2)
-  precioActual    Decimal?         @map("precio_actual") @db.Decimal(10, 2)
-  descripcion     String?          @db.Text
-  calificacion    Decimal?         @db.Decimal(3, 2)
-  cantidad        Int?
-  fechaAgregado   DateTime         @default(now()) @map("fecha_agregado")
-  estadoId        Int              @map("estado_id")
+  id             Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(100)
+  categoriaId    Int?     @map("categoria_id")
+  vendedorId     Int      @map("vendedor_id")
+  precioAnterior Decimal? @map("precio_anterior") @db.Decimal(10, 2)
+  precioActual   Decimal? @map("precio_actual") @db.Decimal(10, 2)
+  descripcion    String?  @db.Text
+  calificacion   Decimal? @db.Decimal(3, 2)
+  cantidad       Int?
+  fechaAgregado  DateTime @default(now()) @map("fecha_agregado")
+  estadoId       Int      @map("estado_id")
 
   // Relaciones
-  categoria       Categorias?      @relation(fields: [categoriaId], references: [id])
-  vendedor        Cuentas          @relation("VendedorProductos", fields: [vendedorId], references: [id], onDelete: Cascade)
-  estado          EstadosProducto  @relation(fields: [estadoId], references: [id])
-  transacciones   Transacciones[]
-  carrito         Carrito[]
-  imagenes        ImagenesProducto[]
-  reportes        Reportes[]       @relation("ProductoReportado")
+  categoria     Categorias?        @relation(fields: [categoriaId], references: [id])
+  vendedor      Cuentas            @relation("VendedorProductos", fields: [vendedorId], references: [id], onDelete: Cascade)
+  estado        EstadosProducto    @relation(fields: [estadoId], references: [id])
+  transacciones Transacciones[]
+  carrito       Carrito[]
+  imagenes      ImagenesProducto[]
+  reportes      Reportes[]         @relation("ProductoReportado")
 
   @@index([estadoId])
   @@index([categoriaId])
@@ -127,12 +130,12 @@ model Productos {
 
 // Imágenes de productos
 model ImagenesProducto {
-  id         Int      @id @default(autoincrement())
-  productoId Int      @map("producto_id")
-  urlImagen  Bytes?   @map("url_imagen")
+  id         Int    @id @default(autoincrement())
+  productoId Int    @map("producto_id")
+  urlImagen  Bytes? @map("url_imagen")
 
   // Relaciones
-  producto   Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
   @@index([productoId])
   @@map("imagenes_producto")
@@ -149,18 +152,18 @@ model EstadosTransaccion {
 
 // Transacciones basado en migration.sql
 model Transacciones {
-  id           Int                @id @default(autoincrement())
-  productoId   Int                @map("producto_id")
-  compradorId  Int                @map("comprador_id")
-  vendedorId   Int                @map("vendedor_id")
-  fecha        DateTime           @default(now())
-  estadoId     Int                @map("estado_id")
+  id          Int      @id @default(autoincrement())
+  productoId  Int      @map("producto_id")
+  compradorId Int      @map("comprador_id")
+  vendedorId  Int      @map("vendedor_id")
+  fecha       DateTime @default(now())
+  estadoId    Int      @map("estado_id")
 
   // Relaciones
-  producto     Productos          @relation(fields: [productoId], references: [id], onDelete: Cascade)
-  comprador    Cuentas            @relation("CompradorTransacciones", fields: [compradorId], references: [id], onDelete: Cascade)
-  vendedor     Cuentas            @relation("VendedorTransacciones", fields: [vendedorId], references: [id], onDelete: Cascade)
-  estado       EstadosTransaccion @relation(fields: [estadoId], references: [id])
+  producto       Productos          @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  comprador      Cuentas            @relation("CompradorTransacciones", fields: [compradorId], references: [id], onDelete: Cascade)
+  vendedor       Cuentas            @relation("VendedorTransacciones", fields: [vendedorId], references: [id], onDelete: Cascade)
+  estado         EstadosTransaccion @relation(fields: [estadoId], references: [id])
   calificaciones Calificaciones[]
 
   @@index([productoId])
@@ -172,18 +175,18 @@ model Transacciones {
 
 // Calificaciones
 model Calificaciones {
-  id             Int           @id @default(autoincrement())
-  transaccionId  Int           @map("transaccion_id")
-  calificadorId  Int           @map("calificador_id")
-  calificadoId   Int           @map("calificado_id")
-  puntuacion     Decimal?      @db.Decimal(3, 2)
-  comentario     String?       @db.Text
-  fecha          DateTime      @default(now())
+  id            Int      @id @default(autoincrement())
+  transaccionId Int      @map("transaccion_id")
+  calificadorId Int      @map("calificador_id")
+  calificadoId  Int      @map("calificado_id")
+  puntuacion    Decimal? @db.Decimal(3, 2)
+  comentario    String?  @db.Text
+  fecha         DateTime @default(now())
 
   // Relaciones
-  transaccion    Transacciones @relation(fields: [transaccionId], references: [id], onDelete: Cascade)
-  calificador    Cuentas       @relation("CalificadorCalificaciones", fields: [calificadorId], references: [id], onDelete: Cascade)
-  calificado     Cuentas       @relation("CalificadoCalificaciones", fields: [calificadoId], references: [id], onDelete: Cascade)
+  transaccion Transacciones @relation(fields: [transaccionId], references: [id], onDelete: Cascade)
+  calificador Cuentas       @relation("CalificadorCalificaciones", fields: [calificadorId], references: [id], onDelete: Cascade)
+  calificado  Cuentas       @relation("CalificadoCalificaciones", fields: [calificadoId], references: [id], onDelete: Cascade)
 
   @@index([transaccionId])
   @@index([calificadorId])
@@ -193,14 +196,14 @@ model Calificaciones {
 
 // Carrito de compras
 model Carrito {
-  id         Int       @id @default(autoincrement())
-  usuarioId  Int       @map("usuario_id")
-  productoId Int       @map("producto_id")
+  id         Int @id @default(autoincrement())
+  usuarioId  Int @map("usuario_id")
+  productoId Int @map("producto_id")
   cantidad   Int
 
   // Relaciones
-  usuario    Cuentas   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  producto   Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario  Cuentas   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@index([productoId])
@@ -217,8 +220,8 @@ model Mensajes {
   leido          Boolean  @default(false)
 
   // Relaciones
-  remitente      Cuentas  @relation("RemitenteMessage", fields: [remitenteId], references: [id], onDelete: Cascade)
-  destinatario   Cuentas  @relation("DestinatarioMessage", fields: [destinatarioId], references: [id], onDelete: Cascade)
+  remitente    Cuentas @relation("RemitenteMessage", fields: [remitenteId], references: [id], onDelete: Cascade)
+  destinatario Cuentas @relation("DestinatarioMessage", fields: [destinatarioId], references: [id], onDelete: Cascade)
 
   @@index([remitenteId])
   @@index([destinatarioId])
@@ -236,19 +239,19 @@ model EstadosReporte {
 
 // Sistema de reportes
 model Reportes {
-  id                 Int             @id @default(autoincrement())
-  reportanteId       Int             @map("reportante_id")
-  usuarioReportadoId Int?            @map("usuario_reportado_id")
-  productoId         Int?            @map("producto_id")
-  motivo             String?         @db.Text
-  fecha              DateTime        @default(now())
-  estadoId           Int             @map("estado_id")
+  id                 Int      @id @default(autoincrement())
+  reportanteId       Int      @map("reportante_id")
+  usuarioReportadoId Int?     @map("usuario_reportado_id")
+  productoId         Int?     @map("producto_id")
+  motivo             String?  @db.Text
+  fecha              DateTime @default(now())
+  estadoId           Int      @map("estado_id")
 
   // Relaciones
-  reportante         Cuentas         @relation("ReportanteReportes", fields: [reportanteId], references: [id], onDelete: Cascade)
-  usuarioReportado   Cuentas?        @relation("UsuarioReportadoReportes", fields: [usuarioReportadoId], references: [id])
-  producto           Productos?      @relation("ProductoReportado", fields: [productoId], references: [id])
-  estado             EstadosReporte  @relation(fields: [estadoId], references: [id])
+  reportante       Cuentas        @relation("ReportanteReportes", fields: [reportanteId], references: [id], onDelete: Cascade)
+  usuarioReportado Cuentas?       @relation("UsuarioReportadoReportes", fields: [usuarioReportadoId], references: [id])
+  producto         Productos?     @relation("ProductoReportado", fields: [productoId], references: [id])
+  estado           EstadosReporte @relation(fields: [estadoId], references: [id])
 
   @@index([reportanteId])
   @@index([usuarioReportadoId])
@@ -266,7 +269,7 @@ model ActividadUsuario {
   fecha     DateTime @default(now())
 
   // Relaciones
-  usuario   Cuentas  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@map("actividad_usuario")
@@ -282,7 +285,7 @@ model Notificaciones {
   fecha     DateTime @default(now())
 
   // Relaciones
-  usuario   Cuentas  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@map("notificaciones")
@@ -298,7 +301,10 @@ model Publicaciones {
   fecha     DateTime @default(now())
 
   // Relaciones
-  usuario   Cuentas  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  // 👇 Nueva relación
+  favoritos Favoritos[]
 
   @@index([usuarioId])
   @@map("publicaciones")
@@ -306,15 +312,15 @@ model Publicaciones {
 
 // Sistema de foros
 model Foros {
-  id             Int                 @id @default(autoincrement())
-  nombre         String              @db.VarChar(255)
-  descripcion    String?             @db.Text
-  creadorId      Int                 @map("creador_id")
-  fechaCreacion  DateTime            @default(now()) @map("fecha_creacion")
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(255)
+  descripcion   String?  @db.Text
+  creadorId     Int      @map("creador_id")
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion")
 
   // Relaciones
-  creador        Cuentas             @relation(fields: [creadorId], references: [id], onDelete: Cascade)
-  publicaciones  PublicacionesForo[]
+  creador       Cuentas             @relation(fields: [creadorId], references: [id], onDelete: Cascade)
+  publicaciones PublicacionesForo[]
 
   @@index([creadorId])
   @@map("foros")
@@ -322,16 +328,16 @@ model Foros {
 
 // Publicaciones en foros
 model PublicacionesForo {
-  id         Int                      @id @default(autoincrement())
-  foroId     Int                      @map("foro_id")
-  autorId    Int                      @map("autor_id")
-  titulo     String?                  @db.VarChar(255)
-  contenido  String?                  @db.Text
-  fecha      DateTime                 @default(now())
+  id        Int      @id @default(autoincrement())
+  foroId    Int      @map("foro_id")
+  autorId   Int      @map("autor_id")
+  titulo    String?  @db.VarChar(255)
+  contenido String?  @db.Text
+  fecha     DateTime @default(now())
 
   // Relaciones
-  foro       Foros                    @relation(fields: [foroId], references: [id], onDelete: Cascade)
-  autor      Cuentas                  @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  foro        Foros                    @relation(fields: [foroId], references: [id], onDelete: Cascade)
+  autor       Cuentas                  @relation(fields: [autorId], references: [id], onDelete: Cascade)
   comentarios ComentariosPublicacion[]
 
   @@index([foroId])
@@ -341,15 +347,15 @@ model PublicacionesForo {
 
 // Comentarios en publicaciones de foros
 model ComentariosPublicacion {
-  id             Int               @id @default(autoincrement())
-  publicacionId  Int               @map("publicacion_id")
-  autorId        Int               @map("autor_id")
-  contenido      String?           @db.Text
-  fecha          DateTime          @default(now())
+  id            Int      @id @default(autoincrement())
+  publicacionId Int      @map("publicacion_id")
+  autorId       Int      @map("autor_id")
+  contenido     String?  @db.Text
+  fecha         DateTime @default(now())
 
   // Relaciones
-  publicacion    PublicacionesForo @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
-  autor          Cuentas           @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  publicacion PublicacionesForo @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  autor       Cuentas           @relation(fields: [autorId], references: [id], onDelete: Cascade)
 
   @@index([publicacionId])
   @@index([autorId])
@@ -358,13 +364,13 @@ model ComentariosPublicacion {
 
 // Ubicaciones de usuarios
 model Ubicaciones {
-  id           Int      @id @default(autoincrement())
-  usuarioId    Int      @map("usuario_id")
-  nombreLugar  String?  @map("nombre_lugar") @db.VarChar(255)
-  descripcion  String?  @db.Text
+  id          Int     @id @default(autoincrement())
+  usuarioId   Int     @map("usuario_id")
+  nombreLugar String? @map("nombre_lugar") @db.VarChar(255)
+  descripcion String? @db.Text
 
   // Relaciones
-  usuario      Cuentas  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([usuarioId])
   @@map("ubicaciones")
@@ -372,14 +378,14 @@ model Ubicaciones {
 
 // Resumen estadístico por usuario
 model ResumenUsuario {
-  usuarioId             Int     @id @map("usuario_id")
-  totalProductos        Int     @default(0) @map("total_productos")
-  totalVentas           Int     @default(0) @map("total_ventas")
-  totalCompras          Int     @default(0) @map("total_compras")
-  promedioCalificacion  Decimal @default(0.00) @map("promedio_calificacion") @db.Decimal(3, 2)
+  usuarioId            Int     @id @map("usuario_id")
+  totalProductos       Int     @default(0) @map("total_productos")
+  totalVentas          Int     @default(0) @map("total_ventas")
+  totalCompras         Int     @default(0) @map("total_compras")
+  promedioCalificacion Decimal @default(0.00) @map("promedio_calificacion") @db.Decimal(3, 2)
 
   // Relaciones
-  usuario               Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@map("resumen_usuario")
 }
@@ -391,8 +397,8 @@ model Seguidores {
   fecha            DateTime @default(now())
 
   // Relaciones
-  usuarioSigue     Cuentas  @relation("UsuarioSigue", fields: [usuarioSigueId], references: [id], onDelete: Cascade)
-  usuarioSeguido   Cuentas  @relation("UsuarioSeguido", fields: [usuarioSeguidoId], references: [id], onDelete: Cascade)
+  usuarioSigue   Cuentas @relation("UsuarioSigue", fields: [usuarioSigueId], references: [id], onDelete: Cascade)
+  usuarioSeguido Cuentas @relation("UsuarioSeguido", fields: [usuarioSeguidoId], references: [id], onDelete: Cascade)
 
   @@id([usuarioSigueId, usuarioSeguidoId])
   @@index([usuarioSeguidoId])
@@ -401,13 +407,27 @@ model Seguidores {
 
 // Métricas diarias del sistema
 model MetricasDiarias {
-  id                        Int      @id @default(autoincrement())
-  fechaMetricas             DateTime @map("fecha_metricas") @db.Date
-  usuariosActivos           Int      @default(0) @map("usuarios_activos")
-  nuevosUsuarios            Int      @default(0) @map("nuevos_usuarios")
-  productosCreados          Int      @default(0) @map("productos_creados")
-  transaccionesCompletadas  Int      @default(0) @map("transacciones_completadas")
-  mensajesEnviados          Int      @default(0) @map("mensajes_enviados")
+  id                       Int      @id @default(autoincrement())
+  fechaMetricas            DateTime @map("fecha_metricas") @db.Date
+  usuariosActivos          Int      @default(0) @map("usuarios_activos")
+  nuevosUsuarios           Int      @default(0) @map("nuevos_usuarios")
+  productosCreados         Int      @default(0) @map("productos_creados")
+  transaccionesCompletadas Int      @default(0) @map("transacciones_completadas")
+  mensajesEnviados         Int      @default(0) @map("mensajes_enviados")
 
   @@map("metricas_diarias")
+}
+
+model Favoritos {
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int      @map("usuario_id")
+  publicacionId Int      @map("publicacion_id")
+  fecha         DateTime @default(now())
+
+  // Relaciones
+  usuario     Cuentas       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  publicacion Publicaciones @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, publicacionId]) // evita duplicados
+  @@map("favoritos")
 }
