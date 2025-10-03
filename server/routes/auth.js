@@ -36,12 +36,12 @@ router.post('/login', [
     });
 
     if (!user) {
-      return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
+      return res.status(400).json({ ok: false, message: 'Credenciales inválidas' });
     }
 
     const passwordMatch = await bcrypt.compare(password, user.contrasena);
     if (!passwordMatch) {
-      return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
+      return res.status(400).json({ ok: false, message: 'Credenciales inválidas' });
     }
 
     const token = jwt.sign(
@@ -49,6 +49,8 @@ router.post('/login', [
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
+
+    const fullName = [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
 
     res.json({
       ok: true,
@@ -59,6 +61,7 @@ router.post('/login', [
         email: user.correo,
         nombre: user.nombre,
         apellido: user.apellido,
+        name: fullName,
         role: user.rol.nombre,
         campus: user.campus,
         reputacion: user.reputacion
@@ -92,8 +95,7 @@ router.post('/register', [
     });
 
     if (existingUser) {
-      const campo = existingUser.correo === email ? 'correo' : 'usuario';
-      return res.status(409).json({ ok: false, message: `El ${campo} ya esta en uso` });
+      return res.status(409).json({ ok: false, message: 'Email o usuario ya registrado' });
     }
 
     const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
@@ -129,6 +131,8 @@ router.post('/register', [
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
+    const fullName = [newUser.nombre, newUser.apellido].filter(Boolean).join(' ').trim();
+
     res.status(201).json({
       ok: true,
       message: 'Usuario registrado exitosamente',
@@ -136,9 +140,11 @@ router.post('/register', [
       user: {
         id: newUser.id,
         correo: newUser.correo,
+        email: newUser.correo,
         usuario: newUser.usuario,
         nombre: newUser.nombre,
         apellido: newUser.apellido,
+        name: fullName,
         role: newUser.rol.nombre,
         campus: newUser.campus
       }
@@ -159,27 +165,29 @@ router.post('/google', [
   try {
     const { email, name } = req.body;
 
+    // Validación simple de dominio
     if (!email.endsWith('@uct.cl') && !email.endsWith('@alu.uct.cl')) {
-      return res.status(403).json({ ok: false, message: 'Solo se permiten correos de @uct.cl o @alu.uct.cl' });
+      return res.status(400).json({ ok: false, message: 'Dominio de email no permitido' });
     }
 
+    // Buscar o crear usuario
     let user = await prisma.cuentas.findFirst({
       where: { correo: email, estadoId: 1 },
       include: { rol: true, estado: true }
     });
 
     if (!user) {
+      // Si no existe, crear usuario básico con rol según dominio
       const rolId = email.endsWith('@uct.cl') ? 2 : 3;
-      const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
-      const usuario = `${baseUsuario}_${Date.now()}`;
-
+      const nombre = name.split(' ')[0] || name;
+      const apellido = name.split(' ').slice(1).join(' ');
       user = await prisma.cuentas.create({
         data: {
           correo: email,
-          contrasena: '',
-          nombre: name,
-          usuario,
-          apellido: '',
+          contrasena: '', // login federado, no se usa
+          nombre,
+          apellido,
+          usuario: email.split('@')[0],
           rolId,
           estadoId: 1,
           campus: 'Campus Temuco'
@@ -187,6 +195,7 @@ router.post('/google', [
         include: { rol: true, estado: true }
       });
 
+      // Crear resumen si no existe
       await prisma.resumenUsuario.create({
         data: {
           usuarioId: user.id,
@@ -195,7 +204,7 @@ router.post('/google', [
           totalCompras: 0,
           promedioCalificacion: 0.0
         }
-      });
+      }).catch(() => {});
     }
 
     const token = jwt.sign(
@@ -204,22 +213,25 @@ router.post('/google', [
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    res.json({
+    const fullName = [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
+
+    return res.json({
       ok: true,
       message: 'Login con Google exitoso',
       token,
       user: {
         id: user.id,
-        correo: user.correo,
-        usuario: user.usuario,
+        email: user.correo,
         nombre: user.nombre,
         apellido: user.apellido,
+        name: fullName,
         role: user.rol.nombre,
-        campus: user.campus
+        campus: user.campus,
+        reputacion: user.reputacion
       }
     });
   } catch (error) {
-    console.error('Error en login Google:', error);
+    console.error('Error en Google login:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });
@@ -227,79 +239,29 @@ router.post('/google', [
 // ------------------- PERFIL DEL USUARIO -------------------
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const { include } = req.query;
-    // Ejemplos de uso:
-    // /me                          -> trae todo
-    // /me?include=perfil           -> solo datos básicos
-    // /me?include=notificaciones
-    // /me?include=productos,seguidores
-    // /me?include=todo             -> todo explícitamente
-
-    // Todas las relaciones disponibles
-    const relacionesDisponibles = {
-      rol: true,
-      estado: true,
-      productos: { include: { categoria: true, estado: true, imagenes: true } },
-      transaccionesCompra: { include: { producto: true, vendedor: true, estado: true } },
-      transaccionesVenta: { include: { producto: true, comprador: true, estado: true } },
-      calificacionesDadas: { include: { calificado: true, transaccion: true } },
-      calificacionesRecibidas: { include: { calificador: true, transaccion: true } },
-      carrito: { include: { producto: true } },
-      actividades: true,
-      mensajesEnviados: { include: { destinatario: true } },
-      mensajesRecibidos: { include: { remitente: true } },
-      reportes: { include: { producto: true, usuarioReportado: true, estado: true } },
-      reportesRecibidos: { include: { reportante: true, producto: true, estado: true } },
-      publicaciones: true,
-      foros: true,
-      publicacionesForo: { include: { foro: true, comentarios: true } },
-      comentariosPublicacion: { include: { publicacion: true } },
-      notificaciones: true,
-      ubicaciones: true,
-      resumenUsuario: true,
-      siguiendo: { include: { usuarioSeguido: true } },
-      seguidores: { include: { usuarioSigue: true } },
-    };
-
-    let includeOptions = {};
-
-    if (!include || include === "todo") {
-      // Si no se pide nada o se pide "todo", incluir todo
-      includeOptions = relacionesDisponibles;
-    } else if (include === "perfil") {
-      // Solo perfil básico, sin relaciones pesadas
-      includeOptions = {
-        rol: true,
-        estado: true,
-      };
-    } else {
-      // Se pidió algo específico, ejemplo: ?include=notificaciones,productos
-      const partes = include.split(",");
-      for (const key of partes) {
-        if (relacionesDisponibles[key]) {
-          includeOptions[key] = relacionesDisponibles[key];
-        }
-      }
-      // Siempre incluir lo básico
-      includeOptions.rol = true;
-      includeOptions.estado = true;
-    }
-
     const user = await prisma.cuentas.findUnique({
       where: { id: req.user.userId },
-      include: includeOptions
+      include: { rol: true, estado: true }
     });
+    if (!user) return res.status(404).json({ ok: false, message: 'Usuario no encontrado' });
 
-    if (!user) {
-      return res.status(404).json({ ok: false, message: 'Usuario no encontrado' });
-    }
+    const fullName = [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
 
-    res.json({
+    return res.json({
       ok: true,
-      user
+      user: {
+        id: user.id,
+        email: user.correo,
+        nombre: user.nombre,
+        apellido: user.apellido,
+        name: fullName,
+        role: user.rol.nombre,
+        campus: user.campus,
+        reputacion: user.reputacion
+      }
     });
   } catch (error) {
-    console.error('Error en /me:', error);
+    console.error('Error obteniendo perfil:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });

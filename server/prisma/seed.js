@@ -94,35 +94,41 @@ async function main() {
 
     console.log('✅ Estados de reportes creados');
 
+    
     // Crear categorías principales
+    await prisma.categorias.deleteMany();
+    
     const categoriaElectronicos = await prisma.categorias.create({
-      data: { id: 1, nombre: 'Electrónicos' }
+      data: { nombre: 'Electrónicos' }
     });
-
+    
     const categoriaLibros = await prisma.categorias.create({
-      data: { id: 2, nombre: 'Libros' }
+      data: { nombre: 'Libros' }
     });
-
+    
     const categoriaDeportes = await prisma.categorias.create({
-      data: { id: 3, nombre: 'Deportes' }
+      data: { nombre: 'Deportes' }
     });
-
+    
     // Subcategorías
     await prisma.categorias.create({
-      data: { id: 4, nombre: 'Computadoras', categoriaPadreId: 1 }
+      data: { nombre: 'Computadoras', categoriaPadreId: categoriaElectronicos.id }
     });
-
+    
     await prisma.categorias.create({
-      data: { id: 5, nombre: 'Smartphones', categoriaPadreId: 1 }
+      data: { nombre: 'Smartphones', categoriaPadreId: categoriaElectronicos.id }
     });
-
+    
     await prisma.categorias.create({
-      data: { id: 6, nombre: 'Académicos', categoriaPadreId: 2 }
+      data: { nombre: 'Académicos', categoriaPadreId: categoriaLibros.id }
     });
-
+    
     console.log('✅ Categorías creadas');
-
+    
     // Crear usuarios
+    await prisma.cuentas.deleteMany();
+    
+    
     const adminPassword = await bcrypt.hash('admin123', 12);
     const admin = await prisma.cuentas.create({
       data: {
@@ -137,7 +143,7 @@ async function main() {
         reputacion: 5.0
       }
     });
-
+    
     const vendorPassword = await bcrypt.hash('vendor123', 12);
     const vendor = await prisma.cuentas.create({
       data: {
@@ -152,7 +158,7 @@ async function main() {
         reputacion: 4.5
       }
     });
-
+    
     const clientPassword = await bcrypt.hash('client123', 12);
     const client = await prisma.cuentas.create({
       data: {
@@ -167,40 +173,71 @@ async function main() {
         reputacion: 0.0
       }
     });
-
+    
     console.log('✅ Usuarios creados');
+    
+// --- MENSAJES DE PRUEBA ---
+const usuariosParaMensajes = [admin, vendor, client];
+
+const mensajesDePrueba = [
+  { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿tienes más laptops en venta?" },
+  { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Hola Admin, sí, me queda una más disponible 😉" },
+  { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿el libro de cálculo sigue disponible?" },
+  { remitenteId: vendor.id, destinatarioId: client.id, contenido: "Sí, María, aún lo tengo disponible 📚" },
+  { remitenteId: client.id, destinatarioId: admin.id, contenido: "Admin, ¿me podrías dar más info del iPhone?" },
+  { remitenteId: admin.id, destinatarioId: client.id, contenido: "Claro, está casi nuevo, lo entrego con cargador 🔌" }
+];
+
+await prisma.mensajes.createMany({
+  data: mensajesDePrueba.map(m => ({ ...m, fechaEnvio: new Date() }))
+});
+
+console.log("✅ Mensajes de prueba creados");
 
     // Crear productos de ejemplo
+    const subComputadoras = await prisma.categorias.create({
+      data: { nombre: 'Computadoras', categoriaPadreId: categoriaElectronicos.id }
+    });
+
+    const subSmartphones = await prisma.categorias.create({
+      data: { nombre: 'Smartphones', categoriaPadreId: categoriaElectronicos.id }
+    });
+
+    const subAcademicos = await prisma.categorias.create({
+      data: { nombre: 'Académicos', categoriaPadreId: categoriaLibros.id }
+    });
+
+
     const productos = [
       {
         nombre: 'Laptop Dell Inspiron 15',
-        categoriaId: 4, // Computadoras
+        categoriaId: subComputadoras.id,
         vendedorId: vendor.id,
         precioAnterior: 900000,
         precioActual: 850000,
-        descripcion: 'Laptop en excelente estado, ideal para estudiantes. Procesador Intel i5, 8GB RAM, 256GB SSD.',
+        descripcion: 'Laptop en excelente estado...',
         calificacion: 4.5,
         cantidad: 1,
         estadoId: estadoDisponible.id
       },
       {
         nombre: 'iPhone 12 64GB',
-        categoriaId: 5, // Smartphones
+        categoriaId: subSmartphones.id,
         vendedorId: admin.id,
         precioAnterior: 700000,
         precioActual: 650000,
-        descripcion: 'iPhone 12 en muy buen estado. Incluye cargador original y funda protectora.',
+        descripcion: 'iPhone 12 en muy buen estado...',
         calificacion: 4.8,
         cantidad: 1,
         estadoId: estadoDisponible.id
       },
       {
         nombre: 'Cálculo: Una Variable - James Stewart',
-        categoriaId: 6, // Académicos
+        categoriaId: subAcademicos.id,
         vendedorId: vendor.id,
         precioAnterior: 50000,
         precioActual: 45000,
-        descripcion: 'Libro de cálculo en excelente estado. Edición 8va. Perfecto para estudiantes de ingeniería.',
+        descripcion: 'Libro de cálculo en excelente estado...',
         calificacion: 4.2,
         cantidad: 1,
         estadoId: estadoDisponible.id
@@ -245,6 +282,55 @@ async function main() {
     });
 
     console.log('✅ Resúmenes de usuario creados');
+
+    // Crear 50 usuarios de prueba @alu.uct.cl
+    const usuariosDePrueba = [];
+    for (let i = 1; i <= 50; i++) {
+      const password = await bcrypt.hash('test1234', 12);
+      usuariosDePrueba.push({
+        nombre: `Usuario${i}`,
+        apellido: `Apellido${i}`,
+        correo: `usuario${i}@alu.uct.cl`,
+        usuario: `usuario${i}`,
+        contrasena: password,
+        rolId: clienteRole.id,
+        estadoId: estadoActivo.id,
+        campus: 'Campus Temuco',
+        reputacion: parseFloat((Math.random() * 5).toFixed(2))
+      });
+    }
+
+    await prisma.cuentas.createMany({
+      data: usuariosDePrueba,
+      skipDuplicates: true,
+    });
+
+    console.log('✅ 50 usuarios de prueba creados');
+
+    // Crear 100 publicaciones realistas
+
+    const usuarios = await prisma.cuentas.findMany({
+      select: { id: true }
+    });
+
+    const publicaciones = [];
+    for (let i = 1; i <= 100; i++) {
+      const randomUser = usuarios[Math.floor(Math.random() * usuarios.length)];
+      publicaciones.push({
+        titulo: `Publicación ${i}`,
+        cuerpo: `Esta es una publicación de ejemplo número ${i}. Información interesante sobre productos o servicios.`,
+        usuarioId: randomUser.id,
+        estado: 'Activa',
+        fecha: new Date()
+      });
+    }
+
+
+    await prisma.publicaciones.createMany({
+      data: publicaciones,
+    });
+
+    console.log('✅ 100 publicaciones creadas');
 
     console.log('\n🎉 Seeding completado exitosamente!');
     console.log('\n📋 Usuarios creados:');
