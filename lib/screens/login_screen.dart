@@ -94,6 +94,8 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       final String userEmail = googleUser.email;
+      final String displayName = googleUser.displayName ?? 'Usuario';
+
       const allowedDomains = ['uct.cl', 'alu.uct.cl'];
       final isDomainAllowed =
           allowedDomains.any((domain) => userEmail.endsWith('@$domain'));
@@ -114,16 +116,35 @@ class _LoginScreenState extends State<LoginScreen>
       }
 
       final googleAuth = await googleUser.authentication;
-      final tokenToUse = googleAuth.idToken ?? googleAuth.accessToken ?? '';
+      final idToken = googleAuth.idToken ?? googleAuth.accessToken ?? '';
 
-      if (tokenToUse.isNotEmpty) {
-        final authService = AuthService();
-        await authService.saveToken(tokenToUse);
-        if (mounted) context.go('/home');
-      } else {
-        throw Exception('No se pudo obtener un token válido');
+      if (idToken.isEmpty) {
+        throw Exception('No se pudo obtener el token de Google');
       }
+
+      // 🔥 AQUÍ ESTÁ EL CAMBIO: Llamar al servidor en lugar de solo guardar el token
+      final authService = AuthService();
+      
+      print('🔍 Enviando datos al servidor...');
+      print('📧 Email: $userEmail');
+      print('👤 Nombre: $displayName');
+      
+      // Llamar al endpoint /api/auth/google del servidor
+      final loginResponse = await authService.loginWithGoogle(
+        idToken: idToken,
+        email: userEmail,
+        name: displayName,
+      );
+
+      print('✅ Respuesta del servidor: ${loginResponse.message}');
+      // ✅ CORREGIDO: usar navegación segura o verificar null
+      print('👤 Usuario creado/encontrado: ${loginResponse.user?.email ?? 'Sin email'}');
+
+      // Ahora sí, ir a home
+      if (mounted) context.go('/home');
+    
     } catch (error) {
+      print('❌ Error completo en login: $error'); // ✅ MEJORADO: más info del error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
