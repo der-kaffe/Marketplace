@@ -229,50 +229,6 @@ class ApiClient {
       rethrow;
     }
   }
-
-  // FAVORITES ENDPOINTS (Productos favoritos)
-  Future<ProductFavoritesResponse> getProductFavorites({int page = 1, int limit = 20}) async {
-    try {
-      final uri = Uri.parse('$baseUrl/api/favorites').replace(
-        queryParameters: {
-          'page': page.toString(),
-          'limit': limit.toString(),
-        },
-      );
-      final response = await http.get(uri, headers: _headers);
-      final data = _handleResponse(response);
-      return ProductFavoritesResponse.fromJson(data);
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<bool> addProductFavorite({required int productoId}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/favorites'),
-        headers: _headers,
-        body: json.encode({ 'productoId': productoId }),
-      );
-      _handleResponse(response);
-      return true;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  Future<bool> removeProductFavorite({required int productoId}) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/favorites/$productoId'),
-        headers: _headers,
-      );
-      _handleResponse(response);
-      return true;
-    } catch (e) {
-      rethrow;
-    }
-  }
 }
 
 // Helper para obtener la URL base según la plataforma
@@ -325,17 +281,11 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    // Preferir 'name' si viene; si no, construir desde nombre + apellido
-    final fullName = (json['name'] as String?)?.trim();
-    final nombre = (json['nombre'] as String?)?.trim();
-    final apellido = (json['apellido'] as String?)?.trim();
-    final built = [nombre, apellido].where((e) => (e ?? '').isNotEmpty).join(' ').trim();
-
     return User(
-      id: json['id'] ?? json['userId'],
-      email: json['email'] ?? json['correo'],
-      name: (fullName != null && fullName.isNotEmpty) ? fullName : built,
-      role: json['role'] ?? json['rol'] ?? '',
+      id: json['id'],
+      email: json['email'],
+      name: json['name'],
+      role: json['role'],
     );
   }
 }
@@ -472,80 +422,5 @@ class ApiException implements Exception {
   @override
   String toString() {
     return 'ApiException: $message (Status: $statusCode)';
-  }
-}
-
-class ProductFavoritesResponse {
-  final bool ok;
-  final List<FavoritedProduct> favorites;
-  final Pagination pagination;
-
-  ProductFavoritesResponse({required this.ok, required this.favorites, required this.pagination});
-
-  factory ProductFavoritesResponse.fromJson(Map<String, dynamic> json) {
-    final favs = (json['favorites'] as List? ?? [])
-        .map((f) => FavoritedProduct.fromJson(f))
-        .toList();
-    return ProductFavoritesResponse(
-      ok: json['ok'] ?? false,
-      favorites: favs,
-      pagination: Pagination.fromJson(json['pagination'] ?? {}),
-    );
-  }
-}
-
-class FavoritedProduct {
-  final int id; // id del registro en favoritos
-  final int productoId;
-  final String nombre;
-  final String? descripcion;
-  final double? precioActual;
-  final String? categoria;
-  final String vendedorNombre;
-  final List<String> imagenes;
-  final DateTime fechaAgregado;
-
-  FavoritedProduct({
-    required this.id,
-    required this.productoId,
-    required this.nombre,
-    this.descripcion,
-    this.precioActual,
-    this.categoria,
-    required this.vendedorNombre,
-    required this.imagenes,
-    required this.fechaAgregado,
-  });
-
-  factory FavoritedProduct.fromJson(Map<String, dynamic> json) {
-    final p = json['producto'] ?? {};
-    final vendedor = p['vendedor'] ?? {};
-    final vendedorNombre = [vendedor['nombre'], vendedor['apellido']]
-        .where((e) => (e ?? '').toString().trim().isNotEmpty)
-        .join(' ')
-        .trim();
-
-    // imagenes viene como lista de objetos, transformar a lista de strings si hay url
-    final List<String> imageUrls = (p['imagenes'] as List? ?? [])
-        .map((img) {
-          final u = img['urlImagen'];
-          if (u == null) return null;
-          // si en DB es Bytes, aquí no hay URL directa; dejar vacío o adaptar a tu storage
-          return null;
-        })
-        .whereType<String>()
-        .toList();
-
-    return FavoritedProduct(
-      id: json['id'],
-      productoId: p['id'] ?? json['productoId'],
-      nombre: p['nombre'] ?? '',
-      descripcion: p['descripcion'],
-      precioActual: p['precioActual'] != null ? double.tryParse(p['precioActual'].toString()) : null,
-      categoria: (p['categoria'] ?? {})['nombre'],
-      vendedorNombre: vendedorNombre,
-      imagenes: imageUrls,
-      fechaAgregado: DateTime.parse((json['fecha']).toString()),
-    );
   }
 }

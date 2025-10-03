@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
+
+// Instancia global para manejar Google Sign-In
+final GoogleSignIn _googleSignIn = GoogleSignIn();
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -48,12 +52,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Encabezado del perfil
                 _buildProfileHeader(),
 
-                const SizedBox(height: 20),                // Información de sesión
-                _buildSessionInfo(),
-
-                const SizedBox(height: 16),
-
-                // Información personal
+                const SizedBox(height: 20),                // Información personal
                 _buildInfoSection(
                   title: 'Información Personal',
                   items: [
@@ -430,105 +429,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );  }
-
-  Widget _buildSessionInfo() {
-    final authService = AuthService();
-    final user = authService.currentUser;
-    final authType = authService.authType;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.blanco,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.azulPrimario.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.azulPrimario.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.info_outline, size: 20, color: AppColors.azulPrimario),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Información de Sesión',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.azulPrimario,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.account_circle, size: 16, color: AppColors.grisPrimario),
-              const SizedBox(width: 8),
-              Text(
-                'Usuario: ${user?.name ?? 'No disponible'}',
-                style: const TextStyle(fontSize: 14, color: AppColors.textoOscuro),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.login, size: 16, color: AppColors.grisPrimario),
-              const SizedBox(width: 8),
-              Text(
-                'Tipo de sesión: ${_getAuthTypeDisplay(authType)}',
-                style: const TextStyle(fontSize: 14, color: AppColors.textoOscuro),
-              ),
-            ],
-          ),
-          if (authType == 'google') ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.verified_user, size: 16, color: Colors.green),
-                const SizedBox(width: 8),
-                const Text(
-                  'Autenticado con Google',
-                  style: TextStyle(fontSize: 14, color: Colors.green),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
     );
-  }
-
-  String _getAuthTypeDisplay(String? authType) {
-    switch (authType) {
-      case 'google':
-        return 'Google Auth';
-      case 'email':
-        return 'Email/Password';
-      case 'guest':
-        return 'Modo Invitado';
-      case 'admin':
-        return 'Modo Admin';
-      default:
-        return 'Desconocido';
-    }
   }
 
   void _showFeatureMessage(BuildContext context, String feature) {
@@ -546,6 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (Navigator.canPop(context)) Navigator.pop(context);
     _showFeatureMessage(context, 'Navegando a la sección $index');
   }
+
   // 🔹 Logout con confirmación, Google Sign-In y go_router
   void _logout(BuildContext context) {
     showDialog(
@@ -564,22 +466,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pop(context);
 
                 try {
+                  // 🔹 Cerrar sesión en Google
+                  await _googleSignIn.signOut();
+
+                  // 🔹 Borrar token local (clave: session_token)
                   final authService = AuthService();
-                  await authService.logout();
+                  await authService.deleteToken();
                 } catch (e) {
                   debugPrint("Error al cerrar sesión: $e");
                 }
 
-                // Ir a login
-                if (context.mounted) {
-                  context.go('/login');
-                }
+                // 🔹 Ahora sí, ir a login
+                context.go('/login');
               },
               child: const Text('Confirmar'),
             ),
           ],
-        );
-      },
+        );      },
     );
   }
 

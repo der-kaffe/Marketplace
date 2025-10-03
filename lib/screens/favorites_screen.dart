@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
-import '../services/auth_service.dart';
-import '../services/api_client.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -12,59 +10,65 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  final _authService = AuthService();
   bool _isLoading = true;
-  bool _isRefreshing = false;
 
-  List<FavoritedProduct> _favorites = [];
+  List<Map<String, dynamic>> favoriteItems = [];
 
   @override
   void initState() {
     super.initState();
-    _loadFavorites();
-  }
 
-  Future<void> _loadFavorites() async {
-    setState(() => _isLoading = true);
-    try {
-      final token = await _authService.getToken();
-      if (token != null && token.isNotEmpty) {
-        _authService.apiClient.setToken(token);
-      }
-
-      final resp = await _authService.apiClient.getProductFavorites(page: 1, limit: 50);
+    Future.delayed(const Duration(seconds: 1), () {
       setState(() {
-        _favorites = resp.favorites;
         _isLoading = false;
+
+        favoriteItems = [
+          {
+            'id': 1,
+            'title': 'Calculadora Científica',
+            'image': 'https://flutter.github.io/assets-for-api-docs/assets/widgets/owl.jpg',
+            'price': '\$15.000',
+          },
+          {
+            'id': 2,
+            'title': 'Libro de Física 1',
+            'image': 'https://picsum.photos/150',
+            'price': '\$8.000',
+          },
+          {
+            'id': 3,
+            'title': 'Mochila Escolar',
+            'image': 'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=150&q=80',
+            'price': '\$25.000',
+          },
+          {
+            'id': 4,
+            'title': 'Audífonos Bluetooth',
+            'image': 'https://picsum.photos/150',
+            'price': '\$35.000',
+          },
+          {
+            'id': 5,
+            'title': 'Libro de Cálculo',
+            'image': 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=150&q=80',
+            'price': '\$10.000',
+          },
+          {
+            'id': 6,
+            'title': 'Set de útiles de dibujo',
+            'image': 'https://picsum.photos/150',
+            'price': '\$12.000',
+          },
+        ];
+
       });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al cargar favoritos: $e')),
-      );
-    }
+    });
   }
 
-  Future<void> _refresh() async {
-    setState(() => _isRefreshing = true);
-    await _loadFavorites();
-    setState(() => _isRefreshing = false);
-  }
-
-  Future<void> _removeFavorite(int productoId) async {
-    try {
-      await _authService.apiClient.removeProductFavorite(productoId: productoId);
-      setState(() {
-        _favorites.removeWhere((f) => f.productoId == productoId);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Eliminado de favoritos')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo eliminar: $e')),
-      );
-    }
+  void _removeFavorite(int id) {
+    setState(() {
+      favoriteItems.removeWhere((item) => item['id'] == id);
+    });
   }
 
   @override
@@ -83,19 +87,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 size: 50.0,
               ),
             )
-          : _favorites.isEmpty
+          : favoriteItems.isEmpty
               ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _favorites.length,
-                    itemBuilder: (context, index) {
-                      final fav = _favorites[index];
-                      return _buildFavoriteCard(fav);
-                    },
-                  ),
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: favoriteItems.length,
+                  itemBuilder: (context, index) {
+                    final item = favoriteItems[index];
+                    return _buildFavoriteCard(item);
+                  },
                 ),
     );
   }
@@ -124,44 +124,29 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _buildFavoriteCard(FavoritedProduct fav) {
+  Widget _buildFavoriteCard(Map<String, dynamic> item) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: Container(
+        leading: SizedBox(
           width: 60,
           height: 60,
-          decoration: BoxDecoration(
-            color: AppColors.grisPrimario.withOpacity(0.15),
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              item['image'],
+              fit: BoxFit.cover,
+            ),
           ),
-          child: const Icon(Icons.shopping_bag_outlined, color: AppColors.azulPrimario),
         ),
-        title: Text(
-          fav.nombre,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          [
-            if (fav.categoria != null) fav.categoria!,
-            if (fav.precioActual != null) '\$${fav.precioActual!.toStringAsFixed(0)}',
-            if (fav.vendedorNombre.isNotEmpty) fav.vendedorNombre,
-          ].join(' · '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: Text(item['title']),
+        subtitle: Text(item['price']),
         trailing: IconButton(
-          tooltip: 'Quitar de favoritos',
           icon: const Icon(Icons.delete_outline, color: AppColors.error),
-          onPressed: () => _removeFavorite(fav.productoId),
+          onPressed: () => _removeFavorite(item['id']),
         ),
-        onTap: () {
-          // TODO: Navegar al detalle del producto
-        },
       ),
     );
   }
