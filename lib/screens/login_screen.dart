@@ -39,7 +39,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile', 'openid'],
     clientId: kIsWeb
@@ -49,15 +50,15 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
   bool _isLoading = false;
 
-  late final AnimationController _animationController;
-  late final Animation<double> _fadeAnimation;
-  late final Animation<Offset> _slideAnimation;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
@@ -66,7 +67,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, 0.5),
+      begin: const Offset(0.0, 1.0),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutQuart),
@@ -85,58 +86,50 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     setState(() => _isLoading = true);
 
     try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return setState(() => _isLoading = false);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
-      final allowedDomains = ['uct.cl', 'alu.uct.cl'];
-      if (!allowedDomains.any((d) => googleUser.email.endsWith('@$d'))) {
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final String userEmail = googleUser.email;
+      const allowedDomains = ['uct.cl', 'alu.uct.cl'];
+      final isDomainAllowed =
+          allowedDomains.any((domain) => userEmail.endsWith('@$domain'));
+
+      if (!isDomainAllowed) {
         await _googleSignIn.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
+              content:
+                  Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
               backgroundColor: Colors.red,
             ),
           );
         }
-        return setState(() => _isLoading = false);
-      }      final googleAuth = await googleUser.authentication;
-      
-      // Debug información
-      print('🔍 Debug Google Auth:');
-      print('  - Email: ${googleUser.email}');
-      print('  - Name: ${googleUser.displayName}');
-      print('  - ID Token: ${googleAuth.idToken != null ? "✅ Disponible" : "❌ Null"}');
-      print('  - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');
-
-      final authService = AuthService();
-      
-      // 🔧 MODO DE DESARROLLO: Bypass del backend por ahora
-      // Generamos un token temporal para que la app funcione
-      final mockToken = 'mock_google_token_${DateTime.now().millisecondsSinceEpoch}';
-      await authService.saveToken(mockToken);
-      
-      // ✅ Guardar datos de Google localmente
-      await authService.saveGoogleUserData(
-        email: googleUser.email,
-        name: googleUser.displayName ?? googleUser.email.split('@')[0],
-        photoUrl: googleUser.photoUrl,
-      );
-
-      print('✅ Login simulado exitoso con token: $mockToken');      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Login exitoso! (Modo desarrollo)'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        context.go('/home');
+        setState(() => _isLoading = false);
+        return;
       }
-    } catch (e) {
+
+      final googleAuth = await googleUser.authentication;
+      final tokenToUse = googleAuth.idToken ?? googleAuth.accessToken ?? '';
+
+      if (tokenToUse.isNotEmpty) {
+        final authService = AuthService();
+        await authService.saveToken(tokenToUse);
+        if (mounted) context.go('/home');
+      } else {
+        throw Exception('No se pudo obtener un token válido');
+      }
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: ${error.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -156,11 +149,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       final authService = AuthService();
       await authService.saveToken('admin_user_token');
       if (mounted) context.go('/admin');
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al iniciar sesión como admin: ${e.toString()}'),
+            content:
+                Text('Error al iniciar sesión como admin: ${error.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -182,7 +176,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           opacity: _fadeAnimation,
           child: Column(
             children: [
-              // Sección superior con wave
               SizedBox(
                 height: screenHeight * 0.35,
                 child: ClipPath(
@@ -191,104 +184,127 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     fit: StackFit.expand,
                     children: [
                       Image.asset('assets/universidad.jpg', fit: BoxFit.cover),
-                      Container(color: const Color(0xFF005A8A).withOpacity(0.6)),
+                      Container(
+                          color: const Color(0xFF005A8A).withOpacity(0.6)),
                     ],
                   ),
                 ),
               ),
-
-              // Sección inferior con botones
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Sign in',
-                        style: TextStyle(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF3A3A3A),
+                child: Transform.translate(
+                  offset: const Offset(0, -30),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Sign in',
+                          style: TextStyle(
+                            fontFamily: 'sans-serif',
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF3A3A3A),
+                            height: 1.2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: 40,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: AppColors.amarilloPrimario,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
 
-                      // Google Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _isLoading ? null : _loginWithGoogle,
-                          icon: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                        // Agregamos espacio antes de los botones
+                        const SizedBox(height: 40),
+
+                        // Botón Google
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: _isLoading ? null : _loginWithGoogle,
+                            icon: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.grey),
+                                    ),
+                                  )
+                                : Image.network(
+                                    'http://pngimg.com/uploads/google/google_PNG19635.png',
+                                    height: 20,
                                   ),
-                                )
-                              : Image.network(
-                                  'http://pngimg.com/uploads/google/google_PNG19635.png',
-                                  height: 20,
-                                ),
-                          label: Text(
-                            _isLoading ? 'Signing in...' : 'Continue with Google',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF3A3A3A),
-                              fontWeight: FontWeight.w500,
+                            label: Text(
+                              _isLoading
+                                  ? 'Iniciando sesión...'
+                                  : 'Continuar con Google',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF3A3A3A),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF3A3A3A),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF3A3A3A),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
                             ),
-                            elevation: 2,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
 
-                      // Invitado & Admin Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _isLoading ? null : _loginAsGuest,
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.amarilloPrimario),
-                                foregroundColor: AppColors.amarilloPrimario,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(25),
+                        const SizedBox(height: 16),
+
+                        // Botones Invitado y Admin
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _isLoading ? null : _loginAsGuest,
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(
+                                      color: AppColors.amarilloPrimario),
+                                  foregroundColor: AppColors.amarilloPrimario,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: const Text('Invitado',
+                                    style: TextStyle(fontSize: 14)),
                               ),
-                              child: const Text('Invitado', style: TextStyle(fontSize: 12)),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _loginAsAdmin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.withOpacity(0.8),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(25),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _loginAsAdmin,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.withOpacity(0.8),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
                                 ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: const Text('Admin',
+                                    style: TextStyle(fontSize: 14)),
                               ),
-                              child: const Text('Admin', style: TextStyle(fontSize: 12)),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
