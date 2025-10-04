@@ -42,9 +42,79 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
         resumen: user.resumenUsuario
       }
     });
-
   } catch (error) {
     next(error); // lo captura el errorHandler
+  }
+});
+
+// PUT /api/users/profile - Actualizar perfil del usuario actual
+router.put('/profile', authenticateToken, async (req, res, next) => {
+  try {
+    const { apellido, usuario, campus, telefono, direccion } = req.body;
+    
+    // Validar que al menos un campo sea enviado
+    const updateData = {};
+    if (apellido !== undefined) updateData.apellido = apellido;
+    if (usuario !== undefined) updateData.usuario = usuario;
+    if (campus !== undefined) updateData.campus = campus;
+    if (telefono !== undefined) updateData.telefono = telefono;
+    if (direccion !== undefined) updateData.direccion = direccion;
+
+    if (Object.keys(updateData).length === 0) {
+      throw new AppError(
+        'Se debe proporcionar al menos un campo para actualizar',
+        'VALIDATION_ERROR',
+        400,
+        { fields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion'] }
+      );
+    }
+
+    // Verificar que el nombre de usuario sea único si se está cambiando
+    if (usuario) {
+      const existingUser = await prisma.cuentas.findFirst({
+        where: { 
+          usuario,
+          NOT: { id: req.user.userId }
+        }
+      });
+      
+      if (existingUser) {
+        throw new AppError(
+          'El nombre de usuario ya está en uso',
+          'USERNAME_TAKEN',
+          400,
+          { field: 'usuario', value: usuario }
+        );
+      }
+    }
+
+    // Actualizar usuario
+    const updatedUser = await prisma.cuentas.update({
+      where: { id: req.user.userId },
+      data: updateData,
+      include: {
+        rol: true,
+        estado: true
+      }
+    });    res.json({
+      ok: true,
+      message: 'Perfil actualizado correctamente',
+      user: {
+        id: updatedUser.id,
+        correo: updatedUser.correo,
+        nombre: updatedUser.nombre,
+        apellido: updatedUser.apellido || '',
+        usuario: updatedUser.usuario,
+        campus: updatedUser.campus || 'Campus Temuco',
+        telefono: updatedUser.telefono,
+        direccion: updatedUser.direccion,
+        role: updatedUser.rol.nombre,
+        editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
+      }
+    });
+
+  } catch (error) {
+    next(error);
   }
 });
 

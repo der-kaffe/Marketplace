@@ -129,13 +129,39 @@ class ApiClient {
   }
 
   // USER ENDPOINTS
-
   // Obtener perfil del usuario actual
   Future<Map<String, dynamic>> getUserProfile() async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/api/users/profile'),
         headers: _headers,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Actualizar campos editables del perfil
+  Future<Map<String, dynamic>> updateProfile({
+    String? apellido,
+    String? usuario,
+    String? campus,
+    String? telefono,
+    String? direccion,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (apellido != null) body['apellido'] = apellido;
+      if (usuario != null) body['usuario'] = usuario;
+      if (campus != null) body['campus'] = campus;
+      if (telefono != null) body['telefono'] = telefono;
+      if (direccion != null) body['direccion'] = direccion;
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/users/profile'),
+        headers: _headers,
+        body: json.encode(body),
       );
       return _handleResponse(response);
     } catch (e) {
@@ -269,22 +295,53 @@ class LoginResponse {
 
 class User {
   final int id;
-  final String email;
-  final String name;
-  final String role;
+  final String email;     // 🔒 Solo lectura (de Google)
+  final String name;      // 🔒 Solo lectura (de Google)
+  final String role;      // 🔒 Solo lectura (sistema)
+  final String apellido;  // ✏️ Editable
+  final String usuario;   // ✏️ Editable
+  final String campus;    // ✏️ Editable
+  final String? telefono; // ✏️ Editable (opcional)
+  final String? direccion;// ✏️ Editable (opcional)
 
   User({
     required this.id,
     required this.email,
     required this.name,
     required this.role,
-  });  factory User.fromJson(Map<String, dynamic> json) {
+    this.apellido = '',
+    this.usuario = '',
+    this.campus = 'Campus Temuco',
+    this.telefono,
+    this.direccion,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] ?? 0,
-      email: json['correo'] ?? json['email'] ?? '', // Backend usa 'correo'
-      name: json['nombre'] ?? json['name'] ?? '',   // Backend usa 'nombre'
-      role: json['role'] ?? 'user',
+      email: json['correo'] ?? json['email'] ?? '',
+      name: json['nombre'] ?? json['name'] ?? '',
+      role: json['role'] ?? 'Cliente', // Por defecto Cliente para Google login
+      apellido: json['apellido'] ?? '',
+      usuario: json['usuario'] ?? '',
+      campus: json['campus'] ?? 'Campus Temuco',
+      telefono: json['telefono'],
+      direccion: json['direccion'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'correo': email,
+      'nombre': name,
+      'role': role,
+      'apellido': apellido,
+      'usuario': usuario,
+      'campus': campus,
+      'telefono': telefono,
+      'direccion': direccion,
+    };
   }
 }
 

@@ -18,58 +18,57 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   
-  // Variables para campos editables(por el momento solo teléfono y dirección, los otros no deberian ser editables)
-  String _direccion = 'Campus';
-  String _telefono = '+56 9 1234 5678';
-  
-  // Datos del usuario
+  // Datos del usuario (obtenidos del backend)
   String _userName = 'Usuario';
   String _userEmail = 'usuario@ejemplo.com';
   String? _userPhotoUrl;
+  
+  // Campos editables
+  String _apellido = '';
+  String _usuario = '';
+  String _campus = 'Campus Temuco';
+  String? _telefono;
+  String? _direccion;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-  }  // Cargar datos del usuario SOLO desde datos locales guardados
+  }  // Cargar datos del usuario desde el backend
   Future<void> _loadUserData() async {
     try {
-      print('🔍 Cargando datos del perfil...');
+      print('🔍 Cargando datos del perfil desde backend...');
       final authService = AuthService();
       
-      // Obtener datos guardados de Google (modo desarrollo)
-      final googleData = await authService.getGoogleUserData();
-      print('📱 Datos de Google guardados: $googleData');
-      
-      if (googleData != null) {
-        setState(() {
-          _userName = googleData['name'] ?? 'Usuario';
-          _userEmail = googleData['email'] ?? 'usuario@ejemplo.com';
-          _userPhotoUrl = googleData['photoUrl'];
-        });
-        print('✅ Datos cargados exitosamente: $_userName, $_userEmail');
-      } else {
-        print('⚠️ No se encontraron datos de Google, usando valores por defecto');
-        setState(() {
-          _userName = 'Usuario Invitado';
-          _userEmail = 'invitado@ejemplo.com';
-          _userPhotoUrl = null;
-        });
-      }
-      
-      // Intentar obtener datos del usuario desde AuthService si están disponibles
+      // Obtener datos del usuario actual desde AuthService
       final currentUser = authService.currentUser;
       if (currentUser != null) {
         print('👤 Usuario actual del AuthService: ${currentUser.name}');
         setState(() {
-          _userName = currentUser.name.isNotEmpty ? currentUser.name : _userName;
-          _userEmail = currentUser.email.isNotEmpty ? currentUser.email : _userEmail;
+          _userName = currentUser.name;
+          _userEmail = currentUser.email;
+          _apellido = currentUser.apellido;
+          _usuario = currentUser.usuario;
+          _campus = currentUser.campus;
+          _telefono = currentUser.telefono;
+          _direccion = currentUser.direccion;
         });
+        print('✅ Datos cargados exitosamente');
+      } else {
+        print('⚠️ No hay usuario autenticado');
+        // Intentar obtener desde datos de Google como fallback
+        final googleData = await authService.getGoogleUserData();
+        if (googleData != null) {
+          setState(() {
+            _userName = googleData['name'] ?? 'Usuario';
+            _userEmail = googleData['email'] ?? 'usuario@ejemplo.com';
+            _userPhotoUrl = googleData['photoUrl'];
+          });
+        }
       }
       
     } catch (e) {
       print('❌ Error cargando datos del usuario: $e');
-      // Mantener valores por defecto seguros
       setState(() {
         _userName = 'Usuario';
         _userEmail = 'usuario@ejemplo.com';
@@ -117,16 +116,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   items: [
                     _buildInfoItem(
                         Icons.person, 'Nombre completo', _userName),
-                    _buildInfoItem(Icons.email, 'Email', _userEmail),
-                    _buildActionItem(
+                    _buildInfoItem(Icons.email, 'Email', _userEmail),                    _buildActionItem(
                       icon: Icons.refresh,
                       title: 'Actualizar datos de perfil',
                       color: AppColors.azulPrimario,
                       onTap: _refreshUserData,
                     ),
-                    _buildEditableInfoItem(Icons.phone, 'Teléfono', _telefono, () => _editField('teléfono')),
-                    _buildEditableInfoItem(
-                        Icons.location_on, 'Campus/Dirección', _direccion, () => _editField('dirección')),
+                    _buildActionItem(
+                      icon: Icons.bug_report,
+                      title: 'Debug: Verificar autenticación',
+                      color: Colors.orange,
+                      onTap: _debugAuthentication,
+                    ),_buildEditableInfoItem(Icons.person_outline, 'Apellido', _apellido, () => _editField('apellido')),
+                    _buildEditableInfoItem(Icons.account_circle, 'Usuario', _usuario, () => _editField('usuario')),
+                    _buildEditableInfoItem(Icons.school, 'Campus', _campus, () => _editField('campus')),
+                    _buildEditableInfoItem(Icons.phone, 'Teléfono', _telefono ?? 'No especificado', () => _editField('teléfono')),
+                    _buildEditableInfoItem(Icons.location_on, 'Dirección', _direccion ?? 'No especificada', () => _editField('dirección')),
                   ],
                 ),
 
@@ -607,11 +612,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }  // Método auxiliar para obtener el valor actual de un campo
+  String _getCurrentValue(String fieldType) {
+    switch (fieldType) {
+      case 'apellido':
+        return _apellido;
+      case 'usuario':
+        return _usuario;
+      case 'campus':
+        return _campus;
+      case 'teléfono':
+        return _telefono ?? '';
+      case 'dirección':
+        return _direccion ?? '';
+      default:
+        return '';
+    }
   }
 
   // Método para editar campos
   void _editField(String fieldType) {
-    String currentValue = fieldType == 'teléfono' ? _telefono : _direccion;
+    String currentValue = _getCurrentValue(fieldType);
     TextEditingController controller = TextEditingController(text: currentValue);
 
     showDialog(
@@ -622,31 +643,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (fieldType == 'dirección') ...[
+              if (fieldType == 'campus') ...[
                 const Text(
-                  'Selecciona tu ubicación:',
+                  'Selecciona tu campus:',
                   style: TextStyle(fontSize: 14, color: AppColors.textoSecundario),
                 ),
-                const SizedBox(height: 12),                DropdownButtonFormField<String>(
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
                   value: _getCampusDropdownValue(),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    labelText: 'Ubicación',
+                    labelText: 'Campus',
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Campus', child: Text('Campus UCT - Sede Principal')),
+                    DropdownMenuItem(value: 'Campus Temuco', child: Text('Campus Temuco - Sede Principal')),
                     DropdownMenuItem(value: 'Campus Norte', child: Text('Campus Norte UCT')),
                     DropdownMenuItem(value: 'Campus San Francisco', child: Text('Campus San Francisco')),
-                    DropdownMenuItem(value: 'Campus Menchaca lira', child: Text('Campus Menchaca lira')),
-                    DropdownMenuItem(value: 'Campus Rivas del canto', child: Text('Campus Rivas del canto')),
-                    DropdownMenuItem(value: 'Dirección personalizada', child: Text('Dirección personalizada')),
+                    DropdownMenuItem(value: 'Campus Menchaca Lira', child: Text('Campus Menchaca Lira')),
+                    DropdownMenuItem(value: 'Campus Rivas del Canto', child: Text('Campus Rivas del Canto')),
                   ],
                   onChanged: (value) {
-                    if (value != 'Dirección personalizada') {
-                      controller.text = value ?? 'Campus';
-                    } else {
-                      controller.text = _direccion.contains('Campus') ? '' : _direccion;
-                    }
+                    controller.text = value ?? 'Campus Temuco';
                   },
                 ),
                 const SizedBox(height: 12),
@@ -654,11 +671,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: fieldType == 'teléfono' ? 'Número de teléfono' : 'Dirección detallada',
-                  hintText: fieldType == 'teléfono' 
-                    ? '+56 9 1234 5678' 
-                    : 'Ej: Av. Alemania 0211, Temuco',
+                  border: const OutlineInputBorder(),                  labelText: fieldType == 'teléfono' ? 'Número de teléfono' : 
+                           fieldType == 'apellido' ? 'Apellido' :
+                           fieldType == 'usuario' ? 'Nombre de usuario' :
+                           fieldType == 'campus' ? 'Campus' : 'Dirección',
+                  hintText: fieldType == 'teléfono' ? '+56 9 1234 5678' : 
+                          fieldType == 'apellido' ? 'Ej: García' :
+                          fieldType == 'usuario' ? 'Ej: juan_garcia' :
+                          fieldType == 'campus' ? 'Campus Temuco' : 
+                          'Ej: Av. Alemania 0211, Temuco',
                 ),
                 keyboardType: fieldType == 'teléfono' ? TextInputType.phone : TextInputType.text,
               ),
@@ -668,43 +689,211 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  if (fieldType == 'teléfono') {
-                    _telefono = controller.text.trim();
-                  } else {
-                    _direccion = controller.text.trim();
-                  }
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('$fieldType actualizado correctamente'),
-                    backgroundColor: AppColors.exito,
-                  ),
-                );
+            ),            TextButton(
+              onPressed: () async {
+                // Cerrar el diálogo INMEDIATAMENTE
+                Navigator.of(context).pop();
+                
+                // Luego ejecutar la actualización
+                await _saveField(fieldType, controller.text.trim());
               },
               child: const Text('Guardar'),
             ),
           ],
         );      },
     );
-  }
-  // Método para obtener el valor correcto del dropdown de campus
+  }  // Método para obtener el valor correcto del dropdown de campus
   String _getCampusDropdownValue() {
     final campusOptions = [
-      'Campus',
+      'Campus Temuco',
       'Campus Norte',
       'Campus San Francisco', 
-      'Campus Menchaca lira',
-      'Campus Rivas del canto'
+      'Campus Menchaca Lira',
+      'Campus Rivas del Canto'
     ];
     
-    if (campusOptions.contains(_direccion)) {
-      return _direccion;
+    if (campusOptions.contains(_campus)) {
+      return _campus;
     }
-    return 'Dirección personalizada';
+    return 'Campus Temuco';
+  }  // Método para guardar un campo editado
+  Future<void> _saveField(String fieldType, String newValue) async {
+    try {
+      print('🔄 Iniciando actualización de $fieldType: $newValue');
+
+      // Verificar autenticación
+      final authService = AuthService();
+      final token = await authService.getToken();
+      final currentUser = authService.currentUser;
+      
+      print('🔑 Token disponible: ${token != null ? 'SÍ' : 'NO'}');
+      print('👤 Usuario actual: ${currentUser?.name ?? 'NINGUNO'}');
+      
+      if (token == null) {
+        throw Exception('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+      }
+
+      // Llamar al backend para actualizar
+      final apiClient = authService.apiClient;
+      
+      // Crear el objeto de actualización con solo el campo que cambió
+      Map<String, String?> updateParams = {};
+      switch (fieldType) {
+        case 'apellido':
+          updateParams['apellido'] = newValue;
+          break;
+        case 'usuario':
+          updateParams['usuario'] = newValue;
+          break; 
+        case 'campus':
+          updateParams['campus'] = newValue;
+          break;
+        case 'teléfono':
+          updateParams['telefono'] = newValue.isEmpty ? null : newValue;
+          break;
+        case 'dirección':
+          updateParams['direccion'] = newValue.isEmpty ? null : newValue;
+          break;
+      }
+
+      final response = await apiClient.updateProfile(
+        apellido: updateParams['apellido'],
+        usuario: updateParams['usuario'],
+        campus: updateParams['campus'],
+        telefono: updateParams['telefono'],
+        direccion: updateParams['direccion'],
+      );
+
+      print('✅ Respuesta del servidor: $response');
+      
+      // Solo actualizar localmente si la llamada al backend fue exitosa
+      if (mounted) {
+        setState(() {
+          switch (fieldType) {
+            case 'apellido':
+              _apellido = newValue;
+              break;
+            case 'usuario':
+              _usuario = newValue;
+              break;
+            case 'campus':
+              _campus = newValue;
+              break;
+            case 'teléfono':
+              _telefono = newValue.isEmpty ? null : newValue;
+              break;
+            case 'dirección':
+              _direccion = newValue.isEmpty ? null : newValue;
+              break;
+          }
+        });
+        
+        print('💾 Campo $fieldType actualizado en backend');
+        
+        // Mensaje específico con el valor actualizado
+        String mensaje = _getUpdateMessage(fieldType, newValue);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: AppColors.exito,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error actualizando $fieldType: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error actualizando $fieldType: ${_getErrorMessage(e.toString())}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+  // Función para generar mensajes específicos de actualización
+  String _getUpdateMessage(String fieldType, String newValue) {
+    switch (fieldType) {
+      case 'apellido':
+        return newValue.isEmpty 
+            ? 'Apellido eliminado correctamente'
+            : 'Apellido actualizado a: $newValue';
+      case 'usuario':
+        return 'Nombre de usuario actualizado a: $newValue';
+      case 'campus':
+        return 'Campus actualizado a: $newValue';
+      case 'teléfono':
+        return newValue.isEmpty 
+            ? 'Teléfono eliminado correctamente'
+            : 'Teléfono actualizado a: $newValue';
+      case 'dirección':
+        return newValue.isEmpty 
+            ? 'Dirección eliminada correctamente'
+            : 'Dirección actualizada a: $newValue';
+      default:
+        return '$fieldType actualizado correctamente';
+    }  }
+
+  // Función para generar mensajes de error más claros
+  String _getErrorMessage(String error) {
+    if (error.contains('USERNAME_TAKEN')) {
+      return 'El nombre de usuario ya está en uso';
+    } else if (error.contains('TOKEN_INVALID') || error.contains('TOKEN_REQUIRED')) {
+      return 'Sesión expirada. Por favor, inicia sesión nuevamente';
+    } else if (error.contains('Connection refused') || error.contains('NetworkException')) {
+      return 'Sin conexión al servidor';
+    } else if (error.contains('VALIDATION_ERROR')) {
+      return 'Datos inválidos';
+    } else {
+      return 'Error inesperado';
+    }
+  }
+
+  // Función de debug para verificar autenticación
+  Future<void> _debugAuthentication() async {
+    try {
+      final authService = AuthService();
+      final token = await authService.getToken();
+      final currentUser = authService.currentUser;
+      final isAuthenticated = await authService.isAuthenticated();
+      
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Debug - Estado de Autenticación'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('🔑 Token: ${token != null ? 'SÍ (${token.substring(0, 10)}...)' : 'NO'}'),
+              const SizedBox(height: 8),
+              Text('👤 Usuario actual: ${currentUser?.name ?? 'NINGUNO'}'),
+              const SizedBox(height: 8),
+              Text('✅ Autenticado: ${isAuthenticated ? 'SÍ' : 'NO'}'),
+              const SizedBox(height: 8),
+              Text('📧 Email: ${currentUser?.email ?? 'N/A'}'),
+              const SizedBox(height: 8),
+              Text('🏷️ Rol: ${currentUser?.role ?? 'N/A'}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error en debug: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
