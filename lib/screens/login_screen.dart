@@ -107,39 +107,29 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       print('  - Name: ${googleUser.displayName}');
       print('  - Photo URL: ${googleUser.photoUrl}');
       print('  - ID Token: ${googleAuth.idToken != null ? "✅ Disponible" : "❌ Null"}');
-      print('  - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');
-
-      final authService = AuthService();
-        // 🔄 ESTRATEGIA HÍBRIDA: Intenta BD primero, fallback a local
-      final result = await authService.loginWithGoogleHybrid(
+      print('  - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');      final authService = AuthService();
+      
+      // 🔄 LOGIN SOLO CON BACKEND Y POSTGRESQL
+      final result = await authService.loginWithGoogleBackend(
         idToken: googleAuth.idToken,
         accessToken: googleAuth.accessToken,
         email: googleUser.email,
         name: googleUser.displayName ?? googleUser.email.split('@')[0],
         photoUrl: googleUser.photoUrl,
       );
-      
-      // Debug adicional para la imagen
-      print('🔍 Debug imagen de perfil:');
-      print('  - Foto URL original: ${googleUser.photoUrl}');
-      if (googleUser.photoUrl != null && googleUser.photoUrl!.isNotEmpty) {
-        print('  - ✅ URL de imagen disponible');
-      } else {
-        print('  - ❌ No hay URL de imagen de Google');
-      }
 
       if (mounted && result['success'] == true) {
-        final isDatabase = result['mode'] == 'database';
-        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message']),
-            backgroundColor: isDatabase ? Colors.green : Colors.orange,
-            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
         );
         
-        print('✅ Login exitoso - Modo: ${result['mode']} - Token: ${result['token']}');
+        print('✅ Login exitoso - Token: ${result['token'].toString().substring(0, 50)}...');
+        print('👤 Usuario guardado en PostgreSQL');
+        
         context.go('/home');
       }
     } catch (e) {

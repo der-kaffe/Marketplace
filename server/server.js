@@ -29,12 +29,26 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS
+// CORS - Configuración más permisiva para desarrollo
 const corsOptions = {
   origin: function (origin, callback) {
-    // Permitir requests sin origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    console.log('🌐 CORS: Petición desde origen:', origin);
     
+    // Permitir requests sin origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      console.log('✅ CORS: Permitiendo request sin origen');
+      return callback(null, true);
+    }
+    
+    // En desarrollo, permitir localhost en cualquier puerto
+    if (process.env.NODE_ENV === 'development') {
+      if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        console.log('✅ CORS: Permitiendo localhost en desarrollo');
+        return callback(null, true);
+      }
+    }
+    
+    // También verificar la lista específica del .env
     const allowedOrigins = process.env.CORS_ORIGIN.split(',');
     const isAllowed = allowedOrigins.some(allowedOrigin => {
       if (allowedOrigin.includes('*')) {
@@ -45,9 +59,11 @@ const corsOptions = {
     });
     
     if (isAllowed) {
+      console.log('✅ CORS: Origen permitido por configuración');
       callback(null, true);
     } else {
-      callback(new Error('No permitido por CORS'));
+      console.log('❌ CORS: Origen NO permitido:', origin);
+      callback(new Error(`No permitido por CORS: ${origin}`));
     }
   },
   credentials: true

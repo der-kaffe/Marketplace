@@ -278,14 +278,12 @@ class User {
     required this.email,
     required this.name,
     required this.role,
-  });
-
-  factory User.fromJson(Map<String, dynamic> json) {
+  });  factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'],
-      email: json['email'],
-      name: json['name'],
-      role: json['role'],
+      id: json['id'] ?? 0,
+      email: json['correo'] ?? json['email'] ?? '', // Backend usa 'correo'
+      name: json['nombre'] ?? json['name'] ?? '',   // Backend usa 'nombre'
+      role: json['role'] ?? 'user',
     );
   }
 }

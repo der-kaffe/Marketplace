@@ -151,77 +151,68 @@ class AuthService {
     } catch (e) {
       rethrow;
     }
-  }
-  // Login con Google - Estrategia Híbrida
-  Future<Map<String, dynamic>> loginWithGoogleHybrid({
+  }  // Login con Google - SOLO Backend y PostgreSQL
+  Future<Map<String, dynamic>> loginWithGoogleBackend({
     required String? idToken,
     required String? accessToken,
     required String email,
     required String name,
     String? photoUrl,
   }) async {
-    print('🔄 Iniciando login híbrido con Google...');
+    print('🔄 Iniciando login con Google (SOLO BACKEND)...');
+    print('📧 Email: $email');
+    print('👤 Nombre: $name');
+    print('🖼️ Foto URL: $photoUrl');
     
-    // 1️⃣ PRIMERO: Intentar guardar en BD (producción)
-    if (idToken != null && idToken.isNotEmpty) {
-      try {
-        print('🌐 Intentando login con API...');
+    try {
+      // Usar idToken o accessToken
+      final tokenToUse = idToken ?? accessToken;
+      if (tokenToUse == null || tokenToUse.isEmpty) {
+        throw Exception('No se pudo obtener token de Google');
+      }
+      
+      print('🌐 Conectando a API backend...');
+      
+      final response = await _apiClient.loginWithGoogle(
+        idToken: tokenToUse,
+        email: email,
+        name: name,
+        avatarUrl: photoUrl,
+      );
+      
+      if (response.ok && response.token != null) {
+        // ✅ Login exitoso con BD - Guardar token JWT real
+        await saveToken(response.token!);
         
-        final response = await _apiClient.loginWithGoogle(
-          idToken: idToken,
+        // Guardar datos del usuario en storage local para perfil
+        if (response.user != null) {
+          await saveUserData(response.user!);
+        }
+        
+        // También guardar datos de Google para el perfil
+        await saveGoogleUserData(
           email: email,
           name: name,
-          avatarUrl: photoUrl,
+          photoUrl: photoUrl,
         );
         
-        if (response.ok && response.token != null) {
-          // ✅ Login exitoso con BD
-          await saveToken(response.token!);
-          
-          if (response.user != null) {
-            await saveUserData(response.user!);
-          }
-          
-          // También guardar datos de Google para el perfil
-          await saveGoogleUserData(
-            email: email,
-            name: name,
-            photoUrl: photoUrl,
-          );
-          
-          print('✅ Login con BD exitoso - Token: ${response.token!}');
-          return {
-            'success': true,
-            'mode': 'database',
-            'token': response.token!,
-            'message': '¡Login exitoso con base de datos!',
-          };
-        }
-      } catch (apiError) {
-        print('⚠️ Error en API: $apiError');
+        print('✅ Login exitoso - Usuario guardado en PostgreSQL');
+        print('🔐 Token JWT: ${response.token!.substring(0, 50)}...');
+        
+        return {
+          'success': true,
+          'token': response.token!,
+          'message': '¡Cuenta creada/actualizada en base de datos!',
+          'user': response.user,
+        };
+      } else {
+        throw Exception(response.message.isNotEmpty ? response.message : 'Error en la respuesta del servidor');
       }
+      
+    } catch (e) {
+      print('❌ Error en login con backend: $e');
+      throw Exception('Error conectando al servidor: $e');
     }
-    
-    // 2️⃣ FALLBACK: Si falla la API, usar modo local (desarrollo)
-    print('🔧 Usando modo local (desarrollo)');
-    
-    final mockToken = 'mock_google_token_${DateTime.now().millisecondsSinceEpoch}';
-    await saveToken(mockToken);
-    
-    // Guardar datos localmente como respaldo
-    await saveGoogleUserData(
-      email: email,
-      name: name,
-      photoUrl: photoUrl,
-    );
-    
-    print('✅ Login local exitoso con token: $mockToken');
-    return {
-      'success': true,
-      'mode': 'local',
-      'token': mockToken,
-      'message': '¡Login exitoso! (Modo desarrollo)',
-    };
   }
 
   // Verificar si el usuario está autenticado

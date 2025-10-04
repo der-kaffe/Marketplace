@@ -202,20 +202,20 @@ router.post('/google', [
       { userId: user.id, email: user.correo, role: user.rol.nombre },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    res.json({
+    );    res.json({
       ok: true,
-      message: 'Login con Google exitoso',
+      message: '¡Cuenta creada/actualizada en base de datos!',
       token,
       user: {
         id: user.id,
-        correo: user.correo,
-        usuario: user.usuario,
-        nombre: user.nombre,
-        apellido: user.apellido,
+        correo: user.correo,        // 🔒 Solo lectura (viene de Google)
+        nombre: user.nombre,        // 🔒 Solo lectura (viene de Google)
+        apellido: user.apellido || '',    // ✏️ Editable por el usuario
+        usuario: user.usuario,      // ✏️ Editable por el usuario
+        campus: user.campus || 'Campus Temuco',  // ✏️ Editable por el usuario
         role: user.rol.nombre,
-        campus: user.campus
+        // Campos editables disponibles para actualizar después:
+        editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
       }
     });
   } catch (error) {
