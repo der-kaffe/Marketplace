@@ -1,19 +1,75 @@
 import 'package:flutter/material.dart';
-import '../models/product_model.dart';
+import '../models/product_model.dart' as ProductModel;
 import '../models/seller_model.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 
 class ProductService {
   static const String _defaultImage = 'assets/producto_sin_foto.jpg';
+  final ApiClient _apiClient = ApiClient(baseUrl: getDefaultBaseUrl()); // 🔧 Usar función helper
+  final AuthService _authService = AuthService();
+
+  // ✅ NUEVO: Obtener productos reales de la BD
+  Future<List<ProductModel.Product>> fetchProductsFromDB({
+    int page = 1,
+    int limit = 20,
+    String? category,
+    String? search,
+  }) async {
+    try {
+      // Configurar token si existe
+      final token = await _authService.getToken();
+      if (token != null && token.isNotEmpty) {
+        _apiClient.setToken(token);
+      }
+
+      final response = await _apiClient.getProducts(
+        page: page,
+        limit: limit,
+        category: category,
+        search: search,
+      );
+
+      print('✅ Productos obtenidos de BD: ${response.products.length}');
+      
+      return response.products.map((productDB) => productDB.toProductModel()).toList();
+    } catch (e) {
+      print('❌ Error obteniendo productos de BD: $e');
+      // Fallback a productos simulados si hay error
+      return _getSimulatedProducts();
+    }
+  }  
+
+  // ✅ MÉTODO PRINCIPAL: Combinar productos reales + simulados (opcional)
+  Future<List<ProductModel.Product>> fetchProducts({
+    int page = 1,
+    int limit = 20,
+    bool useSimulated = false, // Para debug/fallback
+  }) async {
+    if (useSimulated) {
+      // Modo debug: usar productos simulados
+      await Future.delayed(const Duration(seconds: 1)); // simula red
+      final start = (page - 1) * limit; // 🔧 Ajustar paginación
+      final end = (start + limit > _simulatedProducts.length) 
+          ? _simulatedProducts.length 
+          : start + limit;
+      if (start >= _simulatedProducts.length) return [];
+      return _simulatedProducts.sublist(start, end);
+    } else {
+      // Modo producción: usar productos reales de BD
+      return await fetchProductsFromDB(page: page, limit: limit);
+    }
+  }
 
   final List<String> _campusUcTemuco = [
     "Campus San Francisco",
-    "Campus Los Castaños",
+    "Campus Los Castaños", 
     "Campus Manuel Montt",
     "Campus San Juan Pablo II"
   ];
 
-  final List<Product> _products = [
-    Product(
+  final List<ProductModel.Product> _simulatedProducts = [
+    ProductModel.Product(
       id: '1',
       title: 'Smartphone Galaxy S23',
       description: 'Teléfono de última generación con 256GB de memoria',
@@ -28,7 +84,7 @@ class ProductService {
       sellerName: 'Juan Pérez',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '2',
       title: 'Zapatillas Running',
       description: 'Zapatillas deportivas para running con suela amortiguada',
@@ -42,7 +98,7 @@ class ProductService {
       sellerName: 'Laura Gómez',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '3',
       title: 'Chaqueta de Cuero',
       description: 'Chaqueta de cuero genuino con forro interior',
@@ -56,7 +112,7 @@ class ProductService {
       sellerName: 'Carlos López',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '4',
       title: 'Anillo de Plata',
       description: 'Anillo de plata 925 con diseño minimalista',
@@ -70,7 +126,7 @@ class ProductService {
       sellerName: 'Ana Torres',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '5',
       title: 'Set de Maquillaje',
       description:
@@ -85,7 +141,7 @@ class ProductService {
       sellerName: 'Marta Fernández',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/5.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '6',
       title: 'Lámpara Moderna',
       description: 'Lámpara de mesa con diseño contemporáneo',
@@ -99,7 +155,7 @@ class ProductService {
       sellerName: 'Pedro Martínez',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/6.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '7',
       title: 'Audífonos Bluetooth',
       description: 'Sonido de alta calidad con cancelación de ruido',
@@ -113,7 +169,7 @@ class ProductService {
       sellerName: 'Juan Pérez',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '8',
       title: 'Pelota de Fútbol',
       description: 'Pelota oficial tamaño 5',
@@ -127,7 +183,7 @@ class ProductService {
       sellerName: 'Laura Gómez',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '9',
       title: 'Polera Estampada',
       description: 'Polera 100% algodón con diseño original',
@@ -141,7 +197,7 @@ class ProductService {
       sellerName: 'Carlos López',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '10',
       title: 'Collar de Acero',
       description: 'Collar con dije minimalista',
@@ -155,7 +211,7 @@ class ProductService {
       sellerName: 'Ana Torres',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/4.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '11',
       title: 'Perfume Floral',
       description: 'Aroma fresco y duradero',
@@ -169,7 +225,7 @@ class ProductService {
       sellerName: 'Marta Fernández',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/5.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '12',
       title: 'Sillón Reclinable',
       description: 'Comodidad premium para tu sala de estar',
@@ -183,7 +239,7 @@ class ProductService {
       sellerName: 'Pedro Martínez',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/6.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '13',
       title: 'Smartwatch Fit',
       description: 'Monitorea tu actividad física y salud',
@@ -197,7 +253,7 @@ class ProductService {
       sellerName: 'Juan Pérez',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/1.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '14',
       title: 'Raqueta de Tenis',
       description: 'Raqueta profesional ligera y resistente',
@@ -211,7 +267,7 @@ class ProductService {
       sellerName: 'Laura Gómez',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/2.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '15',
       title: 'Vestido de Fiesta',
       description: 'Vestido elegante para ocasiones especiales',
@@ -225,7 +281,7 @@ class ProductService {
       sellerName: 'Carlos López',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/3.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '16',
       title: 'Toyota Corolla 2020',
       description: 'Automóvil en excelente estado, único dueño',
@@ -239,7 +295,7 @@ class ProductService {
       sellerName: 'Ricardo Silva',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/7.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '17',
       title: 'Casa en Las Condes',
       description: 'Casa de 3 dormitorios con jardín',
@@ -253,7 +309,7 @@ class ProductService {
       sellerName: 'Valentina Rojas',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/8.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '18',
       title: 'Cuna de Bebé',
       description: 'Cuna convertible con colchón incluido',
@@ -267,7 +323,7 @@ class ProductService {
       sellerName: 'Sofía Herrera',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/9.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '19',
       title: 'LEGO Creator 3-en-1',
       description: 'Set de construcción para niños de 8+ años',
@@ -281,7 +337,7 @@ class ProductService {
       sellerName: 'Sofía Herrera',
       sellerAvatar: 'https://randomuser.me/api/portraits/women/9.jpg',
     ),
-    Product(
+    ProductModel.Product(
       id: '20',
       title: 'Taladro Inalámbrico',
       description: 'Taladro de 18V con baterías incluidas',
@@ -294,13 +350,16 @@ class ProductService {
       sellerId: 'seller10',
       sellerName: 'Ignacio Muñoz',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/10.jpg',
-    ),
+    ),  
   ];
+
+  List<ProductModel.Product> _getSimulatedProducts() {
+    return List.from(_simulatedProducts);
+  }
 
   /// Obtiene info dinámica del vendedor
   Seller getSellerInfo(String sellerId) {
-    final sellerProducts =
-        _products.where((p) => p.sellerId == sellerId).toList();
+    final sellerProducts = _simulatedProducts.where((p) => p.sellerId == sellerId).toList();
 
     if (sellerProducts.isEmpty) {
       return Seller(
@@ -339,86 +398,86 @@ class ProductService {
   }
 
   /// Lista de categorías simuladas
-  final List<Category> _categories = [
-    const Category(
+  final List<ProductModel.Category> _categories = [
+    const ProductModel.Category(
       id: 'vehiculos',
       name: 'Vehículos',
       description: 'Autos, motos y accesorios automotrices',
       iconName: 'directions_car',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'inmuebles',
       name: 'Propiedades / Inmuebles',
       description: 'Compra y venta de propiedades',
       iconName: 'home',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'electronica',
       name: 'Electrónica',
       description: 'Gadgets, computadoras y accesorios',
       iconName: 'devices',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'hogar',
       name: 'Hogar y jardín',
       description: 'Muebles, decoración y jardinería',
       iconName: 'chair',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'ropa',
       name: 'Moda y accesorios',
       description: 'Ropa, zapatos y accesorios para todas las edades',
       iconName: 'checkroom',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'bebes_ninos',
       name: 'Bebés y niños',
       description: 'Productos para bebés y niños',
       iconName: 'child_care',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'juguetes',
       name: 'Juguetes y juegos',
       description: 'Juguetes, juegos de mesa y entretenimiento',
       iconName: 'toys',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'herramientas',
       name: 'Herramientas',
       description: 'Herramientas de trabajo y bricolaje',
       iconName: 'build',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'deportes',
       name: 'Deportes y ocio',
       description: 'Artículos deportivos y recreación',
       iconName: 'sports_soccer',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'mascotas',
       name: 'Mascotas y productos para animales',
       description: 'Accesorios y productos para mascotas',
       iconName: 'pets',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'joyas',
       name: 'Joyas',
       description: 'Accesorios y joyería',
       iconName: 'diamond',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'belleza',
       name: 'Belleza',
       description: 'Cosméticos y cuidado personal',
       iconName: 'spa',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'servicios',
       name: 'Servicios',
       description: 'Servicios profesionales y técnicos',
       iconName: 'work',
     ),
-    const Category(
+    const ProductModel.Category(
       id: 'alquileres',
       name: 'Alquileres',
       description: 'Alquiler de productos y espacios',
@@ -426,42 +485,32 @@ class ProductService {
     ),
   ];
 
-  /// Simula carga paginada
-  Future<List<Product>> fetchProducts({int page = 0, int limit = 6}) async {
-    await Future.delayed(const Duration(seconds: 1)); // simula red
-    final start = page * limit;
-    final end =
-        (start + limit > _products.length) ? _products.length : start + limit;
-    if (start >= _products.length) return [];
-    return _products.sublist(start, end);
-  }
-
   /// Métodos de utilidad
-  List<Product> getAllProducts() => List.from(_products);
+  List<ProductModel.Product> getAllProducts() => List.from(_simulatedProducts);
 
-  List<Product> getProductsByCategory(String categoryId) =>
-      _products.where((product) => product.category == categoryId).toList();
+  List<ProductModel.Product> getProductsByCategory(String categoryId) =>
+      _simulatedProducts.where((product) => product.category == categoryId).toList();
 
-  List<Product> getFeaturedProducts({int limit = 4}) {
-    final sortedProducts = List<Product>.from(_products)
+  List<ProductModel.Product> getFeaturedProducts({int limit = 4}) {
+    final sortedProducts = List<ProductModel.Product>.from(_simulatedProducts)
       ..sort((a, b) => b.rating.compareTo(a.rating));
     return sortedProducts.take(limit).toList();
   }
 
-  List<Product> getFavoriteProducts() =>
-      _products.where((product) => product.isFavorite).toList();
+  List<ProductModel.Product> getFavoriteProducts() =>
+      _simulatedProducts.where((product) => product.isFavorite).toList();
 
-  Product? getProductById(String id) {
+  ProductModel.Product? getProductById(String id) {
     try {
-      return _products.firstWhere((product) => product.id == id);
+      return _simulatedProducts.firstWhere((product) => product.id == id);
     } catch (_) {
       return null;
     }
   }
 
-  List<Category> getAllCategories() => List.from(_categories);
+  List<ProductModel.Category> getAllCategories() => List.from(_categories);
 
-  Category? getCategoryById(String id) {
+  ProductModel.Category? getCategoryById(String id) {
     try {
       return _categories.firstWhere((category) => category.id == id);
     } catch (_) {

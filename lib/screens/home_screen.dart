@@ -242,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             right: index == _productService.getAllCategories().length - 1 ? 16 : 0,
                           ),
                           child: CategoryCard(
-                            icon: ProductService.getIconForName(category.iconName),
+                            icon: ProductService.getIconForName(category.iconName ?? 'category'), // 🔧 Manejar null
                             title: category.name,
                             color: _getCategoryColor(index),
                             onTap: () => _showNotImplementedMessage(context, 'Categoría: ${category.name}'),

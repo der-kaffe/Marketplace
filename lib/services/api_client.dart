@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import '../models/product_model.dart' as ProductModel;
 
 class ApiClient {
   final String baseUrl;
@@ -171,12 +172,12 @@ class ApiClient {
 
   // PRODUCT ENDPOINTS
 
-  // Listar productos
+  // ✅ NUEVO: Obtener productos reales de la BD
   Future<ProductsResponse> getProducts({
-    String? category,
-    String? search,
     int page = 1,
     int limit = 20,
+    String? category,
+    String? search,
   }) async {
     try {
       final queryParams = <String, String>{
@@ -191,24 +192,38 @@ class ApiClient {
         queryParameters: queryParams,
       );
       
+      print('🔍 Obteniendo productos de: $uri');
+      
       final response = await http.get(uri, headers: _headers);
-      final data = _handleResponse(response);
-      return ProductsResponse.fromJson(data);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ProductsResponse.fromJson(data);
+      } else {
+        throw Exception('Error del servidor: ${response.statusCode}');
+      }
     } catch (e) {
-      rethrow;
+      print('❌ Error obteniendo productos: $e');
+      throw Exception('Error de conexión: $e');
     }
   }
 
-  // Obtener producto por ID
-  Future<Map<String, dynamic>> getProduct(int id) async {
+  // ✅ NUEVO: Obtener producto por ID
+  Future<ProductDetailResponse> getProductById(int productId) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/api/products/$id'),
+        Uri.parse('$baseUrl/api/products/$productId'),
         headers: _headers,
       );
-      return _handleResponse(response);
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ProductDetailResponse.fromJson(data);
+      } else {
+        throw Exception('Producto no encontrado');
+      }
     } catch (e) {
-      rethrow;
+      throw Exception('Error obteniendo producto: $e');
     }
   }
 
@@ -240,73 +255,63 @@ class ApiClient {
     }
   }
 
-  // Obtener categorías
-  Future<List<Category>> getCategories() async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/products/categories/list'),
-        headers: _headers,
-      );
-      final data = _handleResponse(response);
-      return (data['categories'] as List)
-          .map((cat) => Category.fromJson(cat))
-          .toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   // FAVORITES ENDPOINTS
 
-  // Obtener favoritos del usuario
+  // ✅ Métodos de favoritos existentes (ya funcionan)
   Future<FavoritesResponse> getProductFavorites({
     int page = 1,
-    int limit = 20,
+    int limit = 50,
   }) async {
     try {
-      final queryParams = <String, String>{
-        'page': page.toString(),
-        'limit': limit.toString(),
-      };
-      
-      final uri = Uri.parse('$baseUrl/api/favorites').replace(
-        queryParameters: queryParams,
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/favorites?page=$page&limit=$limit'),
+        headers: _headers,
       );
       
-      final response = await http.get(uri, headers: _headers);
-      final data = _handleResponse(response);
-      return FavoritesResponse.fromJson(data);
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return FavoritesResponse.fromJson(data);
+      } else {
+        throw Exception('Error obteniendo favoritos');
+      }
     } catch (e) {
-      rethrow;
+      throw Exception('Error: $e');
     }
   }
 
   // Agregar producto a favoritos
-  Future<Map<String, dynamic>> addProductFavorite({required int productoId}) async {
+  Future<void> addProductFavorite({required int productoId}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/favorites'),
         headers: _headers,
-        body: json.encode({
-          'productoId': productoId,
-        }),
+        body: json.encode({'productoId': productoId}),
       );
-      return _handleResponse(response);
+      
+      if (response.statusCode != 201) {
+        final data = json.decode(response.body);
+        throw Exception(data['message'] ?? 'Error agregando favorito');
+      }
     } catch (e) {
-      rethrow;
+      throw Exception('Error: $e');
     }
   }
 
   // Eliminar producto de favoritos
-  Future<Map<String, dynamic>> removeProductFavorite({required int productoId}) async {
+  Future<void> removeProductFavorite({required int productoId}) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/favorites/$productoId'),
+        Uri.parse('$baseUrl/api/favorites'),
         headers: _headers,
+        body: json.encode({'productoId': productoId}),
       );
-      return _handleResponse(response);
+      
+      if (response.statusCode != 200) {
+        final data = json.decode(response.body);
+        throw Exception(data['message'] ?? 'Error eliminando favorito');
+      }
     } catch (e) {
-      rethrow;
+      throw Exception('Error: $e');
     }
   }
 }
@@ -351,12 +356,12 @@ class User {
   final int id;
   final String email;     // 🔒 Solo lectura (de Google)
   final String name;      // 🔒 Solo lectura (de Google)
-  final String role;      // 🔒 Solo lectura (sistema)
-  final String apellido;  // ✏️ Editable
-  final String usuario;   // ✏️ Editable
-  final String campus;    // ✏️ Editable
-  final String? telefono; // ✏️ Editable (opcional)
-  final String? direccion;// ✏️ Editable (opcional)
+  final String apellido;    // ✏️ Editable
+  final String role;        // 🔒 Solo lectura (sistema)
+  final String usuario;     // ✏️ Editable
+  final String campus;     // ✏️ Editable
+  final String? telefono;   // ✏️ Editable
+  final String? direccion;  // ✏️ Editable
 
   User({
     required this.id,
@@ -366,8 +371,8 @@ class User {
     this.apellido = '',
     this.usuario = '',
     this.campus = 'Campus Temuco',
-    this.telefono,
-    this.direccion,
+    this.telefono = '',
+    this.direccion = '',
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -379,8 +384,8 @@ class User {
       apellido: json['apellido'] ?? '',
       usuario: json['usuario'] ?? '',
       campus: json['campus'] ?? 'Campus Temuco',
-      telefono: json['telefono'],
-      direccion: json['direccion'],
+      telefono: json['telefono'] ?? '',
+      direccion: json['direccion'] ?? '',
     );
   }
 
@@ -399,10 +404,11 @@ class User {
   }
 }
 
+// ✅ NUEVOS: Modelos para productos reales
 class ProductsResponse {
   final bool ok;
-  final List<Product> products;
-  final Pagination pagination;
+  final List<ProductFromDB> products;
+  final PaginationInfo pagination;
 
   ProductsResponse({
     required this.ok,
@@ -413,128 +419,172 @@ class ProductsResponse {
   factory ProductsResponse.fromJson(Map<String, dynamic> json) {
     return ProductsResponse(
       ok: json['ok'] ?? false,
-      products: (json['products'] as List? ?? [])
-          .map((p) => Product.fromJson(p))
-          .toList(),
-      pagination: Pagination.fromJson(json['pagination'] ?? {}),
+      products: (json['products'] as List<dynamic>?)
+          ?.map((item) => ProductFromDB.fromJson(item))
+          .toList() ?? [],
+      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
     );
   }
 }
 
-class Product {
-  final int id;
-  final String title;
-  final String description;
-  final double price;
-  final String category;
-  final String conditionType;
-  final List<String> images;
-  final bool isAvailable;
-  final bool isFeatured;
-  final DateTime createdAt;
-  final String sellerName;
-  final String sellerEmail;
+class ProductDetailResponse {
+  final bool ok;
+  final ProductFromDB product;
 
-  Product({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.price,
-    required this.category,
-    required this.conditionType,
-    required this.images,
-    required this.isAvailable,
-    required this.isFeatured,
-    required this.createdAt,
-    required this.sellerName,
-    required this.sellerEmail,
+  ProductDetailResponse({
+    required this.ok,
+    required this.product,
   });
 
-  factory Product.fromJson(Map<String, dynamic> json) {
-    return Product(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      price: double.parse(json['price'].toString()),
-      category: json['category'],
-      conditionType: json['condition_type'],
-      images: json['images'] != null 
-          ? List<String>.from(json['images'])
-          : [],
-      isAvailable: json['is_available'] ?? true,
-      isFeatured: json['is_featured'] ?? false,
-      createdAt: DateTime.parse(json['created_at']),
-      sellerName: json['seller_name'] ?? '',
-      sellerEmail: json['seller_email'] ?? '',
+  factory ProductDetailResponse.fromJson(Map<String, dynamic> json) {
+    return ProductDetailResponse(
+      ok: json['ok'] ?? false,
+      product: ProductFromDB.fromJson(json['product']),
     );
   }
 }
 
-class Category {
-  final int id;
-  final String name;
-  final String? description;
-  final String? icon;
-  final bool isActive;
-
-  Category({
-    required this.id,
-    required this.name,
-    this.description,
-    this.icon,
-    required this.isActive,
-  });
-
-  factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
-      icon: json['icon'],
-      isActive: json['is_active'] ?? true,
-    );
-  }
-}
-
-class Pagination {
+class PaginationInfo {
   final int page;
   final int limit;
   final int total;
+  final int totalPages;
 
-  Pagination({
+  PaginationInfo({
     required this.page,
     required this.limit,
     required this.total,
+    required this.totalPages,
   });
 
-  factory Pagination.fromJson(Map<String, dynamic> json) {
-    return Pagination(
+  factory PaginationInfo.fromJson(Map<String, dynamic> json) {
+    return PaginationInfo(
       page: json['page'] ?? 1,
       limit: json['limit'] ?? 20,
       total: json['total'] ?? 0,
+      totalPages: json['totalPages'] ?? 0,
     );
   }
 }
 
-// Respuesta de favoritos
+// ✅ NUEVO: Modelo para productos de la BD (renombrado para evitar conflictos)
+class ProductFromDB {
+  final int id;
+  final String nombre;
+  final String? descripcion;
+  final double? precioAnterior;
+  final double? precioActual;
+  final String? categoria;
+  final double? calificacion;
+  final int? cantidad;
+  final String estado;
+  final DateTime fechaAgregado;
+  final List<dynamic> imagenes; // Bytes de imágenes
+  final VendedorFromDB vendedor;
+
+  ProductFromDB({
+    required this.id,
+    required this.nombre,
+    this.descripcion,
+    this.precioAnterior,
+    this.precioActual,
+    this.categoria,
+    this.calificacion,
+    this.cantidad,
+    required this.estado,
+    required this.fechaAgregado,
+    required this.imagenes,
+    required this.vendedor,
+  });
+
+  factory ProductFromDB.fromJson(Map<String, dynamic> json) {
+    return ProductFromDB(
+      id: json['id'],
+      nombre: json['nombre'] ?? '',
+      descripcion: json['descripcion'],
+      precioAnterior: json['precioAnterior']?.toDouble(),
+      precioActual: json['precioActual']?.toDouble(),
+      categoria: json['categoria'],
+      calificacion: json['calificacion']?.toDouble(),
+      cantidad: json['cantidad'],
+      estado: json['estado'] ?? '',
+      fechaAgregado: DateTime.parse(json['fechaAgregado']),
+      imagenes: json['imagenes'] ?? [],
+      vendedor: VendedorFromDB.fromJson(json['vendedor']),
+    );
+  }
+
+  // ✅ Convertir a modelo ProductModel.Product para compatibilidad
+  ProductModel.Product toProductModel() {
+    return ProductModel.Product(
+      id: id.toString(),
+      title: nombre,
+      description: descripcion ?? 'Sin descripción',
+      price: precioActual ?? 0.0,
+      imageUrl: _getImageUrl(), // Manejar imágenes como bytes o placeholder
+      rating: calificacion ?? 0.0,
+      reviewCount: 0, // Por ahora
+      category: categoria ?? 'Sin categoría',
+      isAvailable: estado == 'Disponible',
+      sellerId: vendedor.id.toString(),
+      sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}',
+      sellerAvatar: null, // Por ahora
+    );
+  }
+
+  String? _getImageUrl() {
+    // Por ahora, como las imágenes están como Bytes en la BD,
+    // usaremos el placeholder hasta implementar la conversión
+    if (imagenes.isNotEmpty) {
+      // Aquí luego implementaremos la conversión de Bytes a base64 o URL
+      return null; // Usará el placeholder por defecto
+    }
+    return null;
+  }
+}
+
+class VendedorFromDB {
+  final int id;
+  final String nombre;
+  final String? apellido;
+  final String correo;
+  final String? campus;
+  final double reputacion;
+
+  VendedorFromDB({
+    required this.id,
+    required this.nombre,
+    this.apellido,
+    required this.correo,
+    this.campus,
+    required this.reputacion,
+  });
+
+  factory VendedorFromDB.fromJson(Map<String, dynamic> json) {
+    return VendedorFromDB(
+      id: json['id'],
+      nombre: json['nombre'] ?? '',
+      apellido: json['apellido'],
+      correo: json['correo'] ?? '',
+      campus: json['campus'],
+      reputacion: json['reputacion']?.toDouble() ?? 0.0,
+    );
+  }
+}
+
+// ✅ Modelos existentes de favoritos
 class FavoritesResponse {
   final bool ok;
   final List<FavoritedProduct> favorites;
-  final Pagination pagination;
 
-  FavoritesResponse({
-    required this.ok,
-    required this.favorites,
-    required this.pagination,
-  });
+  FavoritesResponse({required this.ok, required this.favorites});
 
   factory FavoritesResponse.fromJson(Map<String, dynamic> json) {
     return FavoritesResponse(
       ok: json['ok'] ?? false,
-      favorites: (json['favorites'] as List? ?? [])
-          .map((f) => FavoritedProduct.fromJson(f))
-          .toList(),
-      pagination: Pagination.fromJson(json['pagination'] ?? {}),
+      favorites: (json['favorites'] as List<dynamic>?)
+          ?.map((item) => FavoritedProduct.fromJson(item))
+          .toList() ?? [],
     );
   }
 }
