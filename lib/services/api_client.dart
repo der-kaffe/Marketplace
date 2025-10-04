@@ -297,13 +297,14 @@ class ApiClient {
     }
   }
 
-  // Eliminar producto de favoritos
+  // ✅ CORREGIDO: Eliminar producto de favoritos
   Future<void> removeProductFavorite({required int productoId}) async {
     try {
+      // 🔧 CAMBIO: Enviar productoId como parámetro de URL, no en body
       final response = await http.delete(
-        Uri.parse('$baseUrl/api/favorites'),
+        Uri.parse('$baseUrl/api/favorites/$productoId'), // ✅ En la URL
         headers: _headers,
-        body: json.encode({'productoId': productoId}),
+        // ❌ REMOVER: body con JSON
       );
       
       if (response.statusCode != 200) {
@@ -498,19 +499,49 @@ class ProductFromDB {
   });
 
   factory ProductFromDB.fromJson(Map<String, dynamic> json) {
+    // ✅ Función helper para convertir números de forma segura
+    double? safeToDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        return double.tryParse(value);
+      }
+      return null;
+    }
+
+    int? safeToInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) {
+        return int.tryParse(value);
+      }
+      return null;
+    }
+
+    DateTime safeParseDatetime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String) {
+        return DateTime.tryParse(value) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
     return ProductFromDB(
-      id: json['id'],
-      nombre: json['nombre'] ?? '',
-      descripcion: json['descripcion'],
-      precioAnterior: json['precioAnterior']?.toDouble(),
-      precioActual: json['precioActual']?.toDouble(),
-      categoria: json['categoria'],
-      calificacion: json['calificacion']?.toDouble(),
-      cantidad: json['cantidad'],
-      estado: json['estado'] ?? '',
-      fechaAgregado: DateTime.parse(json['fechaAgregado']),
+      id: safeToInt(json['id']) ?? 0,
+      nombre: json['nombre']?.toString() ?? '',
+      descripcion: json['descripcion']?.toString(),
+      precioAnterior: safeToDouble(json['precioAnterior']),
+      precioActual: safeToDouble(json['precioActual']),
+      categoria: json['categoria']?.toString(),
+      calificacion: safeToDouble(json['calificacion']),
+      cantidad: safeToInt(json['cantidad']),
+      estado: json['estado']?.toString() ?? '',
+      fechaAgregado: safeParseDatetime(json['fechaAgregado']),
       imagenes: json['imagenes'] ?? [],
-      vendedor: VendedorFromDB.fromJson(json['vendedor']),
+      vendedor: VendedorFromDB.fromJson(json['vendedor'] ?? {}),
     );
   }
 
@@ -561,13 +592,34 @@ class VendedorFromDB {
   });
 
   factory VendedorFromDB.fromJson(Map<String, dynamic> json) {
+    // ✅ Función helper para conversión segura
+    double safeToDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        return double.tryParse(value) ?? 0.0;
+      }
+      return 0.0;
+    }
+
+    int safeToInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      if (value is String) {
+        return int.tryParse(value) ?? 0;
+      }
+      return 0;
+    }
+
     return VendedorFromDB(
-      id: json['id'],
-      nombre: json['nombre'] ?? '',
-      apellido: json['apellido'],
-      correo: json['correo'] ?? '',
-      campus: json['campus'],
-      reputacion: json['reputacion']?.toDouble() ?? 0.0,
+      id: safeToInt(json['id']),
+      nombre: json['nombre']?.toString() ?? '',
+      apellido: json['apellido']?.toString(),
+      correo: json['correo']?.toString() ?? '',
+      campus: json['campus']?.toString(),
+      reputacion: safeToDouble(json['reputacion']),
     );
   }
 }

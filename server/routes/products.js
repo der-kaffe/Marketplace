@@ -10,6 +10,12 @@ router.get('/', async (req, res) => {
   try {
     const { category, search, page = 1, limit = 20 } = req.query;
     
+    // ✅ SOLUCIÓN 1: Validar página mínima
+    const currentPage = Math.max(1, parseInt(page) || 1);
+    const currentLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    
+    console.log(`📊 Obteniendo productos - Página: ${currentPage}, Límite: ${currentLimit}`);
+    
     // Construir filtros para la nueva estructura
     const where = {
       estadoId: 1 // Solo productos disponibles
@@ -28,7 +34,10 @@ router.get('/', async (req, res) => {
       ];
     }
     
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // ✅ SOLUCIÓN 2: Skip siempre positivo
+    const skip = Math.max(0, (currentPage - 1) * currentLimit);
+    
+    console.log(`🔢 Calculando skip: ${skip} = (${currentPage} - 1) * ${currentLimit}`);
     
     // Obtener productos con información del vendedor y categoría
     const products = await prisma.productos.findMany({
@@ -52,48 +61,57 @@ router.get('/', async (req, res) => {
         { fechaAgregado: 'desc' }
       ],
       skip,
-      take: parseInt(limit)
+      take: currentLimit
     });
 
     // Obtener total para paginación
     const total = await prisma.productos.count({ where });
 
+    console.log(`✅ Productos encontrados: ${products.length}/${total}`);
+
+    // ✅ SOLUCIÓN 3: Conversión segura de tipos
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      nombre: product.nombre,
+      descripcion: product.descripcion,
+      // ✅ Conversión segura de Decimal a number
+      precioAnterior: product.precioAnterior ? Number(product.precioAnterior) : null,
+      precioActual: product.precioActual ? Number(product.precioActual) : null,
+      categoria: product.categoria?.nombre,
+      // ✅ Conversión segura de calificación
+      calificacion: product.calificacion ? Number(product.calificacion) : null,
+      cantidad: product.cantidad,
+      estado: product.estado.nombre,
+      fechaAgregado: product.fechaAgregado,
+      imagenes: product.imagenes,
+      vendedor: {
+        id: product.vendedor.id,
+        nombre: product.vendedor.nombre,
+        apellido: product.vendedor.apellido,
+        correo: product.vendedor.correo,
+        campus: product.vendedor.campus,
+        // ✅ Conversión segura de reputación
+        reputacion: product.vendedor.reputacion ? Number(product.vendedor.reputacion) : 0
+      }
+    }));
+
     res.json({
       ok: true,
-      products: products.map(product => ({
-        id: product.id,
-        nombre: product.nombre,
-        descripcion: product.descripcion,
-        precioAnterior: product.precioAnterior,
-        precioActual: product.precioActual,
-        categoria: product.categoria?.nombre,
-        calificacion: product.calificacion,
-        cantidad: product.cantidad,
-        estado: product.estado.nombre,
-        fechaAgregado: product.fechaAgregado,
-        imagenes: product.imagenes,
-        vendedor: {
-          id: product.vendedor.id,
-          nombre: product.vendedor.nombre,
-          apellido: product.vendedor.apellido,
-          correo: product.vendedor.correo,
-          campus: product.vendedor.campus,
-          reputacion: product.vendedor.reputacion
-        }
-      })),
+      products: formattedProducts,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: currentPage,
+        limit: currentLimit,
         total,
-        totalPages: Math.ceil(total / parseInt(limit))
+        totalPages: Math.ceil(total / currentLimit)
       }
     });
 
   } catch (error) {
-    console.error('Error listando productos:', error);
+    console.error('❌ Error listando productos:', error);
     res.status(500).json({
       ok: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -101,7 +119,9 @@ router.get('/', async (req, res) => {
 // GET /api/products/:id - Obtener producto por ID
 router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;    const product = await prisma.productos.findUnique({
+    const { id } = req.params;
+    
+    const product = await prisma.productos.findUnique({
       where: { 
         id: parseInt(id)
       },
@@ -129,26 +149,32 @@ router.get('/:id', async (req, res) => {
       });
     }
 
+    // ✅ SOLUCIÓN 4: Conversión segura para producto individual
+    const formattedProduct = {
+      id: product.id,
+      nombre: product.nombre,
+      descripcion: product.descripcion,
+      precioAnterior: product.precioAnterior ? Number(product.precioAnterior) : null,
+      precioActual: product.precioActual ? Number(product.precioActual) : null,
+      categoria: product.categoria?.nombre,
+      calificacion: product.calificacion ? Number(product.calificacion) : null,
+      cantidad: product.cantidad,
+      estado: product.estado.nombre,
+      fechaAgregado: product.fechaAgregado,
+      imagenes: product.imagenes,
+      vendedor: {
+        ...product.vendedor,
+        reputacion: product.vendedor.reputacion ? Number(product.vendedor.reputacion) : 0
+      }
+    };
+
     res.json({
       ok: true,
-      product: {
-        id: product.id,
-        nombre: product.nombre,
-        descripcion: product.descripcion,
-        precioAnterior: product.precioAnterior,
-        precioActual: product.precioActual,
-        categoria: product.categoria?.nombre,
-        calificacion: product.calificacion,
-        cantidad: product.cantidad,
-        estado: product.estado.nombre,
-        fechaAgregado: product.fechaAgregado,
-        imagenes: product.imagenes,
-        vendedor: product.vendedor
-      }
+      product: formattedProduct
     });
 
   } catch (error) {
-    console.error('Error obteniendo producto:', error);
+    console.error('❌ Error obteniendo producto:', error);
     res.status(500).json({
       ok: false,
       message: 'Error interno del servidor'
@@ -227,7 +253,7 @@ router.post('/', authenticateToken, [
     });
 
   } catch (error) {
-    console.error('Error creando producto:', error);
+    console.error('❌ Error creando producto:', error);
     res.status(500).json({
       ok: false,
       message: 'Error interno del servidor'
@@ -262,7 +288,7 @@ router.get('/categories/list', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error obteniendo categorías:', error);
+    console.error('❌ Error obteniendo categorías:', error);
     res.status(500).json({
       ok: false,
       message: 'Error interno del servidor'

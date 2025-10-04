@@ -23,7 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Product> _products = [];
   bool _isLoading = false;
-  int _page = 0;
+  int _page = 1;
   final int _limit = 4; // productos por carga (matching original count)
 
   // ✅ AGREGADO: Set para trackear favoritos
@@ -125,18 +125,36 @@ class _HomeScreenState extends State<HomeScreen> {
     return colors[index % colors.length];
   }
 
+  // ✅ ACTUALIZADO: Usar productos reales de la BD
   Future<void> _loadMore() async {
     if (_isLoading) return;
     
     setState(() => _isLoading = true);
-    final newProducts =
-        await _productService.fetchProducts(page: _page, limit: _limit);
-        
-    setState(() {
-      _products.addAll(newProducts);
-      _page++;
-      _isLoading = false;
-    });
+    
+    try {
+      // ✅ Cambiar a false para usar productos reales
+      final newProducts = await _productService.fetchProducts(
+        page: _page,
+        limit: _limit,
+      );
+      
+      setState(() {
+        _products.addAll(newProducts);
+        _page++;
+        _isLoading = false;
+      });
+      
+      print('✅ Productos cargados: ${newProducts.length} (total: ${_products.length})');
+    } catch (e) {
+      print('❌ Error cargando productos: $e');
+      setState(() => _isLoading = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cargando productos: $e')),
+        );
+      }
+    }
   }
 
   @override

@@ -9,15 +9,46 @@ class ProductService {
   final ApiClient _apiClient = ApiClient(baseUrl: getDefaultBaseUrl()); // 🔧 Usar función helper
   final AuthService _authService = AuthService();
 
-  // ✅ NUEVO: Obtener productos reales de la BD
-  Future<List<ProductModel.Product>> fetchProductsFromDB({
+  // 🔧 CONFIGURACIÓN MODULAR - Fácil de cambiar
+  // 🔧 CAMBIAR AQUÍ PARA ELEGIR ORIGEN DE DATOS:
+
+  // Solo BD:
+  //static const ProductDataSource _dataSource = ProductDataSource.database;
+
+  // Solo simulados:
+  //static const ProductDataSource _dataSource = ProductDataSource.simulated;
+
+  // Híbrido (BD + simulados de respaldo):
+  static const ProductDataSource _dataSource = ProductDataSource.hybrid;
+
+
+  // ✅ MÉTODO PRINCIPAL MODULAR
+  Future<List<ProductModel.Product>> fetchProducts({
+    int page = 1,
+    int limit = 20,
+    String? category,
+    String? search,
+  }) async {
+    switch (_dataSource) {
+      case ProductDataSource.database:
+        return await _fetchFromDatabase(page: page, limit: limit, category: category, search: search);
+      
+      case ProductDataSource.simulated:
+        return await _fetchSimulated(page: page, limit: limit);
+      
+      case ProductDataSource.hybrid:
+        return await _fetchHybrid(page: page, limit: limit, category: category, search: search);
+    }
+  }
+
+  // 🗄️ SOLO BASE DE DATOS
+  Future<List<ProductModel.Product>> _fetchFromDatabase({
     int page = 1,
     int limit = 20,
     String? category,
     String? search,
   }) async {
     try {
-      // Configurar token si existe
       final token = await _authService.getToken();
       if (token != null && token.isNotEmpty) {
         _apiClient.setToken(token);
@@ -30,34 +61,71 @@ class ProductService {
         search: search,
       );
 
-      print('✅ Productos obtenidos de BD: ${response.products.length}');
-      
-      return response.products.map((productDB) => productDB.toProductModel()).toList();
+      print('✅ Productos de BD: ${response.products.length}');
+      return response.products.map((p) => p.toProductModel()).toList();
     } catch (e) {
-      print('❌ Error obteniendo productos de BD: $e');
-      // Fallback a productos simulados si hay error
-      return _getSimulatedProducts();
+      print('❌ Error BD: $e');
+      return []; // Retorna lista vacía si falla
     }
-  }  
+  }
 
-  // ✅ MÉTODO PRINCIPAL: Combinar productos reales + simulados (opcional)
-  Future<List<ProductModel.Product>> fetchProducts({
+  // 🎭 SOLO SIMULADOS
+  Future<List<ProductModel.Product>> _fetchSimulated({
     int page = 1,
     int limit = 20,
-    bool useSimulated = false, // Para debug/fallback
   }) async {
-    if (useSimulated) {
-      // Modo debug: usar productos simulados
-      await Future.delayed(const Duration(seconds: 1)); // simula red
-      final start = (page - 1) * limit; // 🔧 Ajustar paginación
-      final end = (start + limit > _simulatedProducts.length) 
-          ? _simulatedProducts.length 
-          : start + limit;
-      if (start >= _simulatedProducts.length) return [];
-      return _simulatedProducts.sublist(start, end);
-    } else {
-      // Modo producción: usar productos reales de BD
-      return await fetchProductsFromDB(page: page, limit: limit);
+    await Future.delayed(const Duration(milliseconds: 500)); // Simula red
+    final start = (page - 1) * limit;
+    final end = (start + limit > _simulatedProducts.length) 
+        ? _simulatedProducts.length 
+        : start + limit;
+    
+    if (start >= _simulatedProducts.length) return [];
+    
+    final productos = _simulatedProducts.sublist(start, end);
+    print('✅ Productos simulados: ${productos.length}');
+    return productos;
+  }
+
+  // 🔄 HÍBRIDO: BD + Simulados (fallback inteligente)
+  Future<List<ProductModel.Product>> _fetchHybrid({
+    int page = 1,
+    int limit = 20,
+    String? category,
+    String? search,
+  }) async {
+    try {
+      // 1. Intentar obtener de BD
+      final dbProducts = await _fetchFromDatabase(
+        page: page, 
+        limit: limit, 
+        category: category, 
+        search: search
+      );
+      
+      // 2. Si BD tiene productos suficientes, usarlos
+      if (dbProducts.length >= limit) {
+        print('✅ Híbrido: Usando ${dbProducts.length} productos de BD');
+        return dbProducts;
+      }
+      
+      // 3. Si BD no tiene suficientes, completar con simulados
+      final needed = limit - dbProducts.length;
+      final simulatedPage = ((page - 1) * limit - dbProducts.length / limit).ceil().clamp(1, 999);
+      
+      final simulatedProducts = await _fetchSimulated(
+        page: simulatedPage,
+        limit: needed,
+      );
+      
+      final combined = [...dbProducts, ...simulatedProducts];
+      print('✅ Híbrido: ${dbProducts.length} BD + ${simulatedProducts.length} simulados = ${combined.length}');
+      
+      return combined;
+      
+    } catch (e) {
+      print('❌ Error híbrido, fallback a simulados: $e');
+      return await _fetchSimulated(page: page, limit: limit);
     }
   }
 
@@ -552,4 +620,11 @@ class ProductService {
         return Icons.category;
     }
   }
+}
+
+// 🔧 ENUM para configurar fácilmente el origen de datos
+enum ProductDataSource {
+  database,    // Solo productos reales de BD
+  simulated,   // Solo productos simulados
+  hybrid,      // BD + simulados como fallback
 }
