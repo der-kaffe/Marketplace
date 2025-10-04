@@ -3,6 +3,7 @@ import '../theme/app_colors.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_card.dart';
 import '../services/product_service.dart';
+import '../services/auth_service.dart';
 import '../models/product_model.dart';
 import '../widgets/product_detail_modal.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -18,16 +19,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ProductService _productService = ProductService();
   final ScrollController _scrollController = ScrollController();
+  final AuthService _authService = AuthService();
 
   final List<Product> _products = [];
   bool _isLoading = false;
   int _page = 0;
   final int _limit = 4; // productos por carga (matching original count)
 
+  // ✅ AGREGADO: Set para trackear favoritos
+  final Set<String> _favoriteProductIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadMore();
+    _loadFavorites(); // ✅ AGREGADO
+
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
@@ -36,6 +43,66 @@ class _HomeScreenState extends State<HomeScreen> {
         _loadMore();
       }
     });  }
+
+  // ✅ AGREGADO: Cargar favoritos del usuario
+  Future<void> _loadFavorites() async {
+    try {
+      final token = await _authService.getToken();
+      if (token != null && token.isNotEmpty) {
+        _authService.apiClient.setToken(token);
+      }
+
+      final resp = await _authService.apiClient.getProductFavorites(page: 1, limit: 100);
+      setState(() {
+        _favoriteProductIds.clear();
+        for (var fav in resp.favorites) {
+          _favoriteProductIds.add(fav.productoId.toString());
+        }
+      });
+    } catch (e) {
+      // Manejo de errores opcional
+      print('Error al cargar favoritos: $e');
+    }
+  }
+
+  // ✅ AGREGADO: Toggle favorito
+  Future<void> _toggleFavorite(Product product) async {
+    try {
+      final productId = int.parse(product.id);
+      final isFavorite = _favoriteProductIds.contains(product.id);
+
+      if (isFavorite) {
+        // Eliminar de favoritos
+        await _authService.apiClient.removeProductFavorite(productoId: productId);
+        setState(() {
+          _favoriteProductIds.remove(product.id);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Eliminado de favoritos')),
+          );
+        }
+      } else {
+        // Agregar a favoritos
+        await _authService.apiClient.addProductFavorite(productoId: productId);
+        setState(() {
+          _favoriteProductIds.add(product.id);
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Agregado a favoritos')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
 
   // Método para asignar colores a las categorías dinámicamente
   Color _getCategoryColor(int index) {
@@ -76,7 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
-  }  @override
+  }
+
+  @override
   Widget build(BuildContext context) {
     // 👇 si estamos cargando y aún no hay productos → muestra solo el loader
     if (_isLoading && _products.isEmpty) {
@@ -251,18 +320,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             }
                             
                             final product = _products[index];
+                            final isFavorite = _favoriteProductIds.contains(product.id); // ✅ AGREGADO
+
                             return ProductCard(
-                              imageUrl: product.imageUrl,
                               title: product.title,
                               description: product.description,
                               price: product.price,
+                              imageUrl: product.imageUrl,
+                              isFavorite: isFavorite, // ✅ AGREGADO
                               isAvailable: product.isAvailable,
                               onToggleVisibility: () {
                                 setState(() {
                                   _products[index] = product.copyWith(isAvailable: !product.isAvailable);
                                 });
                               },
+                              onToggleFavorite: () { // ✅ AGREGADO
+                                _toggleFavorite(product);
+                              },
                               onTap: () {
+                                // Solo se abre el modal cuando se presiona la tarjeta (no los botones)
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,

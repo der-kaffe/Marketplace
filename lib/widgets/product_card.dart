@@ -10,6 +10,7 @@ class ProductCard extends StatelessWidget {
   final bool isFavorite;
   final bool isAvailable;
   final VoidCallback onToggleVisibility;
+  final VoidCallback onToggleFavorite;
 
   const ProductCard({
     super.key,
@@ -21,11 +22,15 @@ class ProductCard extends StatelessWidget {
     this.isFavorite = false,
     required this.isAvailable,
     required this.onToggleVisibility,
+    required this.onToggleFavorite,
   });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
+      // ✅ Mantener el tamaño de imagen que prefieres
+      final imageHeight = constraints.maxWidth * 0.7; // VOLVEMOS al tamaño anterior
+      
       return Card(
         elevation: 4,
         shape: RoundedRectangleBorder(
@@ -37,112 +42,123 @@ class ProductCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Imagen con botón de visibilidad
-              Stack(
-                children: [
-                  Container(
-                    height: constraints.maxHeight * 0.45, // 45% de la altura
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: AppColors.grisPrimario.withOpacity(0.2),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        topRight: Radius.circular(12),
+              // ✅ Imagen con altura que prefieres
+              SizedBox(
+                height: imageHeight,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: imageHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
+                        ),
+                        child: _buildImage(),
                       ),
                     ),
-                    child: imageUrl != null
-                        ? ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(12),
-                              topRight: Radius.circular(12),
-                            ),
-                            child: Image.network(
-                              imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const Center(
-                                child: Icon(
-                                  Icons.image_not_supported,
-                                  color: AppColors.grisPrimario,
-                                ),
-                              ),
-                            ),
-                          )
-                        : const Center(
-                            child: Icon(
-                              Icons.image,
-                              color: AppColors.grisPrimario,
-                              size: 40,
-                            ),
+                    
+                    // ✅ Botón de visibilidad (arriba a la izquierda)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: GestureDetector(
+                        onTap: onToggleVisibility,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                  ),
-                  Positioned(
-                    top: 4,
-                    right: 4,
-                    child: IconButton(
-                      icon: Icon(
-                        isAvailable ? Icons.visibility : Icons.visibility_off,
-                        color: isAvailable
-                            ? AppColors.azulPrimario
-                            : AppColors.grisPrimario,
+                          child: Icon(
+                            isAvailable ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
                       ),
-                      onPressed: onToggleVisibility,
                     ),
-                  ),
-                ],
+
+                    // ✅ Botón de favoritos (arriba a la derecha)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: GestureDetector(
+                        onTap: onToggleFavorite,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: isFavorite ? Colors.red : Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
-              // Sección de detalles
+              // ✅ SOLUCIÓN DEFINITIVA: Usar Expanded para tomar todo el espacio restante
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.azulPrimario,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Expanded(
+                      // ✅ Título que se adapta al espacio disponible
+                      Flexible(
+                        flex: 3, // 3 partes del espacio disponible
                         child: Text(
-                          description,
+                          title,
                           style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textoSecundario,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            height: 1.0,
                           ),
-                          maxLines: 3,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              '\$${price.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.azulOscuro,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                      
+                      const SizedBox(height: 2),
+                      
+                      // ✅ Descripción que se adapta al espacio disponible
+                      Flexible(
+                        flex: 2, // 2 partes del espacio disponible
+                        child: Text(
+                          description,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 10,
+                            height: 1.0,
                           ),
-                          Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite
-                                ? AppColors.error
-                                : AppColors.grisPrimario,
-                          ),
-                        ],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      
+                      // ✅ Espaciador flexible
+                      const Spacer(),
+                      
+                      // ✅ Precio que siempre se muestra completo
+                      Text(
+                        '\$${price.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppColors.azulPrimario,
+                        ),
                       ),
                     ],
                   ),
@@ -153,5 +169,64 @@ class ProductCard extends StatelessWidget {
         ),
       );
     });
+  }
+
+  // ✅ Método para construir la imagen con fallback a asset
+  Widget _buildImage() {
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      // Si no hay URL, mostrar imagen por defecto desde assets
+      return Image.asset(
+        'assets/producto_sin_foto.jpg',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Icon(
+              Icons.image,
+              size: 35,
+              color: Colors.grey,
+            ),
+          );
+        },
+      );
+    }
+
+    // Si hay URL, intentar cargar de la red con fallback a asset
+    return Image.network(
+      imageUrl!,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // Si falla la carga de red, mostrar imagen por defecto
+        return Image.asset(
+          'assets/producto_sin_foto.jpg',
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey.shade200,
+              child: const Icon(
+                Icons.image,
+                size: 35,
+                color: Colors.grey,
+              ),
+            );
+          },
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.grey.shade100,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
+    );
   }
 }

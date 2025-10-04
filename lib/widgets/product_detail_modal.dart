@@ -27,6 +27,75 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     }
   }
 
+  // ✅ Método para construir la imagen del modal con fallback
+  Widget _buildModalImage() {
+    if (widget.product.imageUrl == null || widget.product.imageUrl!.isEmpty) {
+      // Si no hay URL, mostrar imagen por defecto desde assets
+      return Image.asset(
+        'assets/producto_sin_foto.jpg',
+        height: 200,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            height: 200,
+            color: Colors.grey.shade200,
+            child: const Icon(
+              Icons.image,
+              size: 60,
+              color: Colors.grey,
+            ),
+          );
+        },
+      );
+    }
+
+    // Si hay URL, intentar cargar de la red con fallback a asset
+    return Image.network(
+      widget.product.imageUrl!,
+      height: 200,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // Si falla la carga de red, mostrar imagen por defecto
+        return Image.asset(
+          'assets/producto_sin_foto.jpg',
+          height: 200,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              height: 200,
+              color: Colors.grey.shade200,
+              child: const Icon(
+                Icons.image,
+                size: 60,
+                color: Colors.grey,
+              ),
+            );
+          },
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          height: 200,
+          color: Colors.grey.shade100,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 3,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -46,16 +115,10 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Imagen del producto
+                // ✅ Imagen del producto con manejo de errores mejorado
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    widget.product.imageUrl ??
-                        "https://via.placeholder.com/300",
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
+                  child: _buildModalImage(),
                 ),
                 const SizedBox(height: 16),
 
