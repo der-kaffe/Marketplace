@@ -86,8 +86,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
     try {
       final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return setState(() => _isLoading = false);
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
+      // Verificar dominio permitido
       final allowedDomains = ['uct.cl', 'alu.uct.cl'];
       if (!allowedDomains.any((d) => googleUser.email.endsWith('@$d'))) {
         await _googleSignIn.signOut();
@@ -99,53 +103,54 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             ),
           );
         }
-        return setState(() => _isLoading = false);
-      }      final googleAuth = await googleUser.authentication;
-        // Debug información
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      
+      // Debug información
       print('🔍 Debug Google Auth:');
       print('  - Email: ${googleUser.email}');
       print('  - Name: ${googleUser.displayName}');
-      print('  - Photo URL: ${googleUser.photoUrl}');
       print('  - ID Token: ${googleAuth.idToken != null ? "✅ Disponible" : "❌ Null"}');
       print('  - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');
 
       final authService = AuthService();
-        // 🔄 ESTRATEGIA HÍBRIDA: Intenta BD primero, fallback a local
-      final result = await authService.loginWithGoogleHybrid(
-        idToken: googleAuth.idToken,
-        accessToken: googleAuth.accessToken,
+      
+      // 🔧 MODO DE DESARROLLO: Bypass del backend por ahora
+      // Generamos un token temporal para que la app funcione
+      final mockToken = 'mock_google_token_${DateTime.now().millisecondsSinceEpoch}';
+      await authService.saveToken(mockToken);
+      
+      // Guardar datos de Google localmente
+      await authService.saveGoogleUserData(
         email: googleUser.email,
         name: googleUser.displayName ?? googleUser.email.split('@')[0],
         photoUrl: googleUser.photoUrl,
       );
-      
-      // Debug adicional para la imagen
-      print('🔍 Debug imagen de perfil:');
-      print('  - Foto URL original: ${googleUser.photoUrl}');
-      if (googleUser.photoUrl != null && googleUser.photoUrl!.isNotEmpty) {
-        print('  - ✅ URL de imagen disponible');
-      } else {
-        print('  - ❌ No hay URL de imagen de Google');
-      }
 
-      if (mounted && result['success'] == true) {
-        final isDatabase = result['mode'] == 'database';
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: isDatabase ? Colors.green : Colors.orange,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        
-        print('✅ Login exitoso - Modo: ${result['mode']} - Token: ${result['token']}');
-        context.go('/home');
-      }
-    } catch (e) {
+      print('✅ Login simulado exitoso con token: $mockToken');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('¡Login exitoso! (Modo desarrollo)'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        context.go('/home');
+      }
+
+    } catch (e) {
+      print('❌ Error en login: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {

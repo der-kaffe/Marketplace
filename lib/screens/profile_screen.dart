@@ -21,16 +21,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Variables para campos editables(por el momento solo teléfono y dirección, los otros no deberian ser editables)
   String _direccion = 'Campus';
   String _telefono = '+56 9 1234 5678';
+  
+  // Datos del usuario
+  String _userName = 'Usuario';
+  String _userEmail = 'usuario@ejemplo.com';
+  String? _userPhotoUrl;
 
   @override
   void initState() {
     super.initState();
-    // Simular tiempo de carga
-    Future.delayed(const Duration(seconds: 2), () {
+    _loadUserData();
+  }  // Cargar datos del usuario SOLO desde datos locales guardados
+  Future<void> _loadUserData() async {
+    try {
+      print('🔍 Cargando datos del perfil...');
+      final authService = AuthService();
+      
+      // Obtener datos guardados de Google (modo desarrollo)
+      final googleData = await authService.getGoogleUserData();
+      print('📱 Datos de Google guardados: $googleData');
+      
+      if (googleData != null) {
+        setState(() {
+          _userName = googleData['name'] ?? 'Usuario';
+          _userEmail = googleData['email'] ?? 'usuario@ejemplo.com';
+          _userPhotoUrl = googleData['photoUrl'];
+        });
+        print('✅ Datos cargados exitosamente: $_userName, $_userEmail');
+      } else {
+        print('⚠️ No se encontraron datos de Google, usando valores por defecto');
+        setState(() {
+          _userName = 'Usuario Invitado';
+          _userEmail = 'invitado@ejemplo.com';
+          _userPhotoUrl = null;
+        });
+      }
+      
+      // Intentar obtener datos del usuario desde AuthService si están disponibles
+      final currentUser = authService.currentUser;
+      if (currentUser != null) {
+        print('👤 Usuario actual del AuthService: ${currentUser.name}');
+        setState(() {
+          _userName = currentUser.name.isNotEmpty ? currentUser.name : _userName;
+          _userEmail = currentUser.email.isNotEmpty ? currentUser.email : _userEmail;
+        });
+      }
+      
+    } catch (e) {
+      print('❌ Error cargando datos del usuario: $e');
+      // Mantener valores por defecto seguros
+      setState(() {
+        _userName = 'Usuario';
+        _userEmail = 'usuario@ejemplo.com';
+        _userPhotoUrl = null;
+      });
+    } finally {
       setState(() {
         _isLoading = false;
       });
+      print('🏁 Carga de perfil completada');
+    }
+  }
+  // Método para refrescar los datos del usuario (simplificado)
+  Future<void> _refreshUserData() async {
+    print('🔄 Refrescando datos del perfil...');
+    setState(() {
+      _isLoading = true;
     });
+    await _loadUserData();
   }
 
   @override
@@ -52,13 +110,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Encabezado del perfil
                 _buildProfileHeader(),
 
-                const SizedBox(height: 20),                // Información personal
+                const SizedBox(height: 20),
+                  // Información personal
                 _buildInfoSection(
                   title: 'Información Personal',
                   items: [
                     _buildInfoItem(
-                        Icons.person, 'Nombre completo', 'Carlos García López'),
-                    _buildInfoItem(Icons.email, 'Email', 'carlos.garcia@ejemplo.com'),
+                        Icons.person, 'Nombre completo', _userName),
+                    _buildInfoItem(Icons.email, 'Email', _userEmail),
+                    _buildActionItem(
+                      icon: Icons.refresh,
+                      title: 'Actualizar datos de perfil',
+                      color: AppColors.azulPrimario,
+                      onTap: _refreshUserData,
+                    ),
                     _buildEditableInfoItem(Icons.phone, 'Teléfono', _telefono, () => _editField('teléfono')),
                     _buildEditableInfoItem(
                         Icons.location_on, 'Campus/Dirección', _direccion, () => _editField('dirección')),
@@ -159,8 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       child: Column(
-        children: [
-          Container(
+        children: [          Container(
             width: 100,
             height: 100,
             decoration: BoxDecoration(
@@ -175,16 +239,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.person,
-              size: 60,
-              color: AppColors.azulPrimario,
-            ),
+            child: _userPhotoUrl != null 
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(50),
+                  child: Image.network(
+                    _userPhotoUrl!,
+                    width: 100,
+                    height: 100,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(
+                        Icons.person,
+                        size: 60,
+                        color: AppColors.azulPrimario,
+                      );
+                    },
+                  ),
+                )
+              : const Icon(
+                  Icons.person,
+                  size: 60,
+                  color: AppColors.azulPrimario,
+                ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Carlos García',
-            style: TextStyle(
+          Text(
+            _userName,
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: AppColors.blanco,

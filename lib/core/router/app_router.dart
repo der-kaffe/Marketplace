@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 // Importa todas tus pantallas
-import '../../screens/login_screen.dart';
+import '../../screens/login_screen_fixed.dart';
 import '../../screens/main_screen.dart';
 import '../../screens/conversations_page.dart';
 import '../../screens/home_screen.dart';
@@ -64,8 +64,7 @@ class AppRouter {
         builder: (context, state) => const StartupScreen(),
       ),
       GoRoute(
-        path: '/login',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
+        path: '/login',        pageBuilder: (context, state) => CustomTransitionPage<void>(
           key: state.pageKey,
           child: const LoginScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {

@@ -1,4 +1,4 @@
-  // lib/services/auth_service.dart
+// lib/services/auth_service.dart
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'api_client.dart';
@@ -35,15 +35,14 @@ class AuthService {
   Future<String?> getToken() async {
     return await _storage.read(key: _tokenKey);
   }
-
   // Borrar el token (para cerrar sesión)
   Future<void> deleteToken() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
+    await _storage.delete(key: 'google_user_data');
     _apiClient.clearToken();
     _currentUser = null;
   }
-
   // Guardar datos del usuario
   Future<void> saveUserData(User user) async {
     _currentUser = user;
@@ -53,6 +52,38 @@ class AuthService {
       'name': user.name,
       'role': user.role,
     }));
+  }
+  // Guardar datos adicionales de Google (como foto)
+  Future<void> saveGoogleUserData({
+    required String email,
+    required String name,
+    String? photoUrl,
+  }) async {
+    final googleData = {
+      'email': email,
+      'name': name,
+      'photoUrl': photoUrl,
+    };
+    print('💾 AuthService: Guardando datos de Google: $googleData');
+    await _storage.write(key: 'google_user_data', value: json.encode(googleData));
+  }
+  // Obtener datos de Google guardados
+  Future<Map<String, dynamic>?> getGoogleUserData() async {
+    try {
+      print('🔍 AuthService: Buscando datos de Google...');
+      final data = await _storage.read(key: 'google_user_data');
+      if (data != null) {
+        final decoded = json.decode(data);
+        print('✅ AuthService: Datos de Google encontrados: $decoded');
+        return decoded;
+      } else {
+        print('⚠️ AuthService: No se encontraron datos de Google guardados');
+        return null;
+      }
+    } catch (e) {
+      print('❌ AuthService: Error obteniendo datos de Google: $e');
+      return null;
+    }
   }
 
   // Cargar datos del usuario
@@ -120,6 +151,77 @@ class AuthService {
     } catch (e) {
       rethrow;
     }
+  }
+  // Login con Google - Estrategia Híbrida
+  Future<Map<String, dynamic>> loginWithGoogleHybrid({
+    required String? idToken,
+    required String? accessToken,
+    required String email,
+    required String name,
+    String? photoUrl,
+  }) async {
+    print('🔄 Iniciando login híbrido con Google...');
+    
+    // 1️⃣ PRIMERO: Intentar guardar en BD (producción)
+    if (idToken != null && idToken.isNotEmpty) {
+      try {
+        print('🌐 Intentando login con API...');
+        
+        final response = await _apiClient.loginWithGoogle(
+          idToken: idToken,
+          email: email,
+          name: name,
+          avatarUrl: photoUrl,
+        );
+        
+        if (response.ok && response.token != null) {
+          // ✅ Login exitoso con BD
+          await saveToken(response.token!);
+          
+          if (response.user != null) {
+            await saveUserData(response.user!);
+          }
+          
+          // También guardar datos de Google para el perfil
+          await saveGoogleUserData(
+            email: email,
+            name: name,
+            photoUrl: photoUrl,
+          );
+          
+          print('✅ Login con BD exitoso - Token: ${response.token!}');
+          return {
+            'success': true,
+            'mode': 'database',
+            'token': response.token!,
+            'message': '¡Login exitoso con base de datos!',
+          };
+        }
+      } catch (apiError) {
+        print('⚠️ Error en API: $apiError');
+      }
+    }
+    
+    // 2️⃣ FALLBACK: Si falla la API, usar modo local (desarrollo)
+    print('🔧 Usando modo local (desarrollo)');
+    
+    final mockToken = 'mock_google_token_${DateTime.now().millisecondsSinceEpoch}';
+    await saveToken(mockToken);
+    
+    // Guardar datos localmente como respaldo
+    await saveGoogleUserData(
+      email: email,
+      name: name,
+      photoUrl: photoUrl,
+    );
+    
+    print('✅ Login local exitoso con token: $mockToken');
+    return {
+      'success': true,
+      'mode': 'local',
+      'token': mockToken,
+      'message': '¡Login exitoso! (Modo desarrollo)',
+    };
   }
 
   // Verificar si el usuario está autenticado
