@@ -35,15 +35,14 @@ class AuthService {
   Future<String?> getToken() async {
     return await _storage.read(key: _tokenKey);
   }
-
   // Borrar el token (para cerrar sesión)
   Future<void> deleteToken() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
+    await _storage.delete(key: 'google_user_data');
     _apiClient.clearToken();
     _currentUser = null;
   }
-
   // Guardar datos del usuario
   Future<void> saveUserData(User user) async {
     _currentUser = user;
@@ -53,6 +52,37 @@ class AuthService {
       'name': user.name,
       'role': user.role,
     }));
+  }
+
+  // Guardar datos adicionales de Google (como foto)
+  Future<void> saveGoogleUserData({
+    required String email,
+    required String name,
+    String? photoUrl,
+  }) async {
+    await _storage.write(key: 'google_user_data', value: json.encode({
+      'email': email,
+      'name': name,
+      'photoUrl': photoUrl,
+    }));
+  }
+  // Obtener datos de Google guardados
+  Future<Map<String, dynamic>?> getGoogleUserData() async {
+    try {
+      print('🔍 AuthService: Buscando datos de Google...');
+      final data = await _storage.read(key: 'google_user_data');
+      if (data != null) {
+        final decoded = json.decode(data);
+        print('✅ AuthService: Datos de Google encontrados: $decoded');
+        return decoded;
+      } else {
+        print('⚠️ AuthService: No se encontraron datos de Google guardados');
+        return null;
+      }
+    } catch (e) {
+      print('❌ AuthService: Error obteniendo datos de Google: $e');
+      return null;
+    }
   }
 
   // Cargar datos del usuario
