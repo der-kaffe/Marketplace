@@ -1,4 +1,4 @@
-  // lib/services/auth_service.dart
+// lib/services/auth_service.dart
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'api_client.dart';
@@ -35,15 +35,14 @@ class AuthService {
   Future<String?> getToken() async {
     return await _storage.read(key: _tokenKey);
   }
-
   // Borrar el token (para cerrar sesión)
   Future<void> deleteToken() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userKey);
+    await _storage.delete(key: 'google_user_data');
     _apiClient.clearToken();
     _currentUser = null;
   }
-
   // Guardar datos del usuario
   Future<void> saveUserData(User user) async {
     _currentUser = user;
@@ -53,6 +52,38 @@ class AuthService {
       'name': user.name,
       'role': user.role,
     }));
+  }
+  // Guardar datos adicionales de Google (como foto)
+  Future<void> saveGoogleUserData({
+    required String email,
+    required String name,
+    String? photoUrl,
+  }) async {
+    final googleData = {
+      'email': email,
+      'name': name,
+      'photoUrl': photoUrl,
+    };
+    print('💾 AuthService: Guardando datos de Google: $googleData');
+    await _storage.write(key: 'google_user_data', value: json.encode(googleData));
+  }
+  // Obtener datos de Google guardados
+  Future<Map<String, dynamic>?> getGoogleUserData() async {
+    try {
+      print('🔍 AuthService: Buscando datos de Google...');
+      final data = await _storage.read(key: 'google_user_data');
+      if (data != null) {
+        final decoded = json.decode(data);
+        print('✅ AuthService: Datos de Google encontrados: $decoded');
+        return decoded;
+      } else {
+        print('⚠️ AuthService: No se encontraron datos de Google guardados');
+        return null;
+      }
+    } catch (e) {
+      print('❌ AuthService: Error obteniendo datos de Google: $e');
+      return null;
+    }
   }
 
   // Cargar datos del usuario
@@ -119,6 +150,68 @@ class AuthService {
       return response;
     } catch (e) {
       rethrow;
+    }
+  }  // Login con Google - SOLO Backend y PostgreSQL
+  Future<Map<String, dynamic>> loginWithGoogleBackend({
+    required String? idToken,
+    required String? accessToken,
+    required String email,
+    required String name,
+    String? photoUrl,
+  }) async {
+    print('🔄 Iniciando login con Google (SOLO BACKEND)...');
+    print('📧 Email: $email');
+    print('👤 Nombre: $name');
+    print('🖼️ Foto URL: $photoUrl');
+    
+    try {
+      // Usar idToken o accessToken
+      final tokenToUse = idToken ?? accessToken;
+      if (tokenToUse == null || tokenToUse.isEmpty) {
+        throw Exception('No se pudo obtener token de Google');
+      }
+      
+      print('🌐 Conectando a API backend...');
+      
+      final response = await _apiClient.loginWithGoogle(
+        idToken: tokenToUse,
+        email: email,
+        name: name,
+        avatarUrl: photoUrl,
+      );
+      
+      if (response.ok && response.token != null) {
+        // ✅ Login exitoso con BD - Guardar token JWT real
+        await saveToken(response.token!);
+        
+        // Guardar datos del usuario en storage local para perfil
+        if (response.user != null) {
+          await saveUserData(response.user!);
+        }
+        
+        // También guardar datos de Google para el perfil
+        await saveGoogleUserData(
+          email: email,
+          name: name,
+          photoUrl: photoUrl,
+        );
+        
+        print('✅ Login exitoso - Usuario guardado en PostgreSQL');
+        print('🔐 Token JWT: ${response.token!.substring(0, 50)}...');
+        
+        return {
+          'success': true,
+          'token': response.token!,
+          'message': '¡Cuenta creada/actualizada en base de datos!',
+          'user': response.user,
+        };
+      } else {
+        throw Exception(response.message.isNotEmpty ? response.message : 'Error en la respuesta del servidor');
+      }
+      
+    } catch (e) {
+      print('❌ Error en login con backend: $e');
+      throw Exception('Error conectando al servidor: $e');
     }
   }
 

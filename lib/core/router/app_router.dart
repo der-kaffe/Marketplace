@@ -64,8 +64,7 @@ class AppRouter {
         builder: (context, state) => const StartupScreen(),
       ),
       GoRoute(
-        path: '/login',
-        pageBuilder: (context, state) => CustomTransitionPage<void>(
+        path: '/login',        pageBuilder: (context, state) => CustomTransitionPage<void>(
           key: state.pageKey,
           child: const LoginScreen(),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {

@@ -39,8 +39,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile', 'openid'],
     clientId: kIsWeb
@@ -50,15 +49,15 @@ class _LoginScreenState extends State<LoginScreen>
 
   bool _isLoading = false;
 
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
+  late final Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
       vsync: this,
     );
 
@@ -67,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.0, 1.0),
+      begin: const Offset(0.0, 0.5),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutQuart),
@@ -86,71 +85,57 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
 
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return setState(() => _isLoading = false);
 
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final String userEmail = googleUser.email;
-      final String displayName = googleUser.displayName ?? 'Usuario';
-
-      const allowedDomains = ['uct.cl', 'alu.uct.cl'];
-      final isDomainAllowed =
-          allowedDomains.any((domain) => userEmail.endsWith('@$domain'));
-
-      if (!isDomainAllowed) {
+      final allowedDomains = ['uct.cl', 'alu.uct.cl'];
+      if (!allowedDomains.any((d) => googleUser.email.endsWith('@$d'))) {
         await _googleSignIn.signOut();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content:
-                  Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
+              content: Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
               backgroundColor: Colors.red,
             ),
           );
         }
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final googleAuth = await googleUser.authentication;
-      final idToken = googleAuth.idToken ?? googleAuth.accessToken ?? '';
-
-      if (idToken.isEmpty) {
-        throw Exception('No se pudo obtener el token de Google');
-      }
-
-      // 🔥 AQUÍ ESTÁ EL CAMBIO: Llamar al servidor en lugar de solo guardar el token
-      final authService = AuthService();
+        return setState(() => _isLoading = false);
+      }      final googleAuth = await googleUser.authentication;
+        // Debug información
+      print('🔍 Debug Google Auth:');
+      print('  - Email: ${googleUser.email}');
+      print('  - Name: ${googleUser.displayName}');
+      print('  - Photo URL: ${googleUser.photoUrl}');
+      print('  - ID Token: ${googleAuth.idToken != null ? "✅ Disponible" : "❌ Null"}');
+      print('  - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');      final authService = AuthService();
       
-      print('🔍 Enviando datos al servidor...');
-      print('📧 Email: $userEmail');
-      print('👤 Nombre: $displayName');
-      
-      // Llamar al endpoint /api/auth/google del servidor
-      final loginResponse = await authService.loginWithGoogle(
-        idToken: idToken,
-        email: userEmail,
-        name: displayName,
+      // 🔄 LOGIN SOLO CON BACKEND Y POSTGRESQL
+      final result = await authService.loginWithGoogleBackend(
+        idToken: googleAuth.idToken,
+        accessToken: googleAuth.accessToken,
+        email: googleUser.email,
+        name: googleUser.displayName ?? googleUser.email.split('@')[0],
+        photoUrl: googleUser.photoUrl,
       );
 
-      print('✅ Respuesta del servidor: ${loginResponse.message}');
-      // ✅ CORREGIDO: usar navegación segura o verificar null
-      print('👤 Usuario creado/encontrado: ${loginResponse.user?.email ?? 'Sin email'}');
-
-      // Ahora sí, ir a home
-      if (mounted) context.go('/home');
-    
-    } catch (error) {
-      print('❌ Error completo en login: $error'); // ✅ MEJORADO: más info del error
-      if (mounted) {
+      if (mounted && result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${error.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(result['message']),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
+        );
+        
+        print('✅ Login exitoso - Token: ${result['token'].toString().substring(0, 50)}...');
+        print('👤 Usuario guardado en PostgreSQL');
+        
+        context.go('/home');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -170,12 +155,11 @@ class _LoginScreenState extends State<LoginScreen>
       final authService = AuthService();
       await authService.saveToken('admin_user_token');
       if (mounted) context.go('/admin');
-    } catch (error) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text('Error al iniciar sesión como admin: ${error.toString()}'),
+            content: Text('Error al iniciar sesión como admin: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -197,6 +181,7 @@ class _LoginScreenState extends State<LoginScreen>
           opacity: _fadeAnimation,
           child: Column(
             children: [
+              // Sección superior con wave
               SizedBox(
                 height: screenHeight * 0.35,
                 child: ClipPath(
@@ -205,127 +190,104 @@ class _LoginScreenState extends State<LoginScreen>
                     fit: StackFit.expand,
                     children: [
                       Image.asset('assets/universidad.jpg', fit: BoxFit.cover),
-                      Container(
-                          color: const Color(0xFF005A8A).withOpacity(0.6)),
+                      Container(color: const Color(0xFF005A8A).withOpacity(0.6)),
                     ],
                   ),
                 ),
               ),
+
+              // Sección inferior con botones
               Expanded(
-                child: Transform.translate(
-                  offset: const Offset(0, -30),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Sign in',
-                          style: TextStyle(
-                            fontFamily: 'sans-serif',
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF3A3A3A),
-                            height: 1.2,
-                          ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Sign in',
+                        style: TextStyle(
+                          fontSize: 36,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF3A3A3A),
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: 40,
-                          height: 3,
-                          decoration: BoxDecoration(
-                            color: AppColors.amarilloPrimario,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
+                      ),
+                      const SizedBox(height: 24),
 
-                        // Agregamos espacio antes de los botones
-                        const SizedBox(height: 40),
-
-                        // Botón Google
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _loginWithGoogle,
-                            icon: _isLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.grey),
-                                    ),
-                                  )
-                                : Image.network(
-                                    'http://pngimg.com/uploads/google/google_PNG19635.png',
-                                    height: 20,
+                      // Google Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _loginWithGoogle,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
                                   ),
-                            label: Text(
-                              _isLoading
-                                  ? 'Iniciando sesión...'
-                                  : 'Continuar con Google',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF3A3A3A),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: const Color(0xFF3A3A3A),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 2,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Botones Invitado y Admin
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _isLoading ? null : _loginAsGuest,
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: AppColors.amarilloPrimario),
-                                  foregroundColor: AppColors.amarilloPrimario,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                  ),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
+                                )
+                              : Image.network(
+                                  'http://pngimg.com/uploads/google/google_PNG19635.png',
+                                  height: 20,
                                 ),
-                                child: const Text('Invitado',
-                                    style: TextStyle(fontSize: 14)),
-                              ),
+                          label: Text(
+                            _isLoading ? 'Signing in...' : 'Continue with Google',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF3A3A3A),
+                              fontWeight: FontWeight.w500,
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _loginAsAdmin,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red.withOpacity(0.8),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                  ),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                                child: const Text('Admin',
-                                    style: TextStyle(fontSize: 14)),
-                              ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF3A3A3A),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ],
+                            elevation: 2,
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Invitado & Admin Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isLoading ? null : _loginAsGuest,
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppColors.amarilloPrimario),
+                                foregroundColor: AppColors.amarilloPrimario,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Invitado', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _loginAsAdmin,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.withOpacity(0.8),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                              child: const Text('Admin', style: TextStyle(fontSize: 12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
                 ),
               ),
