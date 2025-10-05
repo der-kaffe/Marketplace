@@ -1,4 +1,4 @@
-// lib/screens/home_screen.dart (actualizado con solución de duplicados)
+// lib/screens/home_screen.dart (actualizado con solución de duplicados y búsqueda por rango de precio)
 
 import 'package:flutter/material.dart';
 import '../models/product_model.dart' as ProductModel;
@@ -10,6 +10,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
 import '../widgets/category_card.dart';
 import '../widgets/product_card.dart';
+import 'package:flutter/services.dart'; // Importante para TextInputFormatter
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,6 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _selectedCategoryName;
   int? _selectedCategoryId;
+
+  // --- NUEVO: Estados para el filtro de rango de precio ---
+  double? _precioMinimo;
+  double? _precioMaximo;
+  // --- FIN NUEVO ---
 
   @override
   void initState() {
@@ -215,51 +221,190 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   // --- FIN NUEVO ---
 
-  // --- ACTUALIZADO: Método de filtro para usar _originalProducts ---
+  // --- NUEVO: Método para abrir el modal de filtros ---
+  void _showPriceFilterModal() {
+    final TextEditingController minController = TextEditingController();
+    final TextEditingController maxController = TextEditingController();
+
+    // Pre-cargar valores si ya están establecidos
+    if (_precioMinimo != null)
+      minController.text = _precioMinimo!.toStringAsFixed(0);
+    if (_precioMaximo != null)
+      maxController.text = _precioMaximo!.toStringAsFixed(0);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setModalState) {
+              return Container(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Filtrar por precio',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: minController,
+                      decoration: const InputDecoration(
+                        labelText: 'Precio mínimo',
+                        prefixText: '\$',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly
+                      ], // Solo números
+                      onChanged: (value) {
+                        // Opcional: Validar aquí o dejar que el usuario limpie el campo
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: maxController,
+                      decoration: const InputDecoration(
+                        labelText: 'Precio máximo',
+                        prefixText: '\$',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly
+                      ], // Solo números
+                      onChanged: (value) {
+                        // Opcional: Validar aquí o dejar que el usuario limpie el campo
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () {
+                            // Limpiar filtros de precio
+                            setModalState(() {
+                              _precioMinimo = null;
+                              _precioMaximo = null;
+                              minController.text = '';
+                              maxController.text = '';
+                            });
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey, // Color para limpiar
+                          ),
+                          child: const Text('Limpiar'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            // Aplicar filtros de precio
+                            double? min = minController.text.isEmpty
+                                ? null
+                                : double.tryParse(minController.text);
+                            double? max = maxController.text.isEmpty
+                                ? null
+                                : double.tryParse(maxController.text);
+
+                            // Validación simple: si ambos están presentes, min debe ser <= max
+                            if (min != null && max != null && min > max) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Precio mínimo no puede ser mayor que precio máximo.')),
+                              );
+                              return;
+                            }
+
+                            setState(() {
+                              _precioMinimo = min;
+                              _precioMaximo = max;
+                            });
+
+                            // Aplicar el filtro combinado (categoría + precio)
+                            _applyCombinedFilter();
+
+                            Navigator.pop(context); // Cerrar modal
+                          },
+                          child: const Text('Aplicar'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+  // --- FIN NUEVO ---
+
+  // --- NUEVO: Método para aplicar el filtro combinado ---
+  void _applyCombinedFilter() {
+    setState(() {
+      // Comienza con la lista original
+      _filteredProducts = List.from(_originalProducts);
+
+      // Filtrar por categoría si hay una seleccionada
+      if (_selectedCategoryId != null) {
+        Set<String> categoryNamesToFilter =
+            _getAllSubcategoryNames(_selectedCategoryId!, _apiCategories);
+        _filteredProducts = _filteredProducts.where((product) {
+          return categoryNamesToFilter.contains(product.category);
+        }).toList();
+      }
+
+      // Filtrar por precio si hay un rango establecido
+      if (_precioMinimo != null || _precioMaximo != null) {
+        _filteredProducts = _filteredProducts.where((product) {
+          bool passesMinCheck =
+              _precioMinimo == null || product.price >= _precioMinimo!;
+          bool passesMaxCheck =
+              _precioMaximo == null || product.price <= _precioMaximo!;
+          return passesMinCheck && passesMaxCheck;
+        }).toList();
+      }
+    });
+    print(
+        '🔍 Aplicando filtro combinado. Productos filtrados: ${_filteredProducts.length}');
+  }
+  // --- FIN NUEVO ---
+
+  // --- ACTUALIZAR: _filterProductsByCategory para usar _applyCombinedFilter ---
   void _filterProductsByCategory(int? categoryId, String? categoryName) {
     print('--- DEBUG _filterProductsByCategory ---');
     print('Categoría seleccionada: $categoryName (ID: $categoryId)');
+    print('Precio Min: $_precioMinimo, Precio Max: $_precioMaximo');
     print('---------------------------------------');
 
     setState(() {
       _selectedCategoryId = categoryId;
       _selectedCategoryName = categoryName;
-
-      if (categoryId == null) {
-        // Limpiar filtro: restaurar desde la lista original limpia
-        _filteredProducts =
-            List.from(_originalProducts); // ✅ Usa la copia original
-        print(
-            'Filtro limpiado. Mostrando ${_filteredProducts.length} productos originales.');
-      } else {
-        // Obtener el conjunto de NOMBRES de categorías que incluye la categoría seleccionada y todas sus subcategorías
-        Set<String> categoryNamesToFilter =
-            _getAllSubcategoryNames(categoryId, _apiCategories);
-        print(
-            'Nombres de categorías a filtrar (padre + hijos): $categoryNamesToFilter');
-
-        // Filtrar productos cuyo category (nombre como string) esté en ese conjunto de nombres
-        // ✅ Filtra desde la lista original
-        _filteredProducts = _originalProducts.where((product) {
-          bool matches = categoryNamesToFilter.contains(product.category);
-          print(
-              'Producto: ${product.title}, Category String: "${product.category}", Matches: $matches');
-          return matches;
-        }).toList();
-
-        print(
-            'Productos filtrados: ${_filteredProducts.length} de ${_originalProducts.length} originales');
-      }
-      _page = 1; // Reiniciar página si se aplica un filtro
+      // No limpiar _precioMinimo/_precioMaximo aquí si solo cambia la categoría
     });
-    print(
-        '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y sus subcategorías (por nombre). Productos filtrados: ${_filteredProducts.length}');
-  }
-  // --- FIN ACTUALIZADO ---
 
+    // Aplicar el filtro combinado (categoría + precio)
+    _applyCombinedFilter();
+
+    _page = 1; // Reiniciar página si se aplica un filtro
+    print(
+        '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProducts.length}');
+  }
+  // --- FIN ACTUALIZAR ---
+
+  // --- ACTUALIZAR: _clearCategoryFilter para usar _applyCombinedFilter ---
   void _clearCategoryFilter() {
     _filterProductsByCategory(null, null);
   }
+  // --- FIN ACTUALIZAR ---
 
   @override
   void dispose() {
@@ -338,6 +483,70 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
+
+                  // --- SECCIÓN FILTROS ---
+                  // Mostrar botón de filtro de precio
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(8.0),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color:
+                                AppColors.azulPrimario.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_selectedCategoryName != null) ...[
+                                Text('Filtrando por: $_selectedCategoryName'),
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: _clearCategoryFilter,
+                                ),
+                                const VerticalDivider(width: 8),
+                              ],
+                              if (_precioMinimo != null ||
+                                  _precioMaximo != null) ...[
+                                Text('Precio:'),
+                                if (_precioMinimo != null)
+                                  Text(
+                                      ' \$${_precioMinimo!.toInt()}'), // Mostrar sin decimales
+                                if (_precioMinimo != null &&
+                                    _precioMaximo != null)
+                                  const Text(' - '),
+                                if (_precioMaximo != null)
+                                  Text(
+                                      ' \$${_precioMaximo!.toInt()}'), // Mostrar sin decimales
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () {
+                                    setState(() {
+                                      // Este setState garantiza la actualización inmediata
+                                      _precioMinimo = null;
+                                      _precioMaximo = null;
+                                    });
+                                    _applyCombinedFilter(); // Aplica el filtro sin el rango
+                                  },
+                                ),
+                                const VerticalDivider(width: 8),
+                              ],
+                              const Spacer(),
+                              ElevatedButton.icon(
+                                onPressed: _showPriceFilterModal,
+                                icon: const Icon(Icons.filter_alt),
+                                label: const Text('Filtrar Precio'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // --- FIN SECCIÓN FILTROS ---
+
                   if (!_isLoadingCategories && _apiCategories.isNotEmpty) ...[
                     const Text(
                       'Categorías',
@@ -427,30 +636,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Center(child: Text('No hay categorías disponibles.')),
                     const SizedBox(height: 16),
                   ],
-                  if (_selectedCategoryName != null)
-                    Container(
-                      padding: const EdgeInsets.all(8.0),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.azulPrimario.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('Filtrando por: '),
-                          Text(
-                            '$_selectedCategoryName',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            onPressed: _clearCategoryFilter,
-                          ),
-                        ],
-                      ),
-                    ),
+
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -578,6 +764,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                   'No se encontraron productos en esta categoría.'),
                             ),
                           ),
+                        // Mensaje si hay filtro de precio activo pero no hay productos
+                        if (_precioMinimo != null || _precioMaximo != null)
+                          if (_filteredProducts.isEmpty && !_isLoadingProducts)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Text(
+                                    'No se encontraron productos en el rango de precio.'),
+                              ),
+                            ),
                       ],
                     ),
                   ),
