@@ -1,4 +1,5 @@
 /// Modelo para representar un producto en la aplicación
+/// product_model.dart
 class Product {
   final String id;
   final String title;
@@ -140,5 +141,44 @@ class Category {
       imageUrl: json['imageUrl'] as String?,
       iconName: json['iconName'] as String,
     );
+  }
+}
+
+// --- NUEVO: Modelo para la estructura de Categoría desde la API ---
+class ApiCategory {
+  final int id;
+  final String nombre;
+  final int? categoriaPadreId; // Puede ser null si es una categoría raíz
+  final List<ApiCategory> subcategorias;
+
+  ApiCategory({
+    required this.id,
+    required this.nombre,
+    this.categoriaPadreId,
+    required this.subcategorias,
+  });
+
+  // Método para crear una instancia de ApiCategory desde un Map (JSON).
+  factory ApiCategory.fromJson(Map<String, dynamic> json) {
+    final subcatsJson = json['subcategorias'] as List?;
+    final subcategorias = subcatsJson != null
+        ? subcatsJson.map((subJson) => ApiCategory.fromJson(subJson)).toList()
+        : <ApiCategory>[];
+    return ApiCategory(
+      id: json['id'] as int,
+      nombre: json['nombre'] as String,
+      categoriaPadreId: json['categoriaPadreId'] as int?,
+      subcategorias: subcategorias,
+    );
+  }
+
+  // Método opcional para convertir la instancia a Map (útil si necesitas enviar datos).
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nombre': nombre,
+      'categoriaPadreId': categoriaPadreId,
+      'subcategorias': subcategorias.map((sub) => sub.toJson()).toList(),
+    };
   }
 }

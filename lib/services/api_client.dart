@@ -1,3 +1,5 @@
+// lib/services/api_client.dart
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
@@ -24,18 +26,18 @@ class ApiClient {
     final headers = {
       'Content-Type': 'application/json',
     };
-    
+
     if (_token != null) {
       headers['Authorization'] = 'Bearer $_token';
     }
-    
+
     return headers;
   }
 
   // Manejo de respuestas
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = json.decode(response.body);
-    
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return body;
     } else {
@@ -60,6 +62,41 @@ class ApiClient {
     }
   }
 
+  // --- NUEVO: Método para obtener categorías desde la API ---
+  Future<List<ProductModel.ApiCategory>> getCategoriesFromApi() async {
+    try {
+      // ✅ CORREGIDO: URL completa con el prefijo /publications
+      final uri = Uri.parse('$baseUrl/api/publications/get_categorias');
+
+      print('🔍 Obteniendo categorías de: $uri');
+
+      final response = await http.get(
+        uri,
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['ok'] == true && data['categorias'] is List) {
+          final categoriasJson = data['categorias'] as List;
+          return categoriasJson
+              .map((json) => ProductModel.ApiCategory.fromJson(json))
+              .toList();
+        } else {
+          throw Exception(
+              'API no devolvió categorías válidas o "ok" no es true');
+        }
+      } else {
+        throw Exception(
+            'Error del servidor al obtener categorías: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error obteniendo categorías desde API: $e');
+      rethrow; // Re-lanza la excepción para que el UI pueda manejarla
+    }
+  }
+  // --- FIN NUEVO ---
+
   // AUTH ENDPOINTS
 
   // Login con email y password
@@ -73,7 +110,7 @@ class ApiClient {
           'password': password,
         }),
       );
-      
+
       final data = _handleResponse(response);
       return LoginResponse.fromJson(data);
     } catch (e) {
@@ -82,7 +119,8 @@ class ApiClient {
   }
 
   // Registro
-  Future<LoginResponse> register(String email, String password, String name) async {
+  Future<LoginResponse> register(
+      String email, String password, String name) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/auth/register'),
@@ -93,7 +131,7 @@ class ApiClient {
           'name': name,
         }),
       );
-      
+
       final data = _handleResponse(response);
       return LoginResponse.fromJson(data);
     } catch (e) {
@@ -121,7 +159,7 @@ class ApiClient {
           'avatarUrl': avatarUrl,
         }),
       );
-      
+
       final data = _handleResponse(response);
       return LoginResponse.fromJson(data);
     } catch (e) {
@@ -184,18 +222,18 @@ class ApiClient {
         'page': page.toString(),
         'limit': limit.toString(),
       };
-      
+
       if (category != null) queryParams['category'] = category;
       if (search != null) queryParams['search'] = search;
-      
+
       final uri = Uri.parse('$baseUrl/api/products').replace(
         queryParameters: queryParams,
       );
-      
+
       print('🔍 Obteniendo productos de: $uri');
-      
+
       final response = await http.get(uri, headers: _headers);
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return ProductsResponse.fromJson(data);
@@ -215,7 +253,7 @@ class ApiClient {
         Uri.parse('$baseUrl/api/products/$productId'),
         headers: _headers,
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return ProductDetailResponse.fromJson(data);
@@ -267,7 +305,7 @@ class ApiClient {
         Uri.parse('$baseUrl/api/favorites?page=$page&limit=$limit'),
         headers: _headers,
       );
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return FavoritesResponse.fromJson(data);
@@ -287,7 +325,7 @@ class ApiClient {
         headers: _headers,
         body: json.encode({'productoId': productoId}),
       );
-      
+
       if (response.statusCode != 201) {
         final data = json.decode(response.body);
         throw Exception(data['message'] ?? 'Error agregando favorito');
@@ -306,7 +344,7 @@ class ApiClient {
         headers: _headers,
         // ❌ REMOVER: body con JSON
       );
-      
+
       if (response.statusCode != 200) {
         final data = json.decode(response.body);
         throw Exception(data['message'] ?? 'Error eliminando favorito');
@@ -355,14 +393,14 @@ class LoginResponse {
 
 class User {
   final int id;
-  final String email;     // 🔒 Solo lectura (de Google)
-  final String name;      // 🔒 Solo lectura (de Google)
-  final String apellido;    // ✏️ Editable
-  final String role;        // 🔒 Solo lectura (sistema)
-  final String usuario;     // ✏️ Editable
-  final String campus;     // ✏️ Editable
-  final String? telefono;   // ✏️ Editable
-  final String? direccion;  // ✏️ Editable
+  final String email; // 🔒 Solo lectura (de Google)
+  final String name; // 🔒 Solo lectura (de Google)
+  final String apellido; // ✏️ Editable
+  final String role; // 🔒 Solo lectura (sistema)
+  final String usuario; // ✏️ Editable
+  final String campus; // ✏️ Editable
+  final String? telefono; // ✏️ Editable
+  final String? direccion; // ✏️ Editable
 
   User({
     required this.id,
@@ -421,8 +459,9 @@ class ProductsResponse {
     return ProductsResponse(
       ok: json['ok'] ?? false,
       products: (json['products'] as List<dynamic>?)
-          ?.map((item) => ProductFromDB.fromJson(item))
-          .toList() ?? [],
+              ?.map((item) => ProductFromDB.fromJson(item))
+              .toList() ??
+          [],
       pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
     );
   }
@@ -475,7 +514,9 @@ class ProductFromDB {
   final String? descripcion;
   final double? precioAnterior;
   final double? precioActual;
-  final String? categoria;
+  final String? categoria; // Campo de categoría (nombre)
+  final String?
+      categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
   final double? calificacion;
   final int? cantidad;
   final String estado;
@@ -490,6 +531,7 @@ class ProductFromDB {
     this.precioAnterior,
     this.precioActual,
     this.categoria,
+    this.categoriaId, // Añadir al constructor
     this.calificacion,
     this.cantidad,
     required this.estado,
@@ -536,6 +578,8 @@ class ProductFromDB {
       precioAnterior: safeToDouble(json['precioAnterior']),
       precioActual: safeToDouble(json['precioActual']),
       categoria: json['categoria']?.toString(),
+      // Asumiendo que la API también devuelve 'categoriaId'
+      categoriaId: json['categoriaId']?.toString(), // Convertir a String
       calificacion: safeToDouble(json['calificacion']),
       cantidad: safeToInt(json['cantidad']),
       estado: json['estado']?.toString() ?? '',
@@ -545,8 +589,22 @@ class ProductFromDB {
     );
   }
 
-  // ✅ Convertir a modelo ProductModel.Product para compatibilidad
   ProductModel.Product toProductModel() {
+    print('--- DEBUG ProductFromDB.toProductModel ---');
+    print('ID Producto: ${id}');
+    print('Nombre Producto: ${nombre}');
+    print('Categoria Nombre (RAW): ${categoria}');
+    print('Categoria ID (RAW): ${categoriaId}');
+    print('-----------------------------');
+
+    // Usar categoriaId como el identificador para el filtro si está disponible y es numérico
+    // Convertirlo a String para que coincida con el tipo del campo 'category' en ProductModel.Product
+    String categoryIdentifier = categoriaId != null
+        ? categoriaId.toString()
+        : (categoria ?? 'Sin categoría');
+    print(
+        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})');
+
     return ProductModel.Product(
       id: id.toString(),
       title: nombre,
@@ -555,7 +613,7 @@ class ProductFromDB {
       imageUrl: _getImageUrl(), // Manejar imágenes como bytes o placeholder
       rating: calificacion ?? 0.0,
       reviewCount: 0, // Por ahora
-      category: categoria ?? 'Sin categoría',
+      category: categoryIdentifier, // Ahora debería ser el ID como String
       isAvailable: estado == 'Disponible',
       sellerId: vendedor.id.toString(),
       sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}',
@@ -564,10 +622,7 @@ class ProductFromDB {
   }
 
   String? _getImageUrl() {
-    // Por ahora, como las imágenes están como Bytes en la BD,
-    // usaremos el placeholder hasta implementar la conversión
     if (imagenes.isNotEmpty) {
-      // Aquí luego implementaremos la conversión de Bytes a base64 o URL
       return null; // Usará el placeholder por defecto
     }
     return null;
@@ -635,8 +690,9 @@ class FavoritesResponse {
     return FavoritesResponse(
       ok: json['ok'] ?? false,
       favorites: (json['favorites'] as List<dynamic>?)
-          ?.map((item) => FavoritedProduct.fromJson(item))
-          .toList() ?? [],
+              ?.map((item) => FavoritedProduct.fromJson(item))
+              .toList() ??
+          [],
     );
   }
 }
@@ -667,7 +723,7 @@ class FavoritedProduct {
     // Adaptamos para manejar tanto la estructura directa como anidada
     final producto = json['producto'];
     final vendedor = producto?['vendedor'];
-    
+
     return FavoritedProduct(
       id: json['id'],
       usuarioId: json['usuarioId'] ?? json['usuario_id'],
@@ -675,7 +731,7 @@ class FavoritedProduct {
       fecha: DateTime.parse(json['fecha']),
       nombre: producto?['nombre'] ?? json['nombre'] ?? '',
       categoria: producto?['categoria']?['nombre'] ?? json['categoria'],
-      precioActual: producto?['precioActual'] != null 
+      precioActual: producto?['precioActual'] != null
           ? double.tryParse(producto['precioActual'].toString())
           : null,
       vendedorNombre: vendedor?['nombre'] ?? json['vendedorNombre'] ?? '',

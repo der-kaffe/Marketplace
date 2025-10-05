@@ -1,3 +1,4 @@
+//publications.js
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
@@ -146,6 +147,47 @@ router.put('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ ok: false, message: 'Error interno' });
   }
 });
+
+
+// ---------------- GET /api/publications/get_categorias ----------------
+
+router.get('/get_categorias', async (req, res) => {
+  try {
+    // Obtener todas las categorías
+    const categories = await prisma.categorias.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+
+    // Organizar jerárquicamente
+    const categoriasMap = {};
+
+    // Crear mapa base
+    categories.forEach(cat => {
+      categoriasMap[cat.id] = { ...cat, subcategorias: [] };
+    });
+
+    // Agrupar subcategorías
+    const rootCategorias = [];
+    categories.forEach(cat => {
+      if (cat.categoriaPadreId) {
+        categoriasMap[cat.categoriaPadreId]?.subcategorias.push(categoriasMap[cat.id]);
+      } else {
+        rootCategorias.push(categoriasMap[cat.id]);
+      }
+    });
+
+    res.json({
+      ok: true,
+      categorias: rootCategorias,
+      total: categories.length,
+    });
+  } catch (error) {
+    console.error('Error listando categorías:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+
 
 
 
