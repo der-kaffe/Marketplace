@@ -6,7 +6,8 @@ import '../services/auth_service.dart';
 
 class ProductService {
   static const String _defaultImage = 'assets/producto_sin_foto.jpg';
-  final ApiClient _apiClient = ApiClient(baseUrl: getDefaultBaseUrl()); // 🔧 Usar función helper
+  final ApiClient _apiClient =
+      ApiClient(baseUrl: getDefaultBaseUrl()); // 🔧 Usar función helper
   final AuthService _authService = AuthService();
 
   // 🔧 CONFIGURACIÓN MODULAR - Fácil de cambiar
@@ -19,8 +20,7 @@ class ProductService {
   //static const ProductDataSource _dataSource = ProductDataSource.simulated;
 
   // Híbrido (BD + simulados de respaldo):
-  static const ProductDataSource _dataSource = ProductDataSource.hybrid;
-
+  static const ProductDataSource _dataSource = ProductDataSource.database;
 
   // ✅ MÉTODO PRINCIPAL MODULAR
   Future<List<ProductModel.Product>> fetchProducts({
@@ -31,13 +31,15 @@ class ProductService {
   }) async {
     switch (_dataSource) {
       case ProductDataSource.database:
-        return await _fetchFromDatabase(page: page, limit: limit, category: category, search: search);
-      
+        return await _fetchFromDatabase(
+            page: page, limit: limit, category: category, search: search);
+
       case ProductDataSource.simulated:
         return await _fetchSimulated(page: page, limit: limit);
-      
+
       case ProductDataSource.hybrid:
-        return await _fetchHybrid(page: page, limit: limit, category: category, search: search);
+        return await _fetchHybrid(
+            page: page, limit: limit, category: category, search: search);
     }
   }
 
@@ -76,12 +78,12 @@ class ProductService {
   }) async {
     await Future.delayed(const Duration(milliseconds: 500)); // Simula red
     final start = (page - 1) * limit;
-    final end = (start + limit > _simulatedProducts.length) 
-        ? _simulatedProducts.length 
+    final end = (start + limit > _simulatedProducts.length)
+        ? _simulatedProducts.length
         : start + limit;
-    
+
     if (start >= _simulatedProducts.length) return [];
-    
+
     final productos = _simulatedProducts.sublist(start, end);
     print('✅ Productos simulados: ${productos.length}');
     return productos;
@@ -97,32 +99,29 @@ class ProductService {
     try {
       // 1. Intentar obtener de BD
       final dbProducts = await _fetchFromDatabase(
-        page: page, 
-        limit: limit, 
-        category: category, 
-        search: search
-      );
-      
+          page: page, limit: limit, category: category, search: search);
+
       // 2. Si BD tiene productos suficientes, usarlos
       if (dbProducts.length >= limit) {
         print('✅ Híbrido: Usando ${dbProducts.length} productos de BD');
         return dbProducts;
       }
-      
+
       // 3. Si BD no tiene suficientes, completar con simulados
       final needed = limit - dbProducts.length;
-      final simulatedPage = ((page - 1) * limit - dbProducts.length / limit).ceil().clamp(1, 999);
-      
+      final simulatedPage =
+          ((page - 1) * limit - dbProducts.length / limit).ceil().clamp(1, 999);
+
       final simulatedProducts = await _fetchSimulated(
         page: simulatedPage,
         limit: needed,
       );
-      
+
       final combined = [...dbProducts, ...simulatedProducts];
-      print('✅ Híbrido: ${dbProducts.length} BD + ${simulatedProducts.length} simulados = ${combined.length}');
-      
+      print(
+          '✅ Híbrido: ${dbProducts.length} BD + ${simulatedProducts.length} simulados = ${combined.length}');
+
       return combined;
-      
     } catch (e) {
       print('❌ Error híbrido, fallback a simulados: $e');
       return await _fetchSimulated(page: page, limit: limit);
@@ -131,7 +130,7 @@ class ProductService {
 
   final List<String> _campusUcTemuco = [
     "Campus San Francisco",
-    "Campus Los Castaños", 
+    "Campus Los Castaños",
     "Campus Manuel Montt",
     "Campus San Juan Pablo II"
   ];
@@ -418,7 +417,7 @@ class ProductService {
       sellerId: 'seller10',
       sellerName: 'Ignacio Muñoz',
       sellerAvatar: 'https://randomuser.me/api/portraits/men/10.jpg',
-    ),  
+    ),
   ];
 
   List<ProductModel.Product> _getSimulatedProducts() {
@@ -427,7 +426,8 @@ class ProductService {
 
   /// Obtiene info dinámica del vendedor
   Seller getSellerInfo(String sellerId) {
-    final sellerProducts = _simulatedProducts.where((p) => p.sellerId == sellerId).toList();
+    final sellerProducts =
+        _simulatedProducts.where((p) => p.sellerId == sellerId).toList();
 
     if (sellerProducts.isEmpty) {
       return Seller(
@@ -557,7 +557,9 @@ class ProductService {
   List<ProductModel.Product> getAllProducts() => List.from(_simulatedProducts);
 
   List<ProductModel.Product> getProductsByCategory(String categoryId) =>
-      _simulatedProducts.where((product) => product.category == categoryId).toList();
+      _simulatedProducts
+          .where((product) => product.category == categoryId)
+          .toList();
 
   List<ProductModel.Product> getFeaturedProducts({int limit = 4}) {
     final sortedProducts = List<ProductModel.Product>.from(_simulatedProducts)
@@ -624,7 +626,7 @@ class ProductService {
 
 // 🔧 ENUM para configurar fácilmente el origen de datos
 enum ProductDataSource {
-  database,    // Solo productos reales de BD
-  simulated,   // Solo productos simulados
-  hybrid,      // BD + simulados como fallback
+  database, // Solo productos reales de BD
+  simulated, // Solo productos simulados
+  hybrid, // BD + simulados como fallback
 }

@@ -1,3 +1,4 @@
+// lib/screens/home_screen.dart (actualizado con solución de duplicados)
 
 import 'package:flutter/material.dart';
 import '../models/product_model.dart' as ProductModel;
@@ -22,10 +23,13 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
 
-  final List<Product> _allProducts = [];
-  List<Product> _filteredProducts = [];
-  List<ProductModel.ApiCategory> _apiCategories =
-      []; // Estructura jerárquica completa
+  final List<Product> _allProducts =
+      []; // Almacena *todos* los productos cargados (puede acumular duplicados si se recarga mal)
+  final List<Product> _originalProducts =
+      []; // Almacena *una sola vez* los productos iniciales, limpia de duplicados
+  List<Product> _filteredProducts =
+      []; // Almacena los productos *filtrados* o la copia de _originalProducts
+  List<ProductModel.ApiCategory> _apiCategories = [];
   bool _isLoadingProducts = false;
   bool _isLoadingCategories = true;
   String? _errorCategories;
@@ -40,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadCategories();
-    _loadMoreProducts();
+    _loadMoreProducts(); // Carga productos iniciales
     _loadFavorites();
 
     _scrollController.addListener(() {
@@ -48,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _scrollController.position.maxScrollExtent - 200 &&
           !_isLoadingProducts &&
           _selectedCategoryName == null) {
+        // No cargar más si hay un filtro activo
         _loadMoreProducts();
       }
     });
@@ -62,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final categories = await _authService.apiClient.getCategoriesFromApi();
       setState(() {
-        _apiCategories = categories; // Guarda la estructura jerárquica completa
+        _apiCategories = categories;
         _isLoadingCategories = false;
       });
       print('✅ Categorías cargadas desde API: ${categories.length}');
@@ -137,8 +142,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Método para cargar productos (simula paginación)
   Future<void> _loadMoreProducts() async {
-    if (_isLoadingProducts || _selectedCategoryName != null) return;
+    if (_isLoadingProducts || _selectedCategoryName != null)
+      return; // No cargar si hay filtro activo o ya está cargando
 
     setState(() => _isLoadingProducts = true);
 
@@ -149,14 +156,27 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       setState(() {
-        _allProducts.addAll(newProducts);
-        _filteredProducts = List.from(_allProducts);
+        // Lógica para poblar _allProducts y _originalProducts
+        if (_allProducts.isEmpty && _originalProducts.isEmpty) {
+          // Primera carga: poblar ambas listas
+          _allProducts.addAll(newProducts);
+          _originalProducts
+              .addAll(newProducts); // Guardar copia limpia original
+          _filteredProducts =
+              List.from(_originalProducts); // Mostrar originales
+        } else if (_allProducts.isNotEmpty && _originalProducts.isNotEmpty) {
+          // Carga paginada: añadir solo a _allProducts
+          _allProducts.addAll(newProducts);
+          // Si NO hay filtro activo, también añadir a _filteredProducts
+          if (_selectedCategoryName == null) {
+            _filteredProducts.addAll(newProducts);
+          }
+        }
         _page++;
-        _isLoadingProducts = false;
       });
 
       print(
-          '✅ Productos cargados: ${newProducts.length} (total: ${_allProducts.length})');
+          '✅ Productos cargados: ${newProducts.length} (total _allProducts: ${_allProducts.length}, total _originalProducts: ${_originalProducts.length})');
     } catch (e) {
       print('❌ Error cargando productos: $e');
       setState(() => _isLoadingProducts = false);
@@ -169,35 +189,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // --- NUEVO: Función auxiliar corregida para obtener nombres de subcategorías ---
   Set<String> _getAllSubcategoryNames(
       int parentId, List<ProductModel.ApiCategory> allCategories) {
     Set<String> names = {};
 
-    // Función recursiva interna para recorrer la estructura de subcategorías
     void _exploreSubcategories(ProductModel.ApiCategory category) {
-      names.add(category.nombre); // Añadir el nombre de la categoría actual
+      names.add(category.nombre);
       for (var subCat in category.subcategorias) {
-        _exploreSubcategories(
-            subCat); // Llamada recursiva para cada subcategoría
+        _exploreSubcategories(subCat);
       }
     }
 
-    ProductModel.ApiCategory parentCat = allCategories.firstWhere(
+    ProductModel.ApiCategory? parentCat = allCategories.firstWhere(
       (cat) => cat.id == parentId,
       orElse: () =>
           ProductModel.ApiCategory(id: -1, nombre: '', subcategorias: []),
     );
 
-    // Solo explorar si se encontró la categoría (id != -1)
     if (parentCat.id != -1) {
-      _exploreSubcategories(
-          parentCat); // Comenzar la exploración desde la categoría padre
+      _exploreSubcategories(parentCat);
     }
 
     return names;
   }
+  // --- FIN NUEVO ---
 
-
+  // --- ACTUALIZADO: Método de filtro para usar _originalProducts ---
   void _filterProductsByCategory(int? categoryId, String? categoryName) {
     print('--- DEBUG _filterProductsByCategory ---');
     print('Categoría seleccionada: $categoryName (ID: $categoryId)');
@@ -208,33 +226,36 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedCategoryName = categoryName;
 
       if (categoryId == null) {
-        _filteredProducts = List.from(_allProducts);
+        // Limpiar filtro: restaurar desde la lista original limpia
+        _filteredProducts =
+            List.from(_originalProducts); // ✅ Usa la copia original
         print(
-            'Filtro limpiado. Mostrando todos los productos (${_allProducts.length}).');
+            'Filtro limpiado. Mostrando ${_filteredProducts.length} productos originales.');
       } else {
         // Obtener el conjunto de NOMBRES de categorías que incluye la categoría seleccionada y todas sus subcategorías
         Set<String> categoryNamesToFilter =
             _getAllSubcategoryNames(categoryId, _apiCategories);
         print(
-            'Nombres de categorías a filtrar (padre + hijos): $categoryNamesToFilter (tipo: ${categoryNamesToFilter.map((e) => e.runtimeType)})');
+            'Nombres de categorías a filtrar (padre + hijos): $categoryNamesToFilter');
 
         // Filtrar productos cuyo category (nombre como string) esté en ese conjunto de nombres
-        _filteredProducts = _allProducts.where((product) {
-          bool matches = categoryNamesToFilter
-              .contains(product.category); // Compara strings
+        // ✅ Filtra desde la lista original
+        _filteredProducts = _originalProducts.where((product) {
+          bool matches = categoryNamesToFilter.contains(product.category);
           print(
               'Producto: ${product.title}, Category String: "${product.category}", Matches: $matches');
           return matches;
         }).toList();
 
         print(
-            'Productos filtrados: ${_filteredProducts.length} de ${_allProducts.length}');
+            'Productos filtrados: ${_filteredProducts.length} de ${_originalProducts.length} originales');
       }
-      _page = 1;
+      _page = 1; // Reiniciar página si se aplica un filtro
     });
     print(
         '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y sus subcategorías (por nombre). Productos filtrados: ${_filteredProducts.length}');
   }
+  // --- FIN ACTUALIZADO ---
 
   void _clearCategoryFilter() {
     _filterProductsByCategory(null, null);
@@ -248,7 +269,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingProducts && _allProducts.isEmpty) {
+    if (_isLoadingProducts && _originalProducts.isEmpty) {
+      // Cambiado a _originalProducts
       return const Scaffold(
         body: Center(
           child: SpinKitWave(
@@ -330,11 +352,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 120,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount:
-                            _apiCategories.length, // Solo categorías raíz
+                        itemCount: _apiCategories.length,
                         itemBuilder: (context, index) {
-                          final category =
-                              _apiCategories[index]; // Categoría raíz
+                          final category = _apiCategories[index];
                           Color color = _getCategoryColor(index);
                           String title = category.nombre;
                           IconData icon =
@@ -351,7 +371,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               title: title,
                               color: color,
                               onTap: () {
-                                // Al tocar una categoría raíz, aplicar el filtro jerárquico
                                 _filterProductsByCategory(
                                     category.id, category.nombre);
                               },
@@ -525,6 +544,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         product.copyWith(
                                             isAvailable: !product.isAvailable);
                                   }
+                                  // Actualizar también en la lista filtrada si es necesario
                                   final filteredIndex =
                                       _filteredProducts.indexOf(product);
                                   if (filteredIndex != -1) {
