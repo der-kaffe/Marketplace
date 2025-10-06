@@ -103,6 +103,9 @@ app.use('/api/products', productRoutes);
 app.use('/api/publications', publicationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
+
 // Middleware de manejo de errores
 const errorHandler = require('./middleware/errorHandler');
 app.use(errorHandler);
