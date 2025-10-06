@@ -28,18 +28,19 @@ async function main() {
 
     console.log('✅ Roles creados');
 
-    // Crear estados de usuario
-    const estadoActivo = await prisma.estadosUsuario.upsert({
-      where: { id: 1 },
-      update: {},
-      create: { id: 1, nombre: 'Activo' }
-    });
+  // Crear estados de usuario (ACTIVO, BANEADO)
+  await prisma.estadosUsuario.createMany({
+    data: [
+      { id: 1, nombre: 'ACTIVO' },
+      { id: 2, nombre: 'BANEADO' },
+    ],
+    skipDuplicates: true,
+  });
 
-    const estadoInactivo = await prisma.estadosUsuario.upsert({
-      where: { id: 2 },
-      update: {},
-      create: { id: 2, nombre: 'Inactivo' }
-    });
+  const estadoActivo = await prisma.estadosUsuario.findUnique({ where: { id: 1 } });
+  const estadoBaneado = await prisma.estadosUsuario.findUnique({ where: { id: 2 } });
+
+  console.log('✅ Estados de usuario actualizados');
 
     console.log('✅ Estados de usuario creados');
 

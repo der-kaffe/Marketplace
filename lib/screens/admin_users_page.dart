@@ -143,6 +143,42 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     }
   }
 
+  Future<void> _toggleBanStatus(UserItem user) async {
+    final newStatus = !user.isBanned;
+
+    try {
+      final response = await http.patch(
+        Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}/ban"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"banned": newStatus}),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          user.isBanned = newStatus;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newStatus ? 'Usuario baneado correctamente' : 'Usuario desbaneado',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar estado (${response.statusCode})'),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de conexión: $e')),
+      );
+    }
+  }
+
   Widget _buildHeader(BuildContext context) {
     final userCount = _users.length;
     return Padding(
@@ -262,6 +298,14 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               IconButton(
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
                 onPressed: () => _onDelete(user),
+              ),
+              IconButton(
+                icon: Icon(
+                  user.isBanned ? Icons.block : Icons.check_circle,
+                  color: user.isBanned ? Colors.red : Colors.green,
+                ),
+                onPressed: () => _toggleBanStatus(user),
+                tooltip: user.isBanned ? 'Desbanear usuario' : 'Banear usuario',
               ),
             ],
           ),

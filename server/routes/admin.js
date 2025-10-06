@@ -58,4 +58,42 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
+// Cambiar estado (banear / desbanear)
+router.patch('/users/:id/ban', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { banned } = req.body; // true o false
+
+    // Verificar si el usuario existe
+    const user = await prisma.cuentas.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Determinar nuevo estado
+    const nuevoEstado = banned ? 2 : 1; // 2 = BANEADO, 1 = ACTIVO
+
+    // Actualizar
+    const updated = await prisma.cuentas.update({
+      where: { id: parseInt(id) },
+      data: { estadoId: nuevoEstado },
+      include: {
+        estado: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: banned ? 'Usuario baneado' : 'Usuario desbaneado',
+      user: updated,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al actualizar estado del usuario' });
+  }
+});
+
 module.exports = router;
