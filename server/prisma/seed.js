@@ -176,23 +176,40 @@ async function main() {
     
     console.log('✅ Usuarios creados');
     
-// --- MENSAJES DE PRUEBA ---
-const usuariosParaMensajes = [admin, vendor, client];
 
-const mensajesDePrueba = [
-  { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿tienes más laptops en venta?" },
-  { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Hola Admin, sí, me queda una más disponible 😉" },
-  { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿el libro de cálculo sigue disponible?" },
-  { remitenteId: vendor.id, destinatarioId: client.id, contenido: "Sí, María, aún lo tengo disponible 📚" },
-  { remitenteId: client.id, destinatarioId: admin.id, contenido: "Admin, ¿me podrías dar más info del iPhone?" },
-  { remitenteId: admin.id, destinatarioId: client.id, contenido: "Claro, está casi nuevo, lo entrego con cargador 🔌" }
-];
+  // Usuarios base para mensajes
+  const usuariosParaMensajes = [admin, vendor, client];
 
-await prisma.mensajes.createMany({
-  data: mensajesDePrueba.map(m => ({ ...m, fechaEnvio: new Date() }))
-});
+  // Ejemplo de mensajes variados entre usuarios con timestamps diferentes
+  const mensajesDePrueba = [
+    { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿tienes más laptops en venta?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3) }, // hace 3 días
+    { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Hola Admin, sí, me queda una más disponible 😉", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3 - 1000 * 60 * 15) }, // 15 mins después
+    { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿el libro de cálculo sigue disponible?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2) }, // hace 2 días
+    { remitenteId: vendor.id, destinatarioId: client.id, contenido: "Sí, María, aún lo tengo disponible 📚", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2 - 1000 * 60 * 10) }, // 10 mins después
+    { remitenteId: client.id, destinatarioId: admin.id, contenido: "Admin, ¿me podrías dar más info del iPhone?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24) }, // hace 1 día
+    { remitenteId: admin.id, destinatarioId: client.id, contenido: "Claro, está casi nuevo, lo entrego con cargador 🔌", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 - 1000 * 60 * 5) }, // 5 mins después
 
-console.log("✅ Mensajes de prueba creados");
+    // Mensajes nuevos, más conversación continua
+    { remitenteId: vendor.id, destinatarioId: client.id, contenido: "María, ¿quieres verlo antes de comprar?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 12) }, // hace 12 horas
+    { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Sí, Juan. ¿Cuándo podríamos encontrarnos?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 11) }, // hace 11 horas
+    { remitenteId: vendor.id, destinatarioId: client.id, contenido: "¿Qué tal hoy en la tarde?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 10) }, // hace 10 horas
+    { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Perfecto, nos vemos a las 5pm 😊", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 9) }, // hace 9 horas
+
+    // Mensajes entre admin y vendedor
+    { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Recuerda actualizar el stock de smartphones.", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 8) },
+    { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Claro, ya estoy en eso.", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 7) },
+
+    // Mensajes entre admin y cliente
+    { remitenteId: admin.id, destinatarioId: client.id, contenido: "¿Pudiste resolver tus dudas?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 6) },
+    { remitenteId: client.id, destinatarioId: admin.id, contenido: "Sí, gracias por la ayuda.", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 5) },
+  ];
+
+  // Insertar los mensajes en la base de datos
+  await prisma.mensajes.createMany({
+    data: mensajesDePrueba
+  });
+
+  console.log("✅ Mensajes de prueba creados");
 
     // Crear productos de ejemplo
     const subComputadoras = await prisma.categorias.create({
