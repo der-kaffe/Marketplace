@@ -1,3 +1,4 @@
+// server,js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -12,12 +13,15 @@ const productRoutes = require('./routes/products');
 const publicationsRoutes = require('./routes/publications');
 const chatRoutes = require('./routes/chat');
 const favoritesRoutes = require('./routes/favorites');
+const reportsRoutes = require('./routes/reports');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Rutas de chat
 app.use('/api/chat', chatRoutes);
+
+
 
 // Middleware de seguridad
 app.use(helmet());
@@ -34,13 +38,13 @@ app.use(limiter);
 const corsOptions = {
   origin: function (origin, callback) {
     console.log('🌐 CORS: Petición desde origen:', origin);
-    
+
     // Permitir requests sin origin (mobile apps, Postman, etc.)
     if (!origin) {
       console.log('✅ CORS: Permitiendo request sin origen');
       return callback(null, true);
     }
-    
+
     // En desarrollo, permitir localhost en cualquier puerto
     if (process.env.NODE_ENV === 'development') {
       if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
@@ -48,7 +52,7 @@ const corsOptions = {
         return callback(null, true);
       }
     }
-    
+
     // También verificar la lista específica del .env
     const allowedOrigins = process.env.CORS_ORIGIN.split(',');
     const isAllowed = allowedOrigins.some(allowedOrigin => {
@@ -58,7 +62,7 @@ const corsOptions = {
       }
       return origin === allowedOrigin;
     });
-    
+
     if (isAllowed) {
       console.log('✅ CORS: Origen permitido por configuración');
       callback(null, true);
@@ -79,8 +83,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/api/health', async (req, res) => {
   try {
     const dbOk = await testConnection();
-    res.json({ 
-      ok: true, 
+    res.json({
+      ok: true,
       timestamp: new Date().toISOString(),
       database: dbOk ? 'connected' : 'disconnected',
       service: 'Marketplace API',
@@ -88,8 +92,8 @@ app.get('/api/health', async (req, res) => {
     });
   } catch (error) {
     console.error('Error en health check:', error);
-    res.status(500).json({ 
-      ok: false, 
+    res.status(500).json({
+      ok: false,
       error: error.message,
       timestamp: new Date().toISOString()
     });
@@ -102,6 +106,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/publications', publicationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
+// Rutas de reporte
+app.use('/api/reports', reportsRoutes);
+
 
 // Middleware de manejo de errores
 const errorHandler = require('./middleware/errorHandler');
@@ -132,14 +139,14 @@ async function startServer() {
       console.log('   Ejemplo: DATABASE_URL="postgresql://username:password@localhost:5432/marketplace"');
       process.exit(1);
     }
-    
+
     app.listen(PORT, async () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
       console.log(`🗄️  PostgreSQL con Prisma configurado`);
       console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
       console.log(`📝 Entorno: ${process.env.NODE_ENV}`);
       console.log(`🎨 Prisma Studio: npm run db:studio`);
-      
+
       // Ejecutar tests automáticamente en desarrollo
       if (process.env.NODE_ENV === 'development') {
         setTimeout(async () => {

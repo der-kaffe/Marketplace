@@ -62,6 +62,99 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> reportProduct({
+    required int productoId,
+    required String motivo,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/reports'),
+        headers: _headers,
+        body: json.encode({
+          'productoId': productoId,
+          'motivo': motivo,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        final data = json.decode(response.body);
+        throw Exception(data['message'] ?? 'Error creando reporte');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+  // Crear un reporte de usuario
+  Future<Map<String, dynamic>> reportUser({
+    required int usuarioReportadoId,
+    required String motivo,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/reports'),
+        headers: _headers,
+        body: json.encode({
+          'usuarioReportadoId': usuarioReportadoId,
+          'motivo': motivo,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        final data = json.decode(response.body);
+        throw Exception(data['message'] ?? 'Error creando reporte');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
+  Future<List<dynamic>> getMyReports(String token) async {
+    final url = Uri.parse('$baseUrl/api/reports/my-reports');
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['reportes'] ?? [];
+    } else {
+      throw Exception('Error al obtener mis reportes: ${response.statusCode}');
+    }
+  }
+
+  // Obtener estados de reporte disponibles
+  Future<List<ReportStatus>> getReportStatuses() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/reports/estados/list'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final estados = (data['estados'] as List)
+            .map((e) => ReportStatus.fromJson(e))
+            .toList();
+        return estados;
+      } else {
+        throw Exception('Error obteniendo estados');
+      }
+    } catch (e) {
+      throw Exception('Error: $e');
+    }
+  }
+
   // --- NUEVO: Método para obtener categorías desde la API ---
   Future<List<ProductModel.ApiCategory>> getCategoriesFromApi() async {
     try {
@@ -693,6 +786,126 @@ class FavoritesResponse {
               ?.map((item) => FavoritedProduct.fromJson(item))
               .toList() ??
           [],
+    );
+  }
+}
+
+class ReportsResponse {
+  final bool ok;
+  final List<Report> reportes;
+  final PaginationInfo pagination;
+
+  ReportsResponse({
+    required this.ok,
+    required this.reportes,
+    required this.pagination,
+  });
+
+  factory ReportsResponse.fromJson(Map<String, dynamic> json) {
+    return ReportsResponse(
+      ok: json['ok'] ?? false,
+      reportes: (json['reportes'] as List<dynamic>?)
+              ?.map((item) => Report.fromJson(item))
+              .toList() ??
+          [],
+      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
+    );
+  }
+}
+
+// Modelo de reporte
+class Report {
+  final int id;
+  final String motivo;
+  final DateTime fecha;
+  final int? productoId;
+  final int? usuarioReportadoId;
+  final String estado;
+  final ProductReportInfo? producto;
+  final UserReportInfo? usuarioReportado;
+
+  Report({
+    required this.id,
+    required this.motivo,
+    required this.fecha,
+    this.productoId,
+    this.usuarioReportadoId,
+    required this.estado,
+    this.producto,
+    this.usuarioReportado,
+  });
+
+  factory Report.fromJson(Map<String, dynamic> json) {
+    return Report(
+      id: json['id'],
+      motivo: json['motivo'] ?? '',
+      fecha: DateTime.parse(json['fecha']),
+      productoId: json['productoId'],
+      usuarioReportadoId: json['usuarioReportadoId'],
+      estado: json['estado']?['nombre'] ?? 'Pendiente',
+      producto: json['producto'] != null
+          ? ProductReportInfo.fromJson(json['producto'])
+          : null,
+      usuarioReportado: json['usuarioReportado'] != null
+          ? UserReportInfo.fromJson(json['usuarioReportado'])
+          : null,
+    );
+  }
+}
+
+// Info de producto en reporte
+class ProductReportInfo {
+  final int id;
+  final String nombre;
+
+  ProductReportInfo({
+    required this.id,
+    required this.nombre,
+  });
+
+  factory ProductReportInfo.fromJson(Map<String, dynamic> json) {
+    return ProductReportInfo(
+      id: json['id'],
+      nombre: json['nombre'] ?? '',
+    );
+  }
+}
+
+// Info de usuario en reporte
+class UserReportInfo {
+  final int id;
+  final String nombre;
+  final String? apellido;
+
+  UserReportInfo({
+    required this.id,
+    required this.nombre,
+    this.apellido,
+  });
+
+  factory UserReportInfo.fromJson(Map<String, dynamic> json) {
+    return UserReportInfo(
+      id: json['id'],
+      nombre: json['nombre'] ?? '',
+      apellido: json['apellido'],
+    );
+  }
+}
+
+// Estados de reporte
+class ReportStatus {
+  final int id;
+  final String nombre;
+
+  ReportStatus({
+    required this.id,
+    required this.nombre,
+  });
+
+  factory ReportStatus.fromJson(Map<String, dynamic> json) {
+    return ReportStatus(
+      id: json['id'],
+      nombre: json['nombre'] ?? '',
     );
   }
 }

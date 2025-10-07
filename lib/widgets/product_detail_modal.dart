@@ -4,6 +4,7 @@ import '../models/seller_model.dart';
 import '../theme/app_colors.dart';
 import '../screens/seller_profile_page.dart';
 import '../services/product_service.dart';
+import '../services/report_service.dart'; // ✅ Import del nuevo servicio
 
 class ProductDetailModal extends StatefulWidget {
   final Product product;
@@ -27,10 +28,88 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     }
   }
 
-  // ✅ Método para construir la imagen del modal con fallback
+  // ✅ Mostrar diálogo para reportar producto (ahora con backend real)
+  void _showReportDialog(BuildContext context) {
+    final TextEditingController reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Reportar producto"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Por favor, indica el motivo del reporte:",
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText:
+                      "Ejemplo: Contenido inapropiado o información falsa",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancelar"),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Por favor ingresa un motivo.")),
+                  );
+                  return;
+                }
+
+                try {
+                  final productoId = int.parse(widget.product.id);
+                  // ✅ Llamada real al servicio
+                  await ReportService().reportProduct(productoId, reason);
+
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        "Reporte enviado correctamente para el producto ${productoId}.",
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content:
+                          Text("Error al enviar el reporte: ${e.toString()}"),
+                    ),
+                  );
+                }
+              },
+              child: const Text("Enviar"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ✅ Imagen con fallback
   Widget _buildModalImage() {
     if (widget.product.imageUrl == null || widget.product.imageUrl!.isEmpty) {
-      // Si no hay URL, mostrar imagen por defecto desde assets
       return Image.asset(
         'assets/producto_sin_foto.jpg',
         height: 200,
@@ -50,30 +129,17 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       );
     }
 
-    // Si hay URL, intentar cargar de la red con fallback a asset
     return Image.network(
       widget.product.imageUrl!,
       height: 200,
       width: double.infinity,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
-        // Si falla la carga de red, mostrar imagen por defecto
         return Image.asset(
           'assets/producto_sin_foto.jpg',
           height: 200,
           width: double.infinity,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              height: 200,
-              color: Colors.grey.shade200,
-              child: const Icon(
-                Icons.image,
-                size: 60,
-                color: Colors.grey,
-              ),
-            );
-          },
         );
       },
       loadingBuilder: (context, child, loadingProgress) {
@@ -95,7 +161,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -115,14 +180,14 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ Imagen del producto con manejo de errores mejorado
+                // ✅ Imagen del producto
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: _buildModalImage(),
                 ),
                 const SizedBox(height: 16),
 
-                // Título
+                // 🏷️ Título
                 Text(
                   widget.product.title,
                   style: const TextStyle(
@@ -133,7 +198,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                 ),
                 const SizedBox(height: 8),
 
-                // Precio
+                // 💲 Precio
                 Text(
                   "\$${widget.product.price.toStringAsFixed(0)}",
                   style: const TextStyle(
@@ -144,7 +209,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                 ),
                 const SizedBox(height: 16),
 
-                // Descripción
+                // 📝 Descripción
                 Text(
                   widget.product.description,
                   style: const TextStyle(fontSize: 16),
@@ -212,6 +277,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                 ),
                 const SizedBox(height: 24),
 
+                // 👤 Ver perfil del vendedor
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -228,19 +294,23 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     icon: CircleAvatar(
                       radius: 20,
                       backgroundImage: NetworkImage(
-                        widget.product.sellerAvatar ?? "https://via.placeholder.com/150",
+                        widget.product.sellerAvatar ??
+                            "https://via.placeholder.com/150",
                       ),
                     ),
                     label: Text(
                       "Ver perfil del vendedor: ${widget.product.sellerName ?? 'Desconocido'}",
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     onPressed: () {
-                      final seller = ProductService().getSellerInfo(widget.product.sellerId);
+                      final seller = ProductService()
+                          .getSellerInfo(widget.product.sellerId);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SellerProfilePage(seller: seller),
+                          builder: (context) =>
+                              SellerProfilePage(seller: seller),
                         ),
                       );
                     },
@@ -249,7 +319,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
 
                 const SizedBox(height: 16),
 
-                // Botón de contactar
+                // 💬 Contactar vendedor
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -269,6 +339,32 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                       "Contactar vendedor",
                       style: TextStyle(fontSize: 16),
                     ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // 🛑 Reportar producto
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.flag_outlined),
+                    label: const Text(
+                      "Reportar producto",
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      _showReportDialog(context);
+                    },
                   ),
                 ),
               ],

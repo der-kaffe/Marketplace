@@ -743,6 +743,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 _toggleFavorite(product);
                               },
                               onTap: () {
+                                print('🆔 ID del producto: ${product.id}');
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,
