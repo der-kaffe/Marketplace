@@ -4,14 +4,20 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'core/router/app_router.dart';
 import 'theme/app_theme.dart';
+import 'services/chat_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Configuramos GoogleSignIn solo para Web
   final GoogleSignIn googleSignIn = GoogleSignIn(
     clientId: kIsWeb
         ? "923310808660-u1lvndctmelhjggu81qem3la55monf1l.apps.googleusercontent.com"
         : null,
   );
+
+  // Inicializar servicios
+  await ChatService().initialize();
 
   runApp(MyApp(googleSignIn: googleSignIn));
 }

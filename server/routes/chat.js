@@ -7,13 +7,18 @@ const router = express.Router();
 // 📩 Enviar mensaje
 router.post('/send', authenticateToken, async (req, res) => {
   try {
+    console.log('📨 Petición de envío de mensaje:', {
+      body: req.body,
+      user: req.user
+    });
+    
     const { destinatarioId, contenido } = req.body;
 
     if (!destinatarioId || !contenido) {
       return res.status(400).json({ ok: false, message: 'Faltan campos requeridos' });
     }
 
-    const mensaje = await prisma.mensajes.create({
+    const mensaje = await prisma.Mensajes.create({
       data: {
         remitenteId: req.user.userId,
         destinatarioId,
@@ -37,7 +42,7 @@ router.get('/conversacion/:usuarioId', authenticateToken, async (req, res) => {
   try {
     const { usuarioId } = req.params;
 
-    const mensajes = await prisma.mensajes.findMany({
+    const mensajes = await prisma.Mensajes.findMany({
       where: {
         OR: [
           { remitenteId: req.user.userId, destinatarioId: parseInt(usuarioId) },
@@ -61,7 +66,7 @@ router.get('/conversacion/:usuarioId', authenticateToken, async (req, res) => {
 // 📋 Listar todas las conversaciones de un usuario
 router.get('/conversaciones', authenticateToken, async (req, res) => {
   try {
-    const mensajes = await prisma.mensajes.findMany({
+    const mensajes = await prisma.Mensajes.findMany({
       where: {
         OR: [
           { remitenteId: req.user.userId },

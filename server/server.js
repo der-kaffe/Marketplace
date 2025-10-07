@@ -4,6 +4,9 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 const { testConnection, closeConnection } = require('./config/database');
 
 // Importar rutas
@@ -16,12 +19,37 @@ const favoritesRoutes = require('./routes/favorites');
 const reportsRoutes = require('./routes/reports');
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      // Permitir requests sin origin (mobile apps)
+      if (!origin) return callback(null, true);
+      
+      // En desarrollo, permitir localhost en cualquier puerto
+      if (process.env.NODE_ENV === 'development') {
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+          return callback(null, true);
+        }
+      }
+      
+      // Verificar la lista específica del .env
+      const allowedOrigins = process.env.CORS_ORIGIN.split(',');
+      const isAllowed = allowedOrigins.some(allowedOrigin => {
+        if (allowedOrigin.includes('*')) {
+          const baseUrl = allowedOrigin.replace('*', '');
+          return origin.startsWith(baseUrl);
+        }
+        return origin === allowedOrigin;
+      });
+      
+      callback(null, isAllowed);
+    },
+    credentials: true
+  }
+});
+
 const PORT = process.env.PORT || 3001;
-
-// Rutas de chat
-app.use('/api/chat', chatRoutes);
-
-
 
 // Middleware de seguridad
 app.use(helmet());
@@ -106,9 +134,118 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/publications', publicationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
-// Rutas de reporte
-app.use('/api/reports', reportsRoutes);
+app.use('/api/chat', chatRoutes);
 
+const adminRoutes = require('./routes/admin');
+app.use('/api/admin', adminRoutes);
+
+// WebSocket para chat en tiempo real
+const connectedUsers = new Map(); // userId -> socketId
+
+// Middleware de autenticación para WebSocket
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error('Token de autenticación requerido'));
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    socket.userName = decoded.nombre;
+    next();
+  } catch (error) {
+    next(new Error('Token inválido'));
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`🔌 Usuario conectado: ${socket.userName} (ID: ${socket.userId})`);
+  
+  // Guardar la conexión del usuario
+  connectedUsers.set(socket.userId, socket.id);
+  
+  // Unir al usuario a una sala personal
+  socket.join(`user_${socket.userId}`);
+  
+  // Notificar a otros usuarios que este usuario está online
+  socket.broadcast.emit('user_online', {
+    userId: socket.userId,
+    userName: socket.userName
+  });
+
+  // Manejar envío de mensajes
+  socket.on('send_message', async (data) => {
+    try {
+      const { destinatarioId, contenido, tipo = 'texto' } = data;
+      
+      // Guardar mensaje en la base de datos
+      const { prisma } = require('./config/database');
+      const mensaje = await prisma.Mensajes.create({
+        data: {
+          remitenteId: socket.userId,
+          destinatarioId: parseInt(destinatarioId),
+          contenido,
+          tipo
+        },
+        include: {
+          remitente: { select: { id: true, nombre: true, usuario: true } },
+          destinatario: { select: { id: true, nombre: true, usuario: true } }
+        }
+      });
+
+      // Enviar mensaje al destinatario si está conectado
+      const destinatarioSocketId = connectedUsers.get(parseInt(destinatarioId));
+      if (destinatarioSocketId) {
+        io.to(destinatarioSocketId).emit('new_message', mensaje);
+      }
+
+      // Confirmar envío al remitente
+      socket.emit('message_sent', mensaje);
+      
+    } catch (error) {
+      console.error('Error enviando mensaje:', error);
+      socket.emit('message_error', { error: 'Error enviando mensaje' });
+    }
+  });
+
+  // Manejar typing indicators
+  socket.on('typing_start', (data) => {
+    const { destinatarioId } = data;
+    const destinatarioSocketId = connectedUsers.get(parseInt(destinatarioId));
+    if (destinatarioSocketId) {
+      io.to(destinatarioSocketId).emit('user_typing', {
+        userId: socket.userId,
+        userName: socket.userName,
+        isTyping: true
+      });
+    }
+  });
+
+  socket.on('typing_stop', (data) => {
+    const { destinatarioId } = data;
+    const destinatarioSocketId = connectedUsers.get(parseInt(destinatarioId));
+    if (destinatarioSocketId) {
+      io.to(destinatarioSocketId).emit('user_typing', {
+        userId: socket.userId,
+        userName: socket.userName,
+        isTyping: false
+      });
+    }
+  });
+
+  // Manejar desconexión
+  socket.on('disconnect', () => {
+    console.log(`🔌 Usuario desconectado: ${socket.userName} (ID: ${socket.userId})`);
+    connectedUsers.delete(socket.userId);
+    
+    // Notificar a otros usuarios que este usuario está offline
+    socket.broadcast.emit('user_offline', {
+      userId: socket.userId,
+      userName: socket.userName
+    });
+  });
+});
 
 // Middleware de manejo de errores
 const errorHandler = require('./middleware/errorHandler');
@@ -139,8 +276,8 @@ async function startServer() {
       console.log('   Ejemplo: DATABASE_URL="postgresql://username:password@localhost:5432/marketplace"');
       process.exit(1);
     }
-
-    app.listen(PORT, async () => {
+    
+    server.listen(PORT, async () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
       console.log(`🗄️  PostgreSQL con Prisma configurado`);
       console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
