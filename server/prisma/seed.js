@@ -1,3 +1,6 @@
+// Cargar variables de entorno
+require('dotenv').config();
+
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
@@ -178,40 +181,6 @@ async function main() {
     console.log('✅ Usuarios creados');
     
 
-  // Usuarios base para mensajes
-  const usuariosParaMensajes = [admin, vendor, client];
-
-  // Ejemplo de mensajes variados entre usuarios con timestamps diferentes
-  const mensajesDePrueba = [
-    { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿tienes más laptops en venta?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3) }, // hace 3 días
-    { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Hola Admin, sí, me queda una más disponible 😉", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3 - 1000 * 60 * 15) }, // 15 mins después
-    { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Hola Juan, ¿el libro de cálculo sigue disponible?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2) }, // hace 2 días
-    { remitenteId: vendor.id, destinatarioId: client.id, contenido: "Sí, María, aún lo tengo disponible 📚", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2 - 1000 * 60 * 10) }, // 10 mins después
-    { remitenteId: client.id, destinatarioId: admin.id, contenido: "Admin, ¿me podrías dar más info del iPhone?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24) }, // hace 1 día
-    { remitenteId: admin.id, destinatarioId: client.id, contenido: "Claro, está casi nuevo, lo entrego con cargador 🔌", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 24 - 1000 * 60 * 5) }, // 5 mins después
-
-    // Mensajes nuevos, más conversación continua
-    { remitenteId: vendor.id, destinatarioId: client.id, contenido: "María, ¿quieres verlo antes de comprar?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 12) }, // hace 12 horas
-    { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Sí, Juan. ¿Cuándo podríamos encontrarnos?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 11) }, // hace 11 horas
-    { remitenteId: vendor.id, destinatarioId: client.id, contenido: "¿Qué tal hoy en la tarde?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 10) }, // hace 10 horas
-    { remitenteId: client.id, destinatarioId: vendor.id, contenido: "Perfecto, nos vemos a las 5pm 😊", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 9) }, // hace 9 horas
-
-    // Mensajes entre admin y vendedor
-    { remitenteId: admin.id, destinatarioId: vendor.id, contenido: "Recuerda actualizar el stock de smartphones.", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 8) },
-    { remitenteId: vendor.id, destinatarioId: admin.id, contenido: "Claro, ya estoy en eso.", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 7) },
-
-    // Mensajes entre admin y cliente
-    { remitenteId: admin.id, destinatarioId: client.id, contenido: "¿Pudiste resolver tus dudas?", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 6) },
-    { remitenteId: client.id, destinatarioId: admin.id, contenido: "Sí, gracias por la ayuda.", fechaEnvio: new Date(Date.now() - 1000 * 60 * 60 * 5) },
-  ];
-
-  // Insertar los mensajes en la base de datos
-  await prisma.mensajes.createMany({
-    data: mensajesDePrueba
-  });
-
-  console.log("✅ Mensajes de prueba creados");
-
     // Crear productos de ejemplo
     const subComputadoras = await prisma.categorias.create({
       data: { nombre: 'Computadoras', categoriaPadreId: categoriaElectronicos.id }
@@ -350,11 +319,81 @@ async function main() {
 
     console.log('✅ 100 publicaciones creadas');
 
+    // Crear mensajes de prueba para el chat
+    console.log('💬 Creando mensajes de prueba...');
+    
+    const mensajesPrueba = [
+      {
+        remitenteId: vendor.id,
+        destinatarioId: client.id,
+        contenido: 'Hola! ¿Te interesa la laptop Dell?',
+        fechaEnvio: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
+        leido: false
+      },
+      {
+        remitenteId: client.id,
+        destinatarioId: vendor.id,
+        contenido: 'Sí, me interesa mucho. ¿Está disponible?',
+        fechaEnvio: new Date(Date.now() - 90 * 60 * 1000), // 1.5 horas atrás
+        leido: true
+      },
+      {
+        remitenteId: vendor.id,
+        destinatarioId: client.id,
+        contenido: 'Perfecto! Sí está disponible. ¿Quieres verla en persona?',
+        fechaEnvio: new Date(Date.now() - 60 * 60 * 1000), // 1 hora atrás
+        leido: false
+      },
+      {
+        remitenteId: client.id,
+        destinatarioId: vendor.id,
+        contenido: 'Claro, ¿dónde podemos encontrarnos?',
+        fechaEnvio: new Date(Date.now() - 30 * 60 * 1000), // 30 minutos atrás
+        leido: true
+      },
+      {
+        remitenteId: vendor.id,
+        destinatarioId: client.id,
+        contenido: 'En el campus, cerca de la biblioteca. ¿Te parece bien a las 3pm?',
+        fechaEnvio: new Date(Date.now() - 15 * 60 * 1000), // 15 minutos atrás
+        leido: false
+      },
+      // Conversación entre admin y cliente
+      {
+        remitenteId: admin.id,
+        destinatarioId: client.id,
+        contenido: 'Hola! Veo que estás interesado en productos. ¿Necesitas ayuda?',
+        fechaEnvio: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 horas atrás
+        leido: true
+      },
+      {
+        remitenteId: client.id,
+        destinatarioId: admin.id,
+        contenido: 'Hola admin! Sí, estoy buscando una laptop para mis estudios.',
+        fechaEnvio: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 horas atrás
+        leido: true
+      },
+      {
+        remitenteId: admin.id,
+        destinatarioId: client.id,
+        contenido: 'Excelente! Te recomiendo revisar las ofertas de la categoría Electrónicos.',
+        fechaEnvio: new Date(Date.now() - 2.5 * 60 * 60 * 1000), // 2.5 horas atrás
+        leido: true
+      }
+    ];
+
+    for (const mensaje of mensajesPrueba) {
+      await prisma.Mensajes.create({ data: mensaje });
+    }
+    
+    console.log('✅ Mensajes de prueba creados');
+    
     console.log('\n🎉 Seeding completado exitosamente!');
     console.log('\n📋 Usuarios creados:');
     console.log('👤 Admin: admin@uct.cl / admin123');
     console.log('🛒 Vendedor: vendedor@uct.cl / vendor123');
     console.log('👥 Cliente: cliente@alu.uct.cl / client123');
+    console.log('💬 Usa estos usuarios para probar el chat en tiempo real!');
 
   } catch (error) {
     console.error('❌ Error durante el seeding:', error);

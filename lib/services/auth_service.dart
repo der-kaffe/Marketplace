@@ -98,6 +98,24 @@ class AuthService {
   // Obtener usuario actual
   User? get currentUser => _currentUser;
 
+  // Obtener usuario actual como Map (para compatibilidad)
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    if (_currentUser != null) {
+      return {
+        'id': _currentUser!.id,
+        'email': _currentUser!.email,
+        'name': _currentUser!.name,
+        'role': _currentUser!.role,
+        'apellido': _currentUser!.apellido,
+        'usuario': _currentUser!.usuario,
+        'campus': _currentUser!.campus,
+        'telefono': _currentUser!.telefono,
+        'direccion': _currentUser!.direccion,
+      };
+    }
+    return null;
+  }
+
   // Login con email y password
   Future<LoginResponse> loginWithEmail(String email, String password) async {
     try {

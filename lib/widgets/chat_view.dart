@@ -1,30 +1,95 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_colors.dart';
+import '../services/chat_service.dart';
+import '../services/auth_service.dart';
 
 class ChatView extends StatefulWidget {
-  const ChatView({super.key});
+  final int destinatarioId;
+  final String destinatarioNombre;
+  
+  const ChatView({
+    super.key, 
+    required this.destinatarioId,
+    required this.destinatarioNombre,
+  });
 
   @override
   State<ChatView> createState() => _ChatViewState();
 }
 
 class _ChatViewState extends State<ChatView> {
-  final List<Map<String, dynamic>> messages = [
-    {"text": "Hola, ¿Cómo estás?", "isMe": false},
-    {"text": "¡Bien! ¿y tú?", "isMe": true},
-  ];
-
+  final List<Map<String, dynamic>> messages = [];
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _picker = ImagePicker();
+  final ChatService _chatService = ChatService();
+  final AuthService _authService = AuthService();
+  
+  int? _currentUserId;
+  bool _isTyping = false;
+  Timer? _typingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+    _loadMessages();
+    _setupWebSocketListeners();
+  }
 
   @override
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
+    _typingTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    final user = await _authService.getCurrentUser();
+    if (user != null) {
+      setState(() {
+        _currentUserId = user['id'];
+      });
+    }
+  }
+
+  Future<void> _loadMessages() async {
+    final messagesList = await _chatService.getMessages(widget.destinatarioId);
+    setState(() {
+      messages.clear();
+      messages.addAll(messagesList.map((msg) => 
+        _chatService.formatMessage(msg, _currentUserId ?? 0)
+      ));
+    });
+    _scrollToBottom();
+  }
+
+  void _setupWebSocketListeners() {
+    _chatService.messageStream.listen((message) {
+      final formattedMessage = _chatService.formatMessage(message, _currentUserId ?? 0);
+      
+      // Solo agregar mensajes de esta conversación
+      if (formattedMessage['isMe'] || 
+          (message['remitenteId'] == widget.destinatarioId) ||
+          (message['destinatarioId'] == widget.destinatarioId)) {
+        setState(() {
+          messages.add(formattedMessage);
+        });
+        _scrollToBottom();
+      }
+    });
+
+    _chatService.typingStream.listen((data) {
+      if (data['userId'] == widget.destinatarioId) {
+        setState(() {
+          _isTyping = data['isTyping'] ?? false;
+        });
+      }
+    });
   }
 
   void _scrollToBottom() {
@@ -41,16 +106,46 @@ class _ChatViewState extends State<ChatView> {
   void _sendText() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    setState(() => messages.add({"text": text, "isMe": true}));
+    
+    _chatService.sendMessage(
+      destinatarioId: widget.destinatarioId,
+      contenido: text,
+    );
+    
     _controller.clear();
-    _scrollToBottom();
+    _stopTyping();
   }
 
   Future<void> _pickImage() async {
     final img = await _picker.pickImage(source: ImageSource.gallery);
     if (img == null) return;
-    setState(() => messages.add({"image": img.path, "isMe": true}));
-    _scrollToBottom();
+    
+    _chatService.sendMessage(
+      destinatarioId: widget.destinatarioId,
+      contenido: img.path,
+      tipo: 'imagen',
+    );
+  }
+
+  void _onTextChanged(String text) {
+    if (text.isNotEmpty) {
+      _startTyping();
+    } else {
+      _stopTyping();
+    }
+  }
+
+  void _startTyping() {
+    _chatService.startTyping(widget.destinatarioId);
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 2), () {
+      _stopTyping();
+    });
+  }
+
+  void _stopTyping() {
+    _chatService.stopTyping(widget.destinatarioId);
+    _typingTimer?.cancel();
   }
 
   @override
@@ -112,6 +207,32 @@ class _ChatViewState extends State<ChatView> {
             },
           ),
         ),
+        if (_isTyping)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 8),
+                Text(
+                  '${widget.destinatarioNombre} está escribiendo...',
+                  style: TextStyle(
+                    color: AppColors.grisOscuro,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.azulPrimario),
+                  ),
+                ),
+              ],
+            ),
+          ),
         const Divider(height: 1),
         SafeArea(
           top: false,
@@ -147,6 +268,7 @@ class _ChatViewState extends State<ChatView> {
                       controller: _controller,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _sendText(),
+                      onChanged: _onTextChanged,
                       decoration: const InputDecoration(
                         hintText: "Escribe un mensaje...",
                         border: InputBorder.none,

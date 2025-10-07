@@ -6,8 +6,14 @@ import '../theme/app_colors.dart';
 class ChatPage extends StatelessWidget {
   final String userName;
   final String avatar;
+  final int destinatarioId;
 
-  const ChatPage({Key? key, required this.userName, required this.avatar}) : super(key: key);
+  const ChatPage({
+    Key? key, 
+    required this.userName, 
+    required this.avatar,
+    required this.destinatarioId,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +58,12 @@ class ChatPage extends StatelessWidget {
               ],
             ),
           ),
-          const Expanded(child: ChatView()),
+          Expanded(
+            child: ChatView(
+              destinatarioId: destinatarioId,
+              destinatarioNombre: userName,
+            ),
+          ),
         ],
       ),
     );
