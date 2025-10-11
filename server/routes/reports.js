@@ -425,4 +425,63 @@ router.get('/estados/list', async (req, res) => {
     }
 });
 
+// ==========================================
+// GET /api/reports/:id - Detalle de un reporte (Admin)
+// ==========================================
+router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const reporte = await prisma.reportes.findUnique({
+            where: { id: Number(id) },
+            include: {
+                producto: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        descripcion: true,
+                        //imagen: true,
+                        vendedorId: true,
+                    },
+                },
+                usuarioReportado: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true,
+                        correo: true,
+                    },
+                },
+                reportante: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true,
+                        correo: true,
+                    },
+                },
+                estado: true,
+            },
+        });
+
+        if (!reporte) {
+            return res.status(404).json({
+                ok: false,
+                message: 'Reporte no encontrado',
+            });
+        }
+
+        res.json({
+            ok: true,
+            reporte,
+        });
+    } catch (error) {
+        console.error('❌ Error obteniendo detalle del reporte:', error);
+        res.status(500).json({
+            ok: false,
+            message: 'Error interno del servidor',
+        });
+    }
+});
+
 module.exports = router;
