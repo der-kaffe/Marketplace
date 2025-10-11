@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
 class UserItem {
@@ -329,11 +330,23 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Administrar Usuarios'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(), // <-- esto vuelve a /admin
+        ),
+        backgroundColor: const Color(0xFF00A8E8),
+        foregroundColor: Colors.white,
+        elevation: 2,
+      ),
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF00A8E8),
         onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Agregar usuario (a implementar)')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Agregar usuario (a implementar)')),
+          );
         },
         child: const Icon(Icons.add, size: 28),
       ),

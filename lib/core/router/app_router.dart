@@ -125,27 +125,26 @@ class AppRouter {
       GoRoute(
         path: '/admin',
         builder: (context, state) => const AdminMenuPage(),
+        routes: [
+          GoRoute(
+            path: 'users',
+            builder: (context, state) => const AdminUsersPage(),
+          ),
+          GoRoute(
+            path: 'reports',
+            builder: (context, state) => const AdminReportsPage(),
+          ),
+          GoRoute(
+            path: 'reports/:id',
+            builder: (context, state) {
+              final reportId = int.tryParse(state.pathParameters['id'] ?? '');
+              if (reportId == null) return const AdminReportsPage();
+              return ReportDetailPage(reportId: reportId);
+            },
+          ),
+        ],
       ),
-      GoRoute(
-        path: '/admin/users',
-        builder: (context, state) => AdminUsersPage(),
-      ),
-      GoRoute(
-        path: '/admin/reports',
-        builder: (context, state) => const AdminReportsPage(),
-      ),
-      GoRoute(
-        path: '/admin/reports/:id',
-        builder: (context, state) {
-          final reportId = int.tryParse(state.pathParameters['id'] ?? '');
-          // Es buena práctica manejar el caso donde el ID no es un número válido
-          if (reportId == null) {
-            // Puedes redirigir a una página de error o a la lista de reportes
-            return const AdminReportsPage();
-          }
-          return ReportDetailPage(reportId: reportId);
-        },
-      ),
+
     ],
     // Opcional: Manejo de errores para rutas no encontradas
     errorBuilder: (context, state) => Scaffold(

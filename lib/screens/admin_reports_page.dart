@@ -35,8 +35,6 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
     // Aquí puedes hacer una llamada real a tu API
   }
 
-
-
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
@@ -141,6 +139,20 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Panel de Reportes',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(), // <-- vuelve a /admin
+        ),
+        backgroundColor: Colors.redAccent,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
       backgroundColor: Colors.white,
       body: SafeArea(
         child: RefreshIndicator(
