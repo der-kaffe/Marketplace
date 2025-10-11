@@ -119,9 +119,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     if (!mounted || confirmed != true) return;
 
     try {
+      final authService = AuthService();
+      final token = await authService.getToken();
+
       final response = await http.delete(
-        Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}"), // ⚠️ usa tu baseUrl
-        headers: {"Content-Type": "application/json"},
+        Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}"),
+        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token",},
       );
 
       if (response.statusCode == 200) {
@@ -148,9 +151,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     final newStatus = !user.isBanned;
 
     try {
+      final authService = AuthService();
+      final token = await authService.getToken();
+
       final response = await http.patch(
         Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}/ban"),
-        headers: {"Content-Type": "application/json"},
+        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token",},
         body: jsonEncode({"banned": newStatus}),
       );
 

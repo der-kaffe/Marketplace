@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 const { authenticateToken, requireAdmin } = require('../middleware/auth'); // pendiente
 
 // Ruta para obtener todos los usuarios (por ahora "async")
-router.get('/users', async (req, res) => {
+router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const users = await prisma.cuentas.findMany({
       //orderBy: { fechaRegistro: 'desc' },
@@ -33,7 +33,7 @@ router.get('/users', async (req, res) => {
 });
 
 // Eliminar usuario por id (por ahora "async", sin token)
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -59,7 +59,7 @@ router.delete('/users/:id', async (req, res) => {
 });
 
 // Cambiar estado (banear / desbanear)
-router.patch('/users/:id/ban', async (req, res) => {
+router.patch('/users/:id/ban', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { banned } = req.body; // true o false
