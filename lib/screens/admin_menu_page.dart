@@ -14,6 +14,12 @@ class AdminMenuPage extends StatelessWidget {
         backgroundColor: Colors.redAccent,
         centerTitle: true,
         elevation: 4,
+
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/login'),
+        ),
+
       ),
       body: Container(
         width: double.infinity,
