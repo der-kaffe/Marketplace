@@ -388,6 +388,54 @@ async function main() {
     
     console.log('✅ Mensajes de prueba creados');
     
+
+    // Crear reportes de ejemplo
+    console.log('🐞 Creando reportes de ejemplo...');
+
+    // Buscar algunos productos y usuarios para usar en reportes
+    const laptop = await prisma.productos.findFirst({ where: { nombre: 'Laptop Dell Inspiron 15' } });
+    const iphone = await prisma.productos.findFirst({ where: { nombre: 'iPhone 12 64GB' } });
+
+    const adminUser = await prisma.cuentas.findUnique({ where: { usuario: 'admin_uct' } });
+    const vendorUser = await prisma.cuentas.findUnique({ where: { usuario: 'juan_perez' } });
+    const clientUser = await prisma.cuentas.findUnique({ where: { usuario: 'maria_gonzalez' } });
+
+    const estado_Pendiente = await prisma.estadosReporte.findFirst({ where: { nombre: 'Pendiente' } });
+    const estado_Resuelto = await prisma.estadosReporte.findFirst({ where: { nombre: 'Resuelto' } });
+
+    const reportesEjemplo = [
+      {
+        productoId: laptop.id,
+        reportanteId: clientUser.id,
+        motivo: 'El producto no coincide con la descripción.',
+        estadoId: estado_Pendiente.id,
+      },
+      {
+        productoId: iphone.id,
+        reportanteId: vendorUser.id,
+        motivo: 'Producto defectuoso recibido.',
+        estadoId: estado_Pendiente.id,
+      },
+      {
+        usuarioReportadoId: vendorUser.id,
+        reportanteId: clientUser.id,
+        motivo: 'El vendedor no responde mensajes.',
+        estadoId: estado_Pendiente.id,
+      },
+      {
+        usuarioReportadoId: clientUser.id,
+        reportanteId: adminUser.id,
+        motivo: 'Reporte falso o mal uso de la plataforma.',
+        estadoId: estado_Resuelto.id,
+      }
+    ];
+
+    for (const reporte of reportesEjemplo) {
+      await prisma.reportes.create({ data: reporte });
+    }
+
+    console.log('✅ Reportes de ejemplo creados');
+
     console.log('\n🎉 Seeding completado exitosamente!');
     console.log('\n📋 Usuarios creados:');
     console.log('👤 Admin: admin@uct.cl / admin123');

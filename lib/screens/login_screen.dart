@@ -153,13 +153,35 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     setState(() => _isLoading = true);
     try {
       final authService = AuthService();
-      await authService.saveToken('admin_user_token');
-      if (mounted) context.go('/admin');
+
+      final result = await authService.loginWithEmail('admin@uct.cl', 'admin123');
+      
+      if (result.ok && result.token != null) {
+        // Token válido guardado automáticamente en authService
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login admin exitoso'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          context.go('/admin');
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error login admin: ${result.message}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al iniciar sesión como admin: ${e.toString()}'),
+            content: Text('Error inesperado: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );

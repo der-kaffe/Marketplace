@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/report_card.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import '../services/auth_service.dart';
 
 class ReportItem {
   final int id;
@@ -14,6 +17,34 @@ class ReportItem {
     required this.description,
     required this.reporter,
   });
+
+  factory ReportItem.fromJson(Map<String, dynamic> json) {
+    String title = '';
+    String description = '';
+    if (json['producto'] != null) {
+      title = json['producto']['nombre'] ?? 'Producto reportado';
+      description = json['motivo'] ?? '';
+    } else if (json['usuarioReportado'] != null) {
+      title = '${json['usuarioReportado']['nombre']} ${json['usuarioReportado']['apellido']}';
+      description = json['motivo'] ?? '';
+    } else {
+      title = 'Reporte';
+      description = json['motivo'] ?? '';
+    }
+
+    String reporterName = '';
+    if (json['reportante'] != null) {
+      final rep = json['reportante'];
+      reporterName = '${rep['nombre']} ${rep['apellido']}';
+    }
+
+    return ReportItem(
+      id: json['id'],
+      title: title,
+      description: description,
+      reporter: reporterName,
+    );
+  }
 }
 
 class AdminReportsPage extends StatefulWidget {
@@ -24,15 +55,60 @@ class AdminReportsPage extends StatefulWidget {
 }
 
 class _AdminReportsPageState extends State<AdminReportsPage> {
-  final List<ReportItem> _reports = [
-    ReportItem(id: 1, title: 'Contenido inapropiado', description: 'Se reportó una publicación ofensiva.', reporter: 'Usuario1'),
-    ReportItem(id: 2, title: 'Spam', description: 'Un usuario está haciendo spam de links.', reporter: 'Usuario2'),
-    ReportItem(id: 3, title: 'Estafa', description: 'Se sospecha de una estafa en un producto.', reporter: 'Usuario3'),
-  ];
+  List<ReportItem> _reports = [];
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
+
+  final String apiBaseUrl = 'http://10.0.2.2:3001/api/reports';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchReports();
+  }
+
+  Future<void> _fetchReports() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final token = await _authService.getToken();
+      print("TOKEN: $token");
+
+      final response = await http.get(
+        Uri.parse(apiBaseUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List<dynamic> reportsJson = data['reportes'] ?? [];
+
+        setState(() {
+          _reports = reportsJson.map((json) => ReportItem.fromJson(json)).toList();
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar reportes: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al conectar con el servidor')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   Future<void> _refreshReports() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    // Aquí puedes hacer una llamada real a tu API
+    await _fetchReports();
   }
 
   Widget _buildHeader() {
@@ -42,13 +118,13 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
+            children: [
+              const Text(
                 'Hola Administrador',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
-              SizedBox(height: 6),
-              Text(
+              const SizedBox(height: 6),
+              const Text(
                 'Panel de reportes',
                 style: TextStyle(fontSize: 13, color: Color(0xFFF6B400)),
               ),
@@ -66,7 +142,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
               ),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.red.withAlpha(31), width: 1.5),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
             ),
             child: Center(
               child: Column(
@@ -74,7 +150,8 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
                 children: [
                   Text(
                     '${_reports.length}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red),
                   ),
                   const SizedBox(height: 4),
                   const Text(
@@ -98,18 +175,15 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       description: report.description,
       reporter: report.reporter,
       onView: () {
-        // navega al detalle (usa push para mantener historial)
         context.push('/admin/reports/${report.id}');
       },
       onResolve: () {
-        // ejemplo: solo simulamos
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Reporte ${report.id} marcado como resuelto.')),
         );
-        // Aquí puedes llamar tu API para marcar resuelto
+        // Aquí deberías llamar a tu API para actualizar el estado del reporte
       },
       onDelete: () {
-        // ejemplo: confirmar eliminación
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -126,6 +200,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Reporte eliminado.')),
                   );
+                  // Aquí deberías llamar a tu API para eliminar el reporte
                 },
                 child: const Text('Eliminar'),
               ),
@@ -147,7 +222,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(), // <-- vuelve a /admin
+          onPressed: () => context.pop(),
         ),
         backgroundColor: Colors.redAccent,
         foregroundColor: Colors.white,
@@ -157,31 +232,33 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshReports,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildHeader(),
-              const Divider(height: 0.5),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12.0),
-                child: Center(
-                  child: Text(
-                    'Lista de reportes',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeader(),
+                    const Divider(height: 0.5),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                      child: Center(
+                        child: Text(
+                          'Lista de reportes',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 20, top: 6),
+                        itemCount: _reports.length,
+                        itemBuilder: (context, index) {
+                          return _buildReportCard(_reports[index]);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 20, top: 6),
-                  itemCount: _reports.length,
-                  itemBuilder: (context, index) {
-                    return _buildReportCard(_reports[index]);
-                  },
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

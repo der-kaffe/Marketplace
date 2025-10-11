@@ -23,6 +23,7 @@ const authenticateToken = (req, res, next) => {
       ));
     }
 
+    console.log('Token decodificado:', user);
     req.user = user;
     next();
   });
@@ -30,12 +31,12 @@ const authenticateToken = (req, res, next) => {
 
 // Middleware para verificar rol de admin
 const requireAdmin = (req, res, next) => {
-  if (req.user.role !== 'ADMIN') {
+  if (req.user.role.toLowerCase() !== 'administrador') {
     return next(new AppError(
       "Acceso denegado: se requieren permisos de administrador",
       "FORBIDDEN_ADMIN",
       403,
-      { requiredRole: "ADMIN" }
+      { requiredRole: "Administrador" }
     ));
   }
   next();
@@ -43,12 +44,12 @@ const requireAdmin = (req, res, next) => {
 
 // Middleware para verificar rol de vendedor o admin
 const requireVendor = (req, res, next) => {
-  if (!['ADMIN', 'VENDEDOR'].includes(req.user.role)) {
+  if (!['Administrador', 'VENDEDOR'].includes(req.user.role)) {
     return next(new AppError(
       "Acceso denegado: se requieren permisos de vendedor",
       "FORBIDDEN_VENDOR",
       403,
-      { requiredRoles: ["ADMIN", "VENDEDOR"] }
+      { requiredRoles: ["Administrador", "VENDEDOR"] }
     ));
   }
   next();

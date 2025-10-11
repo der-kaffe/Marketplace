@@ -45,7 +45,7 @@ router.post('/login', [
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.correo, role: user.rol.nombre },
+      { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -59,7 +59,7 @@ router.post('/login', [
         email: user.correo,
         nombre: user.nombre,
         apellido: user.apellido,
-        role: user.rol.nombre,
+        role: user.rol.nombre.toUpperCase(),
         campus: user.campus,
         reputacion: user.reputacion
       }
@@ -124,7 +124,7 @@ router.post('/register', [
     });
 
     const token = jwt.sign(
-      { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre },
+      { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -139,7 +139,7 @@ router.post('/register', [
         usuario: newUser.usuario,
         nombre: newUser.nombre,
         apellido: newUser.apellido,
-        role: newUser.rol.nombre,
+        role: newUser.rol.nombre.toUpperCase(),
         campus: newUser.campus
       }
     });
@@ -198,7 +198,7 @@ router.post('/google', [
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.correo, role: user.rol.nombre },
+      { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );    res.json({
@@ -212,7 +212,7 @@ router.post('/google', [
         apellido: user.apellido || '',    // ✏️ Editable por el usuario
         usuario: user.usuario,      // ✏️ Editable por el usuario
         campus: user.campus || 'Campus Temuco',  // ✏️ Editable por el usuario
-        role: user.rol.nombre,
+        role: user.rol.nombre.toUpperCase(),
         // Campos editables disponibles para actualizar después:
         editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
       }
