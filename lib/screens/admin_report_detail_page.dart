@@ -151,22 +151,46 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             textStyle: const TextStyle(fontSize: 16),
           ),
-          onPressed: () {
-            setState(() {
-              reportStatus = (reportStatus == 'Pendiente') ? 'Revisado' : 'Pendiente';
-            });
+          onPressed: () async {
+            final nuevoEstadoId = reportStatus == 'Pendiente' ? 2 : 1; // suponiendo 1=Pendiente, 2=Revisado
+            final token = await _authService.getToken();
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  reportStatus == 'Revisado'
-                      ? 'Reporte marcado como revisado'
-                      : 'Reporte marcado como pendiente',
-                ),
-              ),
-            );
+            final url = Uri.parse('http://10.0.2.2:3001/api/reports/${widget.reportId}');
 
-            // Aquí podrías llamar a tu API para actualizar el estado real del reporte
+            try {
+              final response = await http.patch(
+                url,
+                headers: {
+                  'Authorization': 'Bearer $token',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({'estadoId': nuevoEstadoId}),
+              );
+
+              if (response.statusCode == 200) {
+                setState(() {
+                  reportStatus = reportStatus == 'Pendiente' ? 'Revisado' : 'Pendiente';
+                });
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      reportStatus == 'Revisado'
+                          ? 'Reporte marcado como revisado'
+                          : 'Reporte marcado como pendiente',
+                    ),
+                  ),
+                );
+                Navigator.pop(context, true);
+              } else {
+                throw Exception('Error al actualizar estado');
+              }
+            } catch (e) {
+              print('❌ Error actualizando estado: $e');
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('No se pudo actualizar el estado')),
+              );
+            }
           },
           child: Text(
             reportStatus == 'Pendiente' ? 'Marcar como revisado' : 'Marcar como pendiente',

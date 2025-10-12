@@ -10,12 +10,14 @@ class ReportItem {
   final String title;
   final String description;
   final String reporter;
+  final String estadoNombre; // Nuevo campo
 
   ReportItem({
     required this.id,
     required this.title,
     required this.description,
     required this.reporter,
+    required this.estadoNombre,
   });
 
   factory ReportItem.fromJson(Map<String, dynamic> json) {
@@ -38,11 +40,18 @@ class ReportItem {
       reporterName = '${rep['nombre']} ${rep['apellido']}';
     }
 
+    // Parsear el estado, poner "Pendiente" si no viene
+    String estado = 'Pendiente';
+    if (json['estado'] != null && json['estado']['nombre'] != null) {
+      estado = json['estado']['nombre'];
+    }
+
     return ReportItem(
       id: json['id'],
       title: title,
       description: description,
       reporter: reporterName,
+      estadoNombre: estado,
     );
   }
 }
@@ -111,6 +120,36 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
     await _fetchReports();
   }
 
+  // Nuevo método para actualizar solo un reporte en la lista
+  Future<void> _updateReportStatus(int reportId) async {
+    final token = await _authService.getToken();
+    final url = Uri.parse('$apiBaseUrl/$reportId');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final updatedReport = ReportItem.fromJson(data['reporte']);
+
+        setState(() {
+          final index = _reports.indexWhere((r) => r.id == reportId);
+          if (index != -1) {
+            _reports[index] = updatedReport;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error actualizando reporte localmente: $e');
+    }
+  }
+
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 14.0),
@@ -169,44 +208,46 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   }
 
   Widget _buildReportCard(ReportItem report) {
+    bool isResolved = report.estadoNombre.toLowerCase() == 'resuelto';
+    bool isReviewed = report.estadoNombre.toLowerCase() == 'revisado';
+    bool isPending = report.estadoNombre.toLowerCase() == 'pendiente';
+
+    IconData iconData;
+    Color iconColor;
+
+    if (isResolved) {
+      iconData = Icons.check_circle;
+      iconColor = Colors.green;
+    } else if (isReviewed) {
+      iconData = Icons.check_circle_outline;
+      iconColor = Colors.orange;
+    } else if (isPending) {
+      iconData = Icons.pending;
+      iconColor = Colors.red;
+    } else {
+      iconData = Icons.report;
+      iconColor = Colors.grey;
+    }
+
     return ReportCard(
       id: report.id,
       title: report.title,
       description: report.description,
       reporter: report.reporter,
-      onView: () {
-        context.push('/admin/reports/${report.id}');
-      },
-      onResolve: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Reporte ${report.id} marcado como resuelto.')),
-        );
-        // Aquí deberías llamar a tu API para actualizar el estado del reporte
+      isResolved: isResolved,
+      icon: Icon(iconData, color: iconColor),
+      onView: () async {
+        // Espero el resultado de la página detalle (bool: true si hubo cambio)
+        final result = await context.push<bool>('/admin/reports/${report.id}');
+        if (result == true) {
+          await _updateReportStatus(report.id);
+        }
       },
       onDelete: () {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Confirmar'),
-            content: const Text('¿Eliminar este reporte?'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  setState(() {
-                    _reports.removeWhere((r) => r.id == report.id);
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Reporte eliminado.')),
-                  );
-                  // Aquí deberías llamar a tu API para eliminar el reporte
-                },
-                child: const Text('Eliminar'),
-              ),
-            ],
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Eliminar reporte ${report.id}')),
         );
+        // Agregá tu lógica de eliminación real aquí
       },
     );
   }
