@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart';
 
 import 'core/router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -8,6 +9,12 @@ import 'services/chat_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Bloquear orientación horizontal (solo móvil)
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // Configuramos GoogleSignIn solo para Web
   final GoogleSignIn googleSignIn = GoogleSignIn(

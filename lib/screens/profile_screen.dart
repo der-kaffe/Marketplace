@@ -116,18 +116,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   items: [
                     _buildInfoItem(
                         Icons.person, 'Nombre completo', _userName),
-                    _buildInfoItem(Icons.email, 'Email', _userEmail),                    _buildActionItem(
+                    _buildInfoItem(Icons.email, 'Email', _userEmail),
+                    _buildActionItem(
                       icon: Icons.refresh,
                       title: 'Actualizar datos de perfil',
                       color: AppColors.azulPrimario,
                       onTap: _refreshUserData,
                     ),
-                    _buildActionItem(
-                      icon: Icons.bug_report,
-                      title: 'Debug: Verificar autenticación',
-                      color: Colors.orange,
-                      onTap: _debugAuthentication,
-                    ),_buildEditableInfoItem(Icons.person_outline, 'Apellido', _apellido, () => _editField('apellido')),
+                    _buildEditableInfoItem(Icons.person_outline, 'Apellido', _apellido, () => _editField('apellido')),
                     _buildEditableInfoItem(Icons.account_circle, 'Usuario', _usuario, () => _editField('usuario')),
                     _buildEditableInfoItem(Icons.school, 'Campus', _campus, () => _editField('campus')),
                     _buildEditableInfoItem(Icons.phone, 'Teléfono', _telefono ?? 'No especificado', () => _editField('teléfono')),
@@ -849,51 +845,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return 'Datos inválidos';
     } else {
       return 'Error inesperado';
-    }
-  }
-
-  // Función de debug para verificar autenticación
-  Future<void> _debugAuthentication() async {
-    try {
-      final authService = AuthService();
-      final token = await authService.getToken();
-      final currentUser = authService.currentUser;
-      final isAuthenticated = await authService.isAuthenticated();
-      
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Debug - Estado de Autenticación'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('🔑 Token: ${token != null ? 'SÍ (${token.substring(0, 10)}...)' : 'NO'}'),
-              const SizedBox(height: 8),
-              Text('👤 Usuario actual: ${currentUser?.name ?? 'NINGUNO'}'),
-              const SizedBox(height: 8),
-              Text('✅ Autenticado: ${isAuthenticated ? 'SÍ' : 'NO'}'),
-              const SizedBox(height: 8),
-              Text('📧 Email: ${currentUser?.email ?? 'N/A'}'),
-              const SizedBox(height: 8),
-              Text('🏷️ Rol: ${currentUser?.role ?? 'N/A'}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error en debug: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 }
