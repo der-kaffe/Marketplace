@@ -406,6 +406,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   // --- FIN ACTUALIZAR ---
 
+  // --- NUEVO: Búsqueda de productos por texto (ignora tildes/acentos) ---
+  String _normalizeText(String text) {
+    // Quita tildes/acentos y pasa a minúsculas
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[áàäâã]'), 'a')
+        .replaceAll(RegExp(r'[éèëê]'), 'e')
+        .replaceAll(RegExp(r'[íìïî]'), 'i')
+        .replaceAll(RegExp(r'[óòöôõ]'), 'o')
+        .replaceAll(RegExp(r'[úùüû]'), 'u')
+        .replaceAll(RegExp(r'ñ'), 'n');
+  }
+
+  void _searchProductsByText(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _applyCombinedFilter();
+      } else {
+        final normalizedQuery = _normalizeText(query);
+        _filteredProducts = _originalProducts.where((product) {
+          final titleNorm = _normalizeText(product.title);
+          final descNorm = _normalizeText(product.description);
+          return titleNorm.contains(normalizedQuery) || descNorm.contains(normalizedQuery);
+        }).toList();
+      }
+    });
+  }
+  // --- FIN NUEVO ---
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -483,6 +512,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
+
+                  // --- BARRA DE BÚSQUEDA DE PRODUCTOS ---
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar productos...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      ),
+                      onChanged: (value) {
+                        _searchProductsByText(value);
+                      },
+                    ),
+                  ),
+                  // --- FIN BARRA DE BÚSQUEDA ---
 
                   // --- SECCIÓN FILTROS ---
                   // Mostrar botón de filtro de precio

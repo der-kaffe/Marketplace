@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 
@@ -411,6 +412,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  String _formatCLP(num value) {
+    final format = NumberFormat.currency(locale: 'es_CL', symbol: ' 24', decimalDigits: 0);
+    // Elimina el espacio y el símbolo CLP si lo agrega
+    return format.format(value).replaceAll('CLP', '').replaceAll(' a0', '').trim();
+  }
+
   Widget _buildOrderItem({
     required String orderNumber,
     required String date,
@@ -445,7 +452,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: AppColors.textoOscuro)),
-                    Text('\$${amount.toStringAsFixed(0)}',
+                    Text(_formatCLP(amount),
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
