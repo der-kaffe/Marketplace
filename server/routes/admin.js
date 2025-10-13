@@ -96,4 +96,106 @@ router.patch('/users/:id/ban', authenticateToken, requireAdmin, async (req, res)
   }
 });
 
+// GET /api/admin/metrics
+router.get('/metrics', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // Conteos básicos
+    const totalUsersPromise = prisma.cuentas.count();
+    const totalProductsPromise = prisma.productos.count();
+    const totalPublicationsPromise = prisma.publicaciones.count();
+    const totalMessagesPromise = prisma.mensajes.count();
+
+    // Usuarios activos en 30 días (actividad_usuario)
+    const since30d = new Date();
+    since30d.setDate(since30d.getDate() - 30);
+    const activeUsers30dPromise = prisma.actividadUsuario.count({
+      where: { fecha: { gte: since30d } },
+      distinct: ['usuarioId'] // count distinct usuarios que tuvieron actividad (Prisma no tiene distinct param in count; workaround below)
+    }).catch(async () => {
+      // Fallback: contar usuarios distintos con raw SQL
+      const raw = await prisma.$queryRaw`SELECT COUNT(DISTINCT(usuario_id)) as cnt FROM actividad_usuario WHERE fecha >= NOW() - INTERVAL '30 days'`;
+      return Number(raw[0]?.cnt ?? 0);
+    });
+
+    // Reportes pendientes (buscamos estado "Pendiente")
+    const estadoPendiente = await prisma.estadosReporte.findFirst({
+      where: { nombre: { equals: 'Pendiente', mode: 'insensitive' } }
+    });
+
+    const openReportsPromise = prisma.reportes.count({
+      where: estadoPendiente ? { estadoId: estadoPendiente.id } : {}
+    });
+
+    // Transacciones completadas (buscamos estado 'Completada')
+    const estadoCompletada = await prisma.estadosTransaccion.findFirst({
+      where: { nombre: { equals: 'Completada', mode: 'insensitive' } }
+    });
+    const completedTransactionsPromise = prisma.transacciones.count({
+      where: estadoCompletada ? { estadoId: estadoCompletada.id } : {}
+    });
+
+    // Mensajes últimos 7 días
+    const since7d = new Date();
+    since7d.setDate(since7d.getDate() - 7);
+    const messagesLast7dPromise = prisma.mensajes.count({
+      where: { fechaEnvio: { gte: since7d } }
+    });
+
+    // Esperar las promesas de conteo (excepto activeUsers30d que podría haber devuelto número en fallback)
+    const [
+      totalUsers,
+      totalProducts,
+      totalPublications,
+      // activeUsers30d,
+      openReports,
+      completedTransactions,
+      messagesLast7d
+    ] = await Promise.all([
+      totalUsersPromise,
+      totalProductsPromise,
+      totalPublicationsPromise,
+      // activeUsers30dPromise,
+      openReportsPromise,
+      completedTransactionsPromise,
+      messagesLast7dPromise
+    ]);
+
+    // Active users 30d: usar raw query para contar usuarios distintos por seguridad
+    const activeRaw = await prisma.$queryRaw`
+      SELECT COUNT(DISTINCT(usuario_id)) as cnt
+      FROM actividad_usuario
+      WHERE fecha >= NOW() - INTERVAL '30 days'
+    `;
+    const activeUsers30d = Number(activeRaw[0]?.cnt ?? 0);
+
+    // daily new users (last 7 days) - usar raw SQL para truncar fecha
+    const newUsersRaw = await prisma.$queryRaw`
+      SELECT to_char(fecha_registro::date, 'YYYY-MM-DD') as day, COUNT(*) as cnt
+      FROM cuentas
+      WHERE fecha_registro >= NOW() - INTERVAL '6 days'
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+    // newUsersRaw será un array de { day, cnt } según Postgres
+    const newUsersByDay = (newUsersRaw || []).map(r => ({ day: r.day, count: Number(r.cnt) }));
+
+    res.json({
+      ok: true,
+      metrics: {
+        totalUsers,
+        activeUsers30d,
+        totalProducts,
+        totalPublications,
+        openReports,
+        completedTransactions,
+        messagesLast7d,
+        newUsersByDay
+      }
+    });
+  } catch (error) {
+    console.error('Error obteniendo métricas:', error);
+    res.status(500).json({ ok: false, error: 'Error interno obteniendo métricas' });
+  }
+});
+
 module.exports = router;
