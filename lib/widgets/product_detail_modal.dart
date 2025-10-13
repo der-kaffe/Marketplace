@@ -6,8 +6,9 @@ import '../theme/app_colors.dart';
 import '../screens/seller_profile_page.dart';
 import '../screens/chat_page.dart';
 import '../services/product_service.dart';
-import '../services/report_service.dart'; // ✅ Import del nuevo servicio
+import '../services/report_service.dart';
 import '../services/auth_service.dart';
+import '../services/rating_service.dart'; // Añadido
 
 class ProductDetailModal extends StatefulWidget {
   final Product product;
@@ -21,21 +22,211 @@ class ProductDetailModal extends StatefulWidget {
 class _ProductDetailModalState extends State<ProductDetailModal> {
   int _userRating = 0;
   final AuthService _authService = AuthService();
+  final RatingService _ratingService = RatingService(); // Añadido
+  double _sellerReputation = 0.0; // Añadido para mostrar reputación
+  bool _isLoadingReputation = true; // Añadido para estado de carga
 
-  void _submitRating() {
-    if (_userRating > 0) {
+  @override
+  void initState() {
+    super.initState();
+    _loadSellerReputation(); // Cargar reputación del vendedor al iniciar
+  }
+
+  // Método para cargar la reputación del vendedor
+  Future<void> _loadSellerReputation() async {
+    try {
+      final sellerId = int.parse(widget.product.sellerId);
+      final ratings = await _ratingService.getSellerRatings(sellerId);
+
+      if (ratings.isNotEmpty) {
+        // Calcular promedio de reputación
+        double total = 0;
+        for (var rating in ratings) {
+          // Convertir de forma segura el valor a double
+          dynamic puntuacionValue = rating['puntuacion'];
+          double puntuacion = 0.0;
+
+          if (puntuacionValue is num) {
+            puntuacion = puntuacionValue.toDouble();
+          } else if (puntuacionValue is String) {
+            puntuacion = double.tryParse(puntuacionValue) ?? 0.0;
+          }
+
+          total += puntuacion;
+        }
+        setState(() {
+          _sellerReputation = total / ratings.length;
+          _isLoadingReputation = false;
+        });
+      } else {
+        setState(() {
+          _sellerReputation = 0.0;
+          _isLoadingReputation = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error cargando reputación: $e');
+      setState(() {
+        _sellerReputation = 0.0;
+        _isLoadingReputation = false;
+      });
+    }
+  }
+
+  void _submitRating() async {
+    print('🔍 _submitRating - Iniciando proceso de calificación');
+    print('   userRating actual: $_userRating');
+
+    if (_userRating <= 0) {
+      print('   ❌ Rating no válido: $_userRating');
+      return;
+    }
+
+    try {
+      final currentUser = await _authService.getCurrentUser();
+      print('   currentUser obtenido: ${currentUser != null}');
+
+      if (currentUser == null) {
+        print('   ❌ Usuario no autenticado');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Debes iniciar sesión para calificar"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final currentUserId = currentUser['id'];
+      final sellerId = int.parse(widget.product.sellerId);
+
+      print('   currentUserId: $currentUserId');
+      print('   sellerId: $sellerId');
+
+      if (currentUserId == sellerId) {
+        print('   ❌ Usuario intentando calificar a sí mismo');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No puedes calificar tu propio producto"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      print('   🚀 Enviando calificación al backend...');
+
+      await _ratingService.rateSeller(
+        sellerId: sellerId,
+        puntuacion: _userRating,
+        comentario: "",
+      );
+
+      print(
+          '   ✅ Calificación enviada exitosamente, actualizando reputación...');
+
+      await _loadSellerReputation();
+
+      setState(() {
+        _userRating = 0;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("¡Gracias por valorar con $_userRating estrellas!"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      String errorMessage = e.toString();
+      print('❌ Error capturado: $errorMessage');
+      print('❌ Tipo de error: ${e.runtimeType}');
+
+      // 🔥 ORDEN CORRECTO: Primero verificar códigos de error específicos
+      if (errorMessage.contains('ERROR_CODE:NO_TRANSACTION_ERROR') ||
+          errorMessage.contains('NO_TRANSACTION_ERROR')) {
+        print('   🎯 Detectado: NO_TRANSACTION_ERROR');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Debes haber realizado una transacción con este vendedor para poder calificarlo"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      if (errorMessage.contains('ERROR_CODE:ALREADY_RATED_TRANSACTION_ERROR') ||
+          errorMessage.contains('ALREADY_RATED_TRANSACTION_ERROR')) {
+        print('   🎯 Detectado: ALREADY_RATED_TRANSACTION_ERROR');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Ya has calificado esta transacción específica con este vendedor"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Verificar usando regex para extraer código de error
+      RegExp regExp = RegExp(r'ERROR_CODE:([^:]+):(.+)');
+      Match? match = regExp.firstMatch(errorMessage);
+
+      if (match != null) {
+        String errorCode = match.group(1) ?? '';
+        String actualErrorMessage = match.group(2) ?? errorMessage;
+
+        print('   🔍 Código de error extraído: $errorCode');
+        print('   🔍 Mensaje de error: $actualErrorMessage');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(actualErrorMessage),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // 🔥 AHORA SÍ: Verificar errores genéricos (DESPUÉS de los específicos)
+      if (errorMessage.contains('sin haber realizado una transacción')) {
+        print('   🎯 Detectado por mensaje: sin transacción');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Debes haber realizado una transacción con este vendedor para poder calificarlo"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      if (errorMessage.contains('ya has calificado')) {
+        print('   🎯 Detectado por mensaje: ya calificado');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Ya has calificado esta transacción específica con este vendedor"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Error genérico
+      print('   ⚠️ Error no identificado, mostrando mensaje genérico');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al enviar calificación: $errorMessage"),
+          backgroundColor: Colors.red,
         ),
       );
     }
   }
 
-  // 💬 Contactar vendedor - abrir chat
   Future<void> _contactSeller() async {
     try {
-      // Verificar que el usuario esté logueado
       final currentUser = await _authService.getCurrentUser();
       if (currentUser == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -47,10 +238,9 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
         return;
       }
 
-      // Verificar que no sea el mismo usuario
       final currentUserId = currentUser['id'];
       final sellerId = int.parse(widget.product.sellerId);
-      
+
       if (currentUserId == sellerId) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -61,21 +251,19 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
         return;
       }
 
-      // Cerrar el modal y abrir el chat
-      Navigator.pop(context); // Cerrar el modal del producto
-      
-      // Abrir el chat con el vendedor
+      Navigator.pop(context);
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ChatPage(
             userName: widget.product.sellerName ?? 'Vendedor',
-            avatar: widget.product.sellerAvatar ?? 'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg',
+            avatar: widget.product.sellerAvatar ??
+                'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg    ',
             destinatarioId: sellerId,
           ),
         ),
       );
-      
     } catch (e) {
       print('❌ Error contactando vendedor: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,86 +275,134 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     }
   }
 
-  // ✅ Mostrar diálogo para reportar producto (ahora con backend real)
   void _showReportDialog(BuildContext context) {
     final TextEditingController reasonController = TextEditingController();
+    String reportType = 'producto'; // por defecto
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Reportar producto"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Por favor, indica el motivo del reporte:",
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  hintText:
-                      "Ejemplo: Contenido inapropiado o información falsa",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text("Cancelar"),
-              onPressed: () => Navigator.pop(context),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                final reason = reasonController.text.trim();
-                if (reason.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("Por favor ingresa un motivo.")),
-                  );
-                  return;
-                }
-
-                try {
-                  final productoId = int.parse(widget.product.id);
-                  // ✅ Llamada real al servicio
-                  await ReportService().reportProduct(productoId, reason);
-
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        "Reporte enviado correctamente para el producto ${productoId}.",
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text("Reportar"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("Selecciona qué deseas reportar:"),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Row(
+                        children: [
+                          Radio<String>(
+                            value: 'producto',
+                            groupValue: reportType,
+                            onChanged: (value) {
+                              setDialogState(() {
+                                reportType = value!;
+                              });
+                            },
+                          ),
+                          const Text(
+                            "Producto",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
                       ),
+                      Row(
+                        children: [
+                          Radio<String>(
+                            value: 'usuario',
+                            groupValue: reportType,
+                            onChanged: (value) {
+                              setDialogState(() {
+                                reportType = value!;
+                              });
+                            },
+                          ),
+                          const Text(
+                            "Usuario",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: "Motivo del reporte",
+                      border: OutlineInputBorder(),
                     ),
-                  );
-                } catch (e) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content:
-                          Text("Error al enviar el reporte: ${e.toString()}"),
-                    ),
-                  );
-                }
-              },
-              child: const Text("Enviar"),
-            ),
-          ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text("Cancelar"),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text("Por favor ingresa un motivo.")),
+                      );
+                      return;
+                    }
+
+                    try {
+                      if (reportType == 'producto') {
+                        final productoId = int.parse(widget.product.id);
+                        await ReportService().reportProduct(productoId, reason);
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                "Reporte enviado correctamente para el producto ${widget.product.title}."),
+                          ),
+                        );
+                      } else {
+                        final usuarioId = int.parse(widget.product.sellerId);
+                        await ReportService().reportUser(usuarioId, reason);
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                "Reporte enviado correctamente para el usuario ${widget.product.sellerName}."),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              "Error al enviar el reporte: ${e.toString()}"),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text("Enviar"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  // ✅ Imagen con fallback
   Widget _buildModalImage() {
     if (widget.product.imageUrl == null || widget.product.imageUrl!.isEmpty) {
       return Image.asset(
@@ -239,14 +475,11 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ Imagen del producto
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: _buildModalImage(),
                 ),
                 const SizedBox(height: 16),
-
-                // 🏷️ Título
                 Text(
                   widget.product.title,
                   style: const TextStyle(
@@ -256,8 +489,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   ),
                 ),
                 const SizedBox(height: 8),
-
-                // 💲 Precio
                 Text(
                   "\$${widget.product.price.toStringAsFixed(0)}",
                   style: const TextStyle(
@@ -267,28 +498,71 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                // 📝 Descripción
                 Text(
                   widget.product.description,
                   style: const TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 16),
 
-                // ⭐ Promedio y reseñas
-                Row(
-                  children: [
-                    Icon(Icons.star, color: Colors.amber.shade700, size: 20),
-                    const SizedBox(width: 4),
-                    Text(
-                      "${widget.product.rating} (${widget.product.reviewCount} reseñas)",
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
+                // Sección de reputación del vendedor
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Reputación del vendedor:",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.azulOscuro,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_isLoadingReputation)
+                        const Row(
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text("Cargando reputación..."),
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.star,
+                              color: _sellerReputation > 0
+                                  ? Colors.amber.shade700
+                                  : Colors.grey,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _sellerReputation > 0
+                                  ? "${_sellerReputation.toStringAsFixed(1)}/5.0"
+                                  : "Sin calificaciones",
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
 
-                // ⭐ Valoración interactiva
+                // Sección de calificación del usuario
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -335,8 +609,6 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   ],
                 ),
                 const SizedBox(height: 24),
-
-                // 👤 Ver perfil del vendedor
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -354,7 +626,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                       radius: 20,
                       backgroundImage: NetworkImage(
                         widget.product.sellerAvatar ??
-                            "https://via.placeholder.com/150",
+                            "https://via.placeholder.com/150    ",
                       ),
                     ),
                     label: Text(
@@ -375,10 +647,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     },
                   ),
                 ),
-
                 const SizedBox(height: 16),
-
-                // 💬 Contactar vendedor
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -395,10 +664,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
-                // 🛑 Reportar producto
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -412,7 +678,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     ),
                     icon: const Icon(Icons.flag_outlined),
                     label: const Text(
-                      "Reportar producto",
+                      "Reportar",
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),

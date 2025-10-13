@@ -301,6 +301,74 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> rateSeller({
+    required int sellerId,
+    required int puntuacion,
+    String? comentario,
+  }) async {
+    print('🔍 ApiClient.rateSeller - Parámetros:');
+    print('   sellerId: $sellerId');
+    print('   puntuacion: $puntuacion');
+    print('   comentario: $comentario');
+    print('   token actual: $_token');
+
+    final url = Uri.parse('$baseUrl/api/users/rate/$sellerId');
+    print('   URL completa: $url');
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      },
+      body: jsonEncode({
+        'puntuacion': puntuacion,
+        'comentario': comentario ?? '',
+      }),
+    );
+
+    print('   📡 Response status: ${response.statusCode}');
+    print('   📡 Response body: ${response.body}');
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final data = jsonDecode(response.body);
+      print('   ✅ Response  $data');
+      return data;
+    } else {
+      print('   ❌ Error HTTP: ${response.statusCode}');
+      print('   ❌ Response body: ${response.body}');
+
+      // Extraer el mensaje de error del cuerpo JSON
+      try {
+        final errorBody = jsonDecode(response.body);
+        final errorMessage =
+            errorBody['error']?['message'] ?? 'Error desconocido';
+        final errorCode = errorBody['error']?['code'] ?? 'UNKNOWN_ERROR';
+
+        print('   ❌ Error code: $errorCode');
+        print('   ❌ Error message: $errorMessage');
+
+        // Lanzar una excepción con el código de error en el mensaje
+        throw Exception('ERROR_CODE:$errorCode:$errorMessage');
+      } catch (e) {
+        // 🔥 CAMBIO AQUÍ: Si ya tiene formato ERROR_CODE, propagarlo sin modificar
+        if (e.toString().contains('ERROR_CODE:')) {
+          print('   ✅ Error con formato correcto, propagando: $e');
+          rethrow;
+        }
+
+        print('   ❌ Error parsing response body: $e');
+        throw Exception('Error al calificar vendedor: ${response.statusCode}');
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> getSellerRatings(int sellerId) async {
+    final url = Uri.parse('$baseUrl/api/users/$sellerId/ratings');
+    final response = await http.get(url, headers: _headers);
+    return _handleResponse(response);
+  }
+
   // PRODUCT ENDPOINTS
 
   // ✅ NUEVO: Obtener productos reales de la BD

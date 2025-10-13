@@ -39,6 +39,35 @@ class ReportService {
     }
   }
 
+  /// Enviar reporte de usuario
+  Future<Map<String, dynamic>> reportUser(
+      int usuarioReportadoId, String motivo) async {
+    try {
+      final token = await _storage.read(key: 'session_token');
+      if (token == null) throw Exception('No se encontró token de sesión');
+
+      final data = await _apiClient.reportUser(
+        usuarioReportadoId: usuarioReportadoId,
+        motivo: motivo,
+      );
+      print('✅ Reporte de usuario enviado correctamente: $data');
+      return data;
+    } catch (e) {
+      print('❌ Error en ReportService.reportUser: $e');
+      rethrow;
+    }
+  }
+
+  Future<List<dynamic>> getReportStates() async {
+    try {
+      final estados = await _apiClient.getReportStatuses();
+      return estados;
+    } catch (e) {
+      print('❌ Error en ReportService.getReportStates: $e');
+      return [];
+    }
+  }
+
   /// Obtener mis reportes (opcional)
   Future<List<dynamic>> getMyReports() async {
     try {

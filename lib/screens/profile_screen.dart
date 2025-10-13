@@ -18,12 +18,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
-  
+
   // Datos del usuario (obtenidos del backend)
   String _userName = 'Usuario';
   String _userEmail = 'usuario@ejemplo.com';
   String? _userPhotoUrl;
-  
+
   // Campos editables
   String _apellido = '';
   String _usuario = '';
@@ -35,12 +35,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadUserData();
-  }  // Cargar datos del usuario desde el backend
+  } // Cargar datos del usuario desde el backend
+
   Future<void> _loadUserData() async {
     try {
       print('🔍 Cargando datos del perfil desde backend...');
       final authService = AuthService();
-      
+
       // Obtener datos del usuario actual desde AuthService
       final currentUser = authService.currentUser;
       if (currentUser != null) {
@@ -67,7 +68,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           });
         }
       }
-      
     } catch (e) {
       print('❌ Error cargando datos del usuario: $e');
       setState(() {
@@ -82,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print('🏁 Carga de perfil completada');
     }
   }
+
   // Método para refrescar los datos del usuario (simplificado)
   Future<void> _refreshUserData() async {
     print('🔄 Refrescando datos del perfil...');
@@ -111,12 +112,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildProfileHeader(),
 
                 const SizedBox(height: 20),
-                  // Información personal
+                // Información personal
                 _buildInfoSection(
                   title: 'Información Personal',
                   items: [
-                    _buildInfoItem(
-                        Icons.person, 'Nombre completo', _userName),
+                    _buildInfoItem(Icons.person, 'Nombre completo', _userName),
                     _buildInfoItem(Icons.email, 'Email', _userEmail),
                     _buildActionItem(
                       icon: Icons.refresh,
@@ -124,11 +124,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: AppColors.azulPrimario,
                       onTap: _refreshUserData,
                     ),
-                    _buildEditableInfoItem(Icons.person_outline, 'Apellido', _apellido, () => _editField('apellido')),
-                    _buildEditableInfoItem(Icons.account_circle, 'Usuario', _usuario, () => _editField('usuario')),
-                    _buildEditableInfoItem(Icons.school, 'Campus', _campus, () => _editField('campus')),
-                    _buildEditableInfoItem(Icons.phone, 'Teléfono', _telefono ?? 'No especificado', () => _editField('teléfono')),
-                    _buildEditableInfoItem(Icons.location_on, 'Dirección', _direccion ?? 'No especificada', () => _editField('dirección')),
+                    _buildEditableInfoItem(Icons.person_outline, 'Apellido',
+                        _apellido, () => _editField('apellido')),
+                    _buildEditableInfoItem(Icons.account_circle, 'Usuario',
+                        _usuario, () => _editField('usuario')),
+                    _buildEditableInfoItem(Icons.school, 'Campus', _campus,
+                        () => _editField('campus')),
+                    _buildEditableInfoItem(
+                        Icons.phone,
+                        'Teléfono',
+                        _telefono ?? 'No especificado',
+                        () => _editField('teléfono')),
+                    _buildEditableInfoItem(
+                        Icons.location_on,
+                        'Dirección',
+                        _direccion ?? 'No especificada',
+                        () => _editField('dirección')),
                   ],
                 ),
 
@@ -162,7 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 16),                // Opciones de cuenta
+                const SizedBox(height: 16), // Opciones de cuenta
                 _buildInfoSection(
                   title: 'Mi Cuenta',
                   items: [
@@ -171,17 +182,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: 'Mis Favoritos',
                       color: AppColors.error,
                       onTap: () => _navigateToSection(context, 2),
-                    ),                    _buildActionItem(
+                    ),
+                    _buildActionItem(
                       icon: Icons.notifications,
                       title: 'Notificaciones',
                       color: AppColors.amarilloPrimario,
-                      onTap: () => _showFeatureMessage(context, 'Notificaciones'),
+                      onTap: () =>
+                          _showFeatureMessage(context, 'Notificaciones'),
                     ),
                     _buildActionItem(
                       icon: Icons.help_outline,
                       title: 'Ayuda y Soporte',
                       color: AppColors.azulPrimario,
-                      onTap: () => _showFeatureMessage(context, 'Ayuda y Soporte'),
+                      onTap: () =>
+                          _showFeatureMessage(context, 'Ayuda y Soporte'),
                     ),
                     _buildActionItem(
                       icon: Icons.logout,
@@ -226,7 +240,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       child: Column(
-        children: [          Container(
+        children: [
+          Container(
             width: 100,
             height: 100,
             decoration: BoxDecoration(
@@ -241,28 +256,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            child: _userPhotoUrl != null 
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(50),
-                  child: Image.network(
-                    _userPhotoUrl!,
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.person,
-                        size: 60,
-                        color: AppColors.azulPrimario,
-                      );
-                    },
+            child: _userPhotoUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(50),
+                    child: Image.network(
+                      _userPhotoUrl!,
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.person,
+                          size: 60,
+                          color: AppColors.azulPrimario,
+                        );
+                      },
+                    ),
+                  )
+                : const Icon(
+                    Icons.person,
+                    size: 60,
+                    color: AppColors.azulPrimario,
                   ),
-                )
-              : const Icon(
-                  Icons.person,
-                  size: 60,
-                  color: AppColors.azulPrimario,
-                ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -413,9 +428,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   String _formatCLP(num value) {
-    final format = NumberFormat.currency(locale: 'es_CL', symbol: ' 24', decimalDigits: 0);
+    final format =
+        NumberFormat.currency(locale: 'es_CL', symbol: ' 24', decimalDigits: 0);
     // Elimina el espacio y el símbolo CLP si lo agrega
-    return format.format(value).replaceAll('CLP', '').replaceAll(' a0', '').trim();
+    return format
+        .format(value)
+        .replaceAll('CLP', '')
+        .replaceAll(' a0', '')
+        .trim();
   }
 
   Widget _buildOrderItem({
@@ -571,12 +591,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: const Text('Confirmar'),
             ),
           ],
-        );      },
+        );
+      },
     );
   }
 
   // Widget para campos editables
-  Widget _buildEditableInfoItem(IconData icon, String label, String value, VoidCallback onEdit) {
+  Widget _buildEditableInfoItem(
+      IconData icon, String label, String value, VoidCallback onEdit) {
     return InkWell(
       onTap: onEdit,
       child: Padding(
@@ -615,7 +637,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-  }  // Método auxiliar para obtener el valor actual de un campo
+  } // Método auxiliar para obtener el valor actual de un campo
+
   String _getCurrentValue(String fieldType) {
     switch (fieldType) {
       case 'apellido':
@@ -636,7 +659,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // Método para editar campos
   void _editField(String fieldType) {
     String currentValue = _getCurrentValue(fieldType);
-    TextEditingController controller = TextEditingController(text: currentValue);
+    TextEditingController controller =
+        TextEditingController(text: currentValue);
 
     showDialog(
       context: context,
@@ -649,7 +673,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (fieldType == 'campus') ...[
                 const Text(
                   'Selecciona tu campus:',
-                  style: TextStyle(fontSize: 14, color: AppColors.textoSecundario),
+                  style:
+                      TextStyle(fontSize: 14, color: AppColors.textoSecundario),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -659,11 +684,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     labelText: 'Campus',
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'Campus Temuco', child: Text('Campus Temuco - Sede Principal')),
-                    DropdownMenuItem(value: 'Campus Norte', child: Text('Campus Norte UCT')),
-                    DropdownMenuItem(value: 'Campus San Francisco', child: Text('Campus San Francisco')),
-                    DropdownMenuItem(value: 'Campus Menchaca Lira', child: Text('Campus Menchaca Lira')),
-                    DropdownMenuItem(value: 'Campus Rivas del Canto', child: Text('Campus Rivas del Canto')),
+                    DropdownMenuItem(
+                        value: 'Campus Temuco',
+                        child: Text('Campus Temuco - Sede Principal')),
+                    DropdownMenuItem(
+                        value: 'Campus Norte', child: Text('Campus Norte UCT')),
+                    DropdownMenuItem(
+                        value: 'Campus San Francisco',
+                        child: Text('Campus San Francisco')),
+                    DropdownMenuItem(
+                        value: 'Campus Menchaca Lira',
+                        child: Text('Campus Menchaca Lira')),
+                    DropdownMenuItem(
+                        value: 'Campus Rivas del Canto',
+                        child: Text('Campus Rivas del Canto')),
                   ],
                   onChanged: (value) {
                     controller.text = value ?? 'Campus Temuco';
@@ -674,17 +708,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),                  labelText: fieldType == 'teléfono' ? 'Número de teléfono' : 
-                           fieldType == 'apellido' ? 'Apellido' :
-                           fieldType == 'usuario' ? 'Nombre de usuario' :
-                           fieldType == 'campus' ? 'Campus' : 'Dirección',
-                  hintText: fieldType == 'teléfono' ? '+56 9 1234 5678' : 
-                          fieldType == 'apellido' ? 'Ej: García' :
-                          fieldType == 'usuario' ? 'Ej: juan_garcia' :
-                          fieldType == 'campus' ? 'Campus Temuco' : 
-                          'Ej: Av. Alemania 0211, Temuco',
+                  border: const OutlineInputBorder(),
+                  labelText: fieldType == 'teléfono'
+                      ? 'Número de teléfono'
+                      : fieldType == 'apellido'
+                          ? 'Apellido'
+                          : fieldType == 'usuario'
+                              ? 'Nombre de usuario'
+                              : fieldType == 'campus'
+                                  ? 'Campus'
+                                  : 'Dirección',
+                  hintText: fieldType == 'teléfono'
+                      ? '+56 9 1234 5678'
+                      : fieldType == 'apellido'
+                          ? 'Ej: García'
+                          : fieldType == 'usuario'
+                              ? 'Ej: juan_garcia'
+                              : fieldType == 'campus'
+                                  ? 'Campus Temuco'
+                                  : 'Ej: Av. Alemania 0211, Temuco',
                 ),
-                keyboardType: fieldType == 'teléfono' ? TextInputType.phone : TextInputType.text,
+                keyboardType: fieldType == 'teléfono'
+                    ? TextInputType.phone
+                    : TextInputType.text,
               ),
             ],
           ),
@@ -692,34 +738,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
-            ),            TextButton(
+            ),
+            TextButton(
               onPressed: () async {
                 // Cerrar el diálogo INMEDIATAMENTE
                 Navigator.of(context).pop();
-                
+
                 // Luego ejecutar la actualización
                 await _saveField(fieldType, controller.text.trim());
               },
               child: const Text('Guardar'),
             ),
           ],
-        );      },
+        );
+      },
     );
-  }  // Método para obtener el valor correcto del dropdown de campus
+  } // Método para obtener el valor correcto del dropdown de campus
+
   String _getCampusDropdownValue() {
     final campusOptions = [
       'Campus Temuco',
       'Campus Norte',
-      'Campus San Francisco', 
+      'Campus San Francisco',
       'Campus Menchaca Lira',
       'Campus Rivas del Canto'
     ];
-    
+
     if (campusOptions.contains(_campus)) {
       return _campus;
     }
     return 'Campus Temuco';
-  }  // Método para guardar un campo editado
+  } // Método para guardar un campo editado
+
   Future<void> _saveField(String fieldType, String newValue) async {
     try {
       print('🔄 Iniciando actualización de $fieldType: $newValue');
@@ -728,17 +778,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final authService = AuthService();
       final token = await authService.getToken();
       final currentUser = authService.currentUser;
-      
+
       print('🔑 Token disponible: ${token != null ? 'SÍ' : 'NO'}');
       print('👤 Usuario actual: ${currentUser?.name ?? 'NINGUNO'}');
-      
+
       if (token == null) {
-        throw Exception('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
+        throw Exception(
+            'No hay token de autenticación. Por favor, inicia sesión nuevamente.');
       }
 
       // Llamar al backend para actualizar
       final apiClient = authService.apiClient;
-      
+
       // Crear el objeto de actualización con solo el campo que cambió
       Map<String, String?> updateParams = {};
       switch (fieldType) {
@@ -747,7 +798,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           break;
         case 'usuario':
           updateParams['usuario'] = newValue;
-          break; 
+          break;
         case 'campus':
           updateParams['campus'] = newValue;
           break;
@@ -768,7 +819,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       print('✅ Respuesta del servidor: $response');
-      
+
       // Solo actualizar localmente si la llamada al backend fue exitosa
       if (mounted) {
         setState(() {
@@ -790,9 +841,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               break;
           }
         });
-        
+
         print('💾 Campo $fieldType actualizado en backend');
-        
+
         // Mensaje específico con el valor actualizado
         String mensaje = _getUpdateMessage(fieldType, newValue);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -805,11 +856,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       print('❌ Error actualizando $fieldType: $e');
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error actualizando $fieldType: ${_getErrorMessage(e.toString())}'),
+            content: Text(
+                'Error actualizando $fieldType: ${_getErrorMessage(e.toString())}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -817,11 +869,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
+
   // Función para generar mensajes específicos de actualización
   String _getUpdateMessage(String fieldType, String newValue) {
     switch (fieldType) {
       case 'apellido':
-        return newValue.isEmpty 
+        return newValue.isEmpty
             ? 'Apellido eliminado correctamente'
             : 'Apellido actualizado a: $newValue';
       case 'usuario':
@@ -829,24 +882,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 'campus':
         return 'Campus actualizado a: $newValue';
       case 'teléfono':
-        return newValue.isEmpty 
+        return newValue.isEmpty
             ? 'Teléfono eliminado correctamente'
             : 'Teléfono actualizado a: $newValue';
       case 'dirección':
-        return newValue.isEmpty 
+        return newValue.isEmpty
             ? 'Dirección eliminada correctamente'
             : 'Dirección actualizada a: $newValue';
       default:
         return '$fieldType actualizado correctamente';
-    }  }
+    }
+  }
 
   // Función para generar mensajes de error más claros
   String _getErrorMessage(String error) {
     if (error.contains('USERNAME_TAKEN')) {
       return 'El nombre de usuario ya está en uso';
-    } else if (error.contains('TOKEN_INVALID') || error.contains('TOKEN_REQUIRED')) {
+    } else if (error.contains('TOKEN_INVALID') ||
+        error.contains('TOKEN_REQUIRED')) {
       return 'Sesión expirada. Por favor, inicia sesión nuevamente';
-    } else if (error.contains('Connection refused') || error.contains('NetworkException')) {
+    } else if (error.contains('Connection refused') ||
+        error.contains('NetworkException')) {
       return 'Sin conexión al servidor';
     } else if (error.contains('VALIDATION_ERROR')) {
       return 'Datos inválidos';

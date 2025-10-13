@@ -441,6 +441,7 @@ class ProductService {
       );
     }
 
+  
     final firstProduct = sellerProducts.first;
     final totalSales = sellerProducts.length;
     final activeListings = sellerProducts.where((p) => p.isAvailable).length;

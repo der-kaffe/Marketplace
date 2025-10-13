@@ -60,7 +60,7 @@ router.post(
                 });
             }
 
-            // Si se reporta un producto, verificar que existe
+            // Validar existencia del producto
             if (productoId) {
                 const producto = await prisma.productos.findUnique({
                     where: { id: Number(productoId) },
@@ -73,7 +73,6 @@ router.post(
                     });
                 }
 
-                // Validar que no se reporte su propio producto
                 if (producto.vendedorId === reportanteId) {
                     return res.status(400).json({
                         ok: false,
@@ -82,7 +81,7 @@ router.post(
                 }
             }
 
-            // Si se reporta un usuario, verificar que existe
+            // Validar existencia del usuario reportado
             if (usuarioReportadoId) {
                 const usuario = await prisma.cuentas.findUnique({
                     where: { id: Number(usuarioReportadoId) },
@@ -96,15 +95,13 @@ router.post(
                 }
             }
 
-            // Verificar si ya existe un reporte similar pendiente
+            // Evitar reportes duplicados pendientes
             const reporteExistente = await prisma.reportes.findFirst({
                 where: {
                     reportanteId,
                     ...(productoId && { productoId: Number(productoId) }),
-                    ...(usuarioReportadoId && {
-                        usuarioReportadoId: Number(usuarioReportadoId),
-                    }),
-                    estadoId: 1, // Estado "Pendiente"
+                    ...(usuarioReportadoId && { usuarioReportadoId: Number(usuarioReportadoId) }),
+                    estadoId: 1, // Pendiente
                 },
             });
 
@@ -120,36 +117,14 @@ router.post(
                 data: {
                     reportanteId,
                     productoId: productoId ? Number(productoId) : null,
-                    usuarioReportadoId: usuarioReportadoId
-                        ? Number(usuarioReportadoId)
-                        : null,
+                    usuarioReportadoId: usuarioReportadoId ? Number(usuarioReportadoId) : null,
                     motivo,
-                    estadoId: 1, // Estado "Pendiente" por defecto
+                    estadoId: 1, // Pendiente
                 },
                 include: {
-                    reportante: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                            apellido: true,
-                            correo: true,
-                        },
-                    },
-                    producto: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                            vendedorId: true,
-                        },
-                    },
-                    usuarioReportado: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                            apellido: true,
-                            correo: true,
-                        },
-                    },
+                    reportante: { select: { id: true, nombre: true, apellido: true, correo: true } },
+                    producto: { select: { id: true, nombre: true, vendedorId: true } },
+                    usuarioReportado: { select: { id: true, nombre: true, apellido: true, correo: true } },
                     estado: true,
                 },
             });
@@ -177,15 +152,11 @@ router.post(
             });
         } catch (error) {
             console.error('❌ Error creando reporte:', error);
-            res.status(500).json({
-                ok: false,
-                message: 'Error interno del servidor',
-                error:
-                    process.env.NODE_ENV === 'development' ? error.message : undefined,
-            });
+            res.status(500).json({ ok: false, message: 'Error interno del servidor' });
         }
     }
 );
+
 
 // ==========================================
 // GET /api/reports - Listar reportes (Admin)
