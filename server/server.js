@@ -15,6 +15,7 @@ const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const publicationsRoutes = require('./routes/publications');
 const chatRoutes = require('./routes/chat');
+const uploadRoutes = require('./routes/upload');
 const favoritesRoutes = require('./routes/favorites');
 const reportsRoutes = require('./routes/reports');
 
@@ -135,6 +136,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/publications', publicationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api', uploadRoutes);
 
 const adminRoutes = require('./routes/admin');
 app.use('/api/admin', adminRoutes);
@@ -164,9 +166,13 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
   console.log(`🔌 Usuario conectado: ${socket.userName} (ID: ${socket.userId})`);
+  console.log(`🔌 Socket ID: ${socket.id}`);
   
   // Guardar la conexión del usuario
   connectedUsers.set(socket.userId, socket.id);
+  
+  console.log(`👥 Usuarios conectados ahora:`, Array.from(connectedUsers.keys()));
+  console.log(`📋 Map de conexiones:`, Object.fromEntries(connectedUsers));
   
   // Unir al usuario a una sala personal
   socket.join(`user_${socket.userId}`);
@@ -180,7 +186,16 @@ io.on('connection', (socket) => {
   // Manejar envío de mensajes
   socket.on('send_message', async (data) => {
     try {
+      console.log('📨 Evento send_message recibido:', data);
+      console.log('👤 Usuario remitente:', socket.userId, socket.userName);
+      
       const { destinatarioId, contenido, tipo = 'texto' } = data;
+      
+      if (!destinatarioId || !contenido) {
+        console.log('❌ Datos incompletos:', { destinatarioId, contenido });
+        socket.emit('message_error', { error: 'Datos incompletos' });
+        return;
+      }
       
       // Guardar mensaje en la base de datos
       const { prisma } = require('./config/database');
@@ -189,7 +204,7 @@ io.on('connection', (socket) => {
           remitenteId: socket.userId,
           destinatarioId: parseInt(destinatarioId),
           contenido,
-          tipo
+          tipo: tipo || 'texto'
         },
         include: {
           remitente: { select: { id: true, nombre: true, usuario: true } },
@@ -197,17 +212,33 @@ io.on('connection', (socket) => {
         }
       });
 
+      console.log('💾 Mensaje guardado en BD:', mensaje.id);
+
       // Enviar mensaje al destinatario si está conectado
-      const destinatarioSocketId = connectedUsers.get(parseInt(destinatarioId));
+      const destinatarioIdInt = parseInt(destinatarioId);
+      const destinatarioSocketId = connectedUsers.get(destinatarioIdInt);
+      
+      console.log(`📤 Enviando mensaje:`);
+      console.log(`   - DestinatarioId: ${destinatarioId} (${destinatarioIdInt})`);
+      console.log(`   - DestinatarioSocketId: ${destinatarioSocketId}`);
+      console.log(`   - Usuarios conectados:`, Array.from(connectedUsers.keys()));
+      console.log(`   - Map completo:`, Object.fromEntries(connectedUsers));
+      
       if (destinatarioSocketId) {
+        console.log(`✅ Enviando mensaje a destinatario conectado: ${destinatarioSocketId}`);
         io.to(destinatarioSocketId).emit('new_message', mensaje);
+        console.log(`📤 Evento new_message emitido al socket: ${destinatarioSocketId}`);
+      } else {
+        console.log(`⚠️ Destinatario ${destinatarioId} no está conectado`);
+        console.log(`🔍 Buscando en connectedUsers:`, connectedUsers.has(destinatarioIdInt));
       }
 
       // Confirmar envío al remitente
       socket.emit('message_sent', mensaje);
+      console.log(`✅ Confirmación enviada al remitente: ${socket.userId}`);
       
     } catch (error) {
-      console.error('Error enviando mensaje:', error);
+      console.error('❌ Error enviando mensaje:', error);
       socket.emit('message_error', { error: 'Error enviando mensaje' });
     }
   });
