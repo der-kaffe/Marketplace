@@ -143,7 +143,6 @@ app.use('/api/admin', adminRoutes);
 
 app.use('/api/reports', reportsRoutes);
 
-
 // WebSocket para chat en tiempo real
 const connectedUsers = new Map(); // userId -> socketId
 

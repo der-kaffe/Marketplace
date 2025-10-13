@@ -19,6 +19,7 @@ import '../../screens/admin_menu_page.dart';
 import '../../screens/admin_users_page.dart';
 import '../../screens/admin_reports_page.dart';
 import '../../screens/admin_report_detail_page.dart';
+import '../../screens/admin_metrics_page.dart';
 
 // Services
 import '../../services/auth_service.dart';
@@ -141,6 +142,10 @@ class AppRouter {
               if (reportId == null) return const AdminReportsPage();
               return ReportDetailPage(reportId: reportId);
             },
+          ),
+          GoRoute(
+            path: 'metrics',
+            builder: (context, state) => const AdminMetricsPage(),
           ),
         ],
       ),
