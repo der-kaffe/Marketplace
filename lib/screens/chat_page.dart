@@ -42,15 +42,18 @@ class ChatPage extends StatelessWidget {
                   },
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  userName,
-                  style: TextStyle(
-                    color: AppColors.blanco,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    userName,
+                    style: TextStyle(
+                      color: AppColors.blanco,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
-                const Spacer(),
                 IconButton(
                   icon: Icon(Icons.call, color: AppColors.blanco),
                   onPressed: () {},
