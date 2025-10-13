@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../models/product_model.dart';
 import '../models/seller_model.dart';
 import '../theme/app_colors.dart';
 import '../screens/seller_profile_page.dart';
+import '../screens/chat_page.dart';
 import '../services/product_service.dart';
 import '../services/report_service.dart'; // ✅ Import del nuevo servicio
+import '../services/auth_service.dart';
 
 class ProductDetailModal extends StatefulWidget {
   final Product product;
@@ -17,12 +20,68 @@ class ProductDetailModal extends StatefulWidget {
 
 class _ProductDetailModalState extends State<ProductDetailModal> {
   int _userRating = 0;
+  final AuthService _authService = AuthService();
 
   void _submitRating() {
     if (_userRating > 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("¡Gracias por valorar con $_userRating estrellas!"),
+        ),
+      );
+    }
+  }
+
+  // 💬 Contactar vendedor - abrir chat
+  Future<void> _contactSeller() async {
+    try {
+      // Verificar que el usuario esté logueado
+      final currentUser = await _authService.getCurrentUser();
+      if (currentUser == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Debes iniciar sesión para contactar al vendedor"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Verificar que no sea el mismo usuario
+      final currentUserId = currentUser['id'];
+      final sellerId = int.parse(widget.product.sellerId);
+      
+      if (currentUserId == sellerId) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No puedes contactarte a ti mismo"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Cerrar el modal y abrir el chat
+      Navigator.pop(context); // Cerrar el modal del producto
+      
+      // Abrir el chat con el vendedor
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatPage(
+            userName: widget.product.sellerName ?? 'Vendedor',
+            avatar: widget.product.sellerAvatar ?? 'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg',
+            destinatarioId: sellerId,
+          ),
+        ),
+      );
+      
+    } catch (e) {
+      print('❌ Error contactando vendedor: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error al contactar vendedor: $e"),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -328,12 +387,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Próximamente: contactar vendedor")),
-                      );
-                    },
+                    onPressed: _contactSeller,
                     icon: const Icon(Icons.chat_bubble_outline),
                     label: const Text(
                       "Contactar vendedor",

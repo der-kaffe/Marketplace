@@ -22,7 +22,8 @@ router.post('/send', authenticateToken, async (req, res) => {
       data: {
         remitenteId: req.user.userId,
         destinatarioId,
-        contenido
+        contenido,
+        tipo: 'texto'
       },
       include: {
         remitente: { select: { id: true, nombre: true, usuario: true } },
@@ -66,6 +67,8 @@ router.get('/conversacion/:usuarioId', authenticateToken, async (req, res) => {
 // 📋 Listar todas las conversaciones de un usuario
 router.get('/conversaciones', authenticateToken, async (req, res) => {
   try {
+    console.log('📋 Obteniendo conversaciones para usuario:', req.user.userId);
+    
     const mensajes = await prisma.Mensajes.findMany({
       where: {
         OR: [
@@ -80,17 +83,29 @@ router.get('/conversaciones', authenticateToken, async (req, res) => {
       }
     });
 
-    // Agrupar por usuario con el que habló
+    console.log(`📨 Total de mensajes encontrados: ${mensajes.length}`);
+
+    // Agrupar por usuario con el que habló, asegurando que sea el último mensaje
     const conversaciones = {};
     mensajes.forEach(msg => {
       const otroUsuario = msg.remitenteId === req.user.userId ? msg.destinatario : msg.remitente;
-      conversaciones[otroUsuario.id] = {
-        usuario: otroUsuario,
-        ultimoMensaje: msg
-      };
+      
+      // Solo agregar si no existe o si este mensaje es más reciente
+      if (!conversaciones[otroUsuario.id] || 
+          new Date(msg.fechaEnvio) > new Date(conversaciones[otroUsuario.id].ultimoMensaje.fechaEnvio)) {
+        conversaciones[otroUsuario.id] = {
+          usuario: otroUsuario,
+          ultimoMensaje: msg
+        };
+        
+        console.log(`👤 Conversación con ${otroUsuario.nombre}: último mensaje "${msg.contenido}" del ${msg.fechaEnvio}`);
+      }
     });
 
-    res.json({ ok: true, conversaciones: Object.values(conversaciones) });
+    const result = Object.values(conversaciones);
+    console.log(`✅ Conversaciones procesadas: ${result.length}`);
+    
+    res.json({ ok: true, conversaciones: result });
   } catch (error) {
     console.error('Error listando conversaciones:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });

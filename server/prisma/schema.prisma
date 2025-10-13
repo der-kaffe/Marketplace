@@ -219,6 +219,7 @@ model Mensajes {
   remitenteId    Int      @map("remitente_id")
   destinatarioId Int      @map("destinatario_id")
   contenido      String?  @db.Text
+  tipo           String   @default("texto") @db.VarChar(50)
   fechaEnvio     DateTime @default(now()) @map("fecha_envio")
   leido          Boolean  @default(false)
 

@@ -45,7 +45,8 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.search, color: AppColors.amarilloPrimario), onPressed: () {}),
+          if (_currentIndex == 0)
+            IconButton(icon: const Icon(Icons.search, color: AppColors.amarilloPrimario), onPressed: () {}),
           IconButton(
             icon: const Icon(Icons.notifications, color: AppColors.amarilloPrimario),
             onPressed: () {

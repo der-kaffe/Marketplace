@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 
 class ProductCard extends StatelessWidget {
@@ -153,7 +154,7 @@ class ProductCard extends StatelessWidget {
                       
                       // ✅ Precio que siempre se muestra completo
                       Text(
-                        '\$${price.toStringAsFixed(0)}',
+                        _formatCLP(price),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
@@ -228,5 +229,11 @@ class ProductCard extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _formatCLP(num value) {
+    final format = NumberFormat.currency(locale: 'es_CL', symbol: ' ', decimalDigits: 0);
+    // Elimina el espacio y el símbolo CLP si lo agrega
+    return format.format(value).replaceAll('CLP', '').replaceAll(' ', '').trim();
   }
 }

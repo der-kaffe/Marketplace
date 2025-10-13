@@ -406,6 +406,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
   // --- FIN ACTUALIZAR ---
 
+  // --- NUEVO: Búsqueda de productos por texto (ignora tildes/acentos) ---
+  String _normalizeText(String text) {
+    // Quita tildes/acentos y pasa a minúsculas
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[áàäâã]'), 'a')
+        .replaceAll(RegExp(r'[éèëê]'), 'e')
+        .replaceAll(RegExp(r'[íìïî]'), 'i')
+        .replaceAll(RegExp(r'[óòöôõ]'), 'o')
+        .replaceAll(RegExp(r'[úùüû]'), 'u')
+        .replaceAll(RegExp(r'ñ'), 'n');
+  }
+
+  void _searchProductsByText(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _applyCombinedFilter();
+      } else {
+        final normalizedQuery = _normalizeText(query);
+        _filteredProducts = _originalProducts.where((product) {
+          final titleNorm = _normalizeText(product.title);
+          final descNorm = _normalizeText(product.description);
+          return titleNorm.contains(normalizedQuery) || descNorm.contains(normalizedQuery);
+        }).toList();
+      }
+    });
+  }
+  // --- FIN NUEVO ---
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -427,6 +456,44 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: AppColors.azulPrimario,
+        elevation: 0,
+        title: SizedBox(
+          height: 44,
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Buscar productos...',
+              prefixIcon: const Icon(Icons.search, color: AppColors.azulPrimario),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.azulPrimario),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.azulPrimario),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.amarilloPrimario, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+            ),
+            onChanged: (value) {
+              _searchProductsByText(value);
+            },
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_alt, color: AppColors.amarilloPrimario),
+            onPressed: _showPriceFilterModal,
+            tooltip: 'Filtrar por precio',
+          ),
+        ],
+      ),
       backgroundColor: AppColors.fondoClaro,
       body: SingleChildScrollView(
         controller: _scrollController,
@@ -483,69 +550,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
-
-                  // --- SECCIÓN FILTROS ---
-                  // Mostrar botón de filtro de precio
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color:
-                                AppColors.azulPrimario.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_selectedCategoryName != null) ...[
-                                Text('Filtrando por: $_selectedCategoryName'),
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 18),
-                                  onPressed: _clearCategoryFilter,
-                                ),
-                                const VerticalDivider(width: 8),
-                              ],
-                              if (_precioMinimo != null ||
-                                  _precioMaximo != null) ...[
-                                Text('Precio:'),
-                                if (_precioMinimo != null)
-                                  Text(
-                                      ' \$${_precioMinimo!.toInt()}'), // Mostrar sin decimales
-                                if (_precioMinimo != null &&
-                                    _precioMaximo != null)
-                                  const Text(' - '),
-                                if (_precioMaximo != null)
-                                  Text(
-                                      ' \$${_precioMaximo!.toInt()}'), // Mostrar sin decimales
-                                IconButton(
-                                  icon: const Icon(Icons.close, size: 18),
-                                  onPressed: () {
-                                    setState(() {
-                                      // Este setState garantiza la actualización inmediata
-                                      _precioMinimo = null;
-                                      _precioMaximo = null;
-                                    });
-                                    _applyCombinedFilter(); // Aplica el filtro sin el rango
-                                  },
-                                ),
-                                const VerticalDivider(width: 8),
-                              ],
-                              const Spacer(),
-                              ElevatedButton.icon(
-                                onPressed: _showPriceFilterModal,
-                                icon: const Icon(Icons.filter_alt),
-                                label: const Text('Filtrar Precio'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  // --- FIN SECCIÓN FILTROS ---
 
                   if (!_isLoadingCategories && _apiCategories.isNotEmpty) ...[
                     const Text(
