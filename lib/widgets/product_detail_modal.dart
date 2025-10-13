@@ -82,6 +82,9 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       return;
     }
 
+    // 🔥 GUARDAR el valor ANTES de hacer CUALQUIER cosa
+    final ratingValue = _userRating;
+
     try {
       final currentUser = await _authService.getCurrentUser();
       print('   currentUser obtenido: ${currentUser != null}');
@@ -118,7 +121,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
 
       await _ratingService.rateSeller(
         sellerId: sellerId,
-        puntuacion: _userRating,
+        puntuacion: ratingValue, // 🔥 Usar ratingValue en lugar de _userRating
         comentario: "",
       );
 
@@ -131,9 +134,10 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
         _userRating = 0;
       });
 
+      // 🔥 USAR la variable guardada
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("¡Gracias por valorar con $_userRating estrellas!"),
+          content: Text("¡Gracias por valorar con $ratingValue estrellas!"),
           backgroundColor: Colors.green,
         ),
       );
@@ -259,7 +263,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
           builder: (context) => ChatPage(
             userName: widget.product.sellerName ?? 'Vendedor',
             avatar: widget.product.sellerAvatar ??
-                'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg    ',
+                'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg',
             destinatarioId: sellerId,
           ),
         ),
@@ -626,7 +630,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                       radius: 20,
                       backgroundImage: NetworkImage(
                         widget.product.sellerAvatar ??
-                            "https://via.placeholder.com/150    ",
+                            "https://via.placeholder.com/150",
                       ),
                     ),
                     label: Text(
