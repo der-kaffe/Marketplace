@@ -180,23 +180,54 @@ class _ConversationsPageState extends State<ConversationsPage> {
                         chat["name"],
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      subtitle: Text(
-                        chat["lastMessage"],
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: AppColors.textoOscuro),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            chat["lastMessage"],
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: AppColors.textoOscuro,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Text(
+                                chat["time"],
+                                style: TextStyle(
+                                  color: AppColors.grisOscuro,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (chat["isMe"])
+                                Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.azulPrimario.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    "Enviado",
+                                    style: TextStyle(
+                                      color: AppColors.azulPrimario,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                       trailing: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            chat["time"],
-                            style: TextStyle(
-                                color: AppColors.grisOscuro, fontSize: 12),
-                          ),
                           if (chat["unread"] > 0)
                             Container(
-                              margin: const EdgeInsets.only(top: 5),
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
                                 color: AppColors.azulPrimario,
