@@ -10,11 +10,13 @@ import 'services/chat_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Bloquear orientación horizontal (solo móvil)
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Bloquear orientación horizontal solo en móviles
+  if (!kIsWeb) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
 
   // Configuramos GoogleSignIn solo para Web
   final GoogleSignIn googleSignIn = GoogleSignIn(
