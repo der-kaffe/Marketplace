@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
     const currentPage = Math.max(1, parseInt(page) || 1);
     const currentLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
     
-    console.log(`📊 Obteniendo productos - Página: ${currentPage}, Límite: ${currentLimit}`);
+    //console.log(`📊 Obteniendo productos - Página: ${currentPage}, Límite: ${currentLimit}`);
     
     // Construir filtros para la nueva estructura
     const where = {
@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
     // ✅ SOLUCIÓN 2: Skip siempre positivo
     const skip = Math.max(0, (currentPage - 1) * currentLimit);
     
-    console.log(`🔢 Calculando skip: ${skip} = (${currentPage} - 1) * ${currentLimit}`);
+    //console.log(`🔢 Calculando skip: ${skip} = (${currentPage} - 1) * ${currentLimit}`);
 
     // Verificamos si hay usuario autenticado
     const user = req.user; // viene desde middleware de auth
@@ -88,7 +88,7 @@ router.get('/', async (req, res) => {
     // Obtener total para paginación
     const total = await prisma.productos.count({ where: whereClause });
 
-    console.log(`✅ Productos encontrados: ${products.length}/${total}`);
+    //console.log(`✅ Productos encontrados: ${products.length}/${total}`);
 
     // ✅ SOLUCIÓN 3: Conversión segura de tipos
     const formattedProducts = products.map(product => ({

@@ -10,7 +10,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isFavorite;
   final bool isAvailable;
-  final VoidCallback onToggleVisibility;
+  final VoidCallback? onToggleVisibility;
   final VoidCallback onToggleFavorite;
 
   const ProductCard({

@@ -148,6 +148,98 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ✅ NUEVO: Método para cambiar visibilidad (conectado al backend)
+  Future<void> _toggleProductVisibility(Product product) async {
+    try {
+      // 1. Obtener el ID numérico del producto
+      final productId = int.tryParse(product.id);
+      if (productId == null) {
+        throw Exception('ID de producto inválido');
+      }
+
+      // 2. Calcular nuevo estado
+      final newVisibility = !product.isAvailable;
+
+      // 3. Mostrar indicador de carga
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Actualizando visibilidad...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // 4. Llamar al backend
+      await _productService.toggleVisibility(
+        productId: productId,
+        visible: newVisibility,
+      );
+
+      // 5. Actualizar UI local solo si la petición fue exitosa
+      setState(() {
+        // Actualizar en _allProducts
+        final productIndex = _allProducts.indexWhere((p) => p.id == product.id);
+        if (productIndex != -1) {
+          _allProducts[productIndex] = product.copyWith(isAvailable: newVisibility);
+        }
+
+        // Actualizar en _originalProducts
+        final originalIndex = _originalProducts.indexWhere((p) => p.id == product.id);
+        if (originalIndex != -1) {
+          _originalProducts[originalIndex] = product.copyWith(isAvailable: newVisibility);
+        }
+
+        // Actualizar en _filteredProducts
+        final filteredIndex = _filteredProducts.indexWhere((p) => p.id == product.id);
+        if (filteredIndex != -1) {
+          _filteredProducts[filteredIndex] = product.copyWith(isAvailable: newVisibility);
+        }
+      });
+
+      // 6. Mostrar confirmación
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newVisibility 
+                ? '✅ Producto visible para todos' 
+                : '🔒 Producto oculto',
+            ),
+            backgroundColor: newVisibility ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      print('✅ Visibilidad actualizada: $newVisibility para producto #$productId');
+
+    } catch (e) {
+      // 7. Manejo de errores
+      print('❌ Error cambiando visibilidad: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   // Método para cargar productos (simula paginación)
   Future<void> _loadMoreProducts() async {
     if (_isLoadingProducts || _selectedCategoryName != null)
@@ -725,35 +817,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               imageUrl: product.imageUrl,
                               isFavorite: isFavorite,
                               isAvailable: product.isAvailable,
-                              onToggleVisibility: () {
-                                setState(() {
-                                  final productIndex =
-                                      _allProducts.indexOf(product);
-                                  if (productIndex != -1) {
-                                    _allProducts[productIndex] =
-                                        product.copyWith(
-                                            isAvailable: !product.isAvailable);
-                                  }
-                                  // Actualizar también en la lista filtrada si es necesario
-                                  final filteredIndex =
-                                      _filteredProducts.indexOf(product);
-                                  if (filteredIndex != -1) {
-                                    _filteredProducts[filteredIndex] =
-                                        _allProducts[productIndex];
-                                  }
-                                });
-                              },
-                              onToggleFavorite: () {
-                                _toggleFavorite(product);
-                              },
+                              // ✅ CAMBIAR: Usar el nuevo método conectado al backend
+                              onToggleVisibility: () => _toggleProductVisibility(product),
+                              onToggleFavorite: () => _toggleFavorite(product),
                               onTap: () {
                                 print('🆔 ID del producto: ${product.id}');
                                 showModalBottomSheet(
                                   context: context,
                                   isScrollControlled: true,
                                   backgroundColor: Colors.transparent,
-                                  builder: (_) =>
-                                      ProductDetailModal(product: product),
+                                  builder: (_) => ProductDetailModal(product: product),
                                 );
                               },
                             );
