@@ -203,7 +203,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/products - Crear producto
+// POST /api/products - Crear producto (CON AUTO-PROMOCIÓN A VENDEDOR)
 router.post('/', authenticateToken, [
   body('nombre').isLength({ min: 3 }).withMessage('Nombre debe tener al menos 3 caracteres'),
   body('descripcion').isLength({ min: 10 }).withMessage('Descripción debe tener al menos 10 caracteres'),
@@ -229,7 +229,7 @@ router.post('/', authenticateToken, [
       cantidad
     } = req.body;
 
-    // Verificar que la categoría existe
+    // ✅ PASO 1: Verificar que la categoría existe
     const categoria = await prisma.categorias.findUnique({
       where: { id: parseInt(categoriaId) }
     });
@@ -241,6 +241,45 @@ router.post('/', authenticateToken, [
       });
     }
 
+    // ✅ PASO 2: Obtener usuario actual con su rol
+    const usuario = await prisma.cuentas.findUnique({
+      where: { id: req.user.userId },
+      include: { rol: true }
+    });
+
+    if (!usuario) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // ✅ PASO 3: Auto-promoción a VENDEDOR si es CLIENTE
+    let roleChanged = false;
+    if (usuario.rol.nombre.toUpperCase() === 'CLIENTE') {
+      // Buscar el rol de VENDEDOR en la BD
+      const rolVendedor = await prisma.roles.findFirst({
+        where: { nombre: { equals: 'Vendedor', mode: 'insensitive' } }
+      });
+
+      if (!rolVendedor) {
+        return res.status(500).json({
+          ok: false,
+          message: 'Error: Rol de vendedor no encontrado en el sistema'
+        });
+      }
+
+      // Actualizar rol del usuario a VENDEDOR
+      await prisma.cuentas.update({
+        where: { id: usuario.id },
+        data: { rolId: rolVendedor.id }
+      });
+
+      roleChanged = true;
+      console.log(`✅ Usuario ${usuario.usuario} promovido a VENDEDOR`);
+    }
+
+    // ✅ PASO 4: Crear el producto
     const newProduct = await prisma.productos.create({
       data: {
         nombre,
@@ -251,6 +290,7 @@ router.post('/', authenticateToken, [
         vendedorId: req.user.userId,
         cantidad: cantidad ? parseInt(cantidad) : 1,
         estadoId: 1, // Estado "Disponible"
+        visible: true, // Visible por defecto
         calificacion: 0.0
       },
       include: {
@@ -260,24 +300,41 @@ router.post('/', authenticateToken, [
             id: true,
             nombre: true,
             apellido: true,
-            correo: true
+            correo: true,
+            usuario: true
           }
         },
         estado: true
       }
     });
 
+    // ✅ PASO 5: Respuesta exitosa
     res.status(201).json({
       ok: true,
-      message: 'Producto creado exitosamente',
-      product: newProduct
+      message: roleChanged 
+        ? '🎉 ¡Producto creado! Ahora eres VENDEDOR' 
+        : 'Producto creado exitosamente',
+      roleChanged,
+      newRole: roleChanged ? 'VENDEDOR' : usuario.rol.nombre.toUpperCase(),
+      product: {
+        id: newProduct.id,
+        nombre: newProduct.nombre,
+        descripcion: newProduct.descripcion,
+        precioActual: Number(newProduct.precioActual),
+        precioAnterior: newProduct.precioAnterior ? Number(newProduct.precioAnterior) : null,
+        categoria: newProduct.categoria?.nombre,
+        cantidad: newProduct.cantidad,
+        visible: newProduct.visible,
+        vendedor: newProduct.vendedor
+      }
     });
 
   } catch (error) {
     console.error('❌ Error creando producto:', error);
     res.status(500).json({
       ok: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -354,5 +411,228 @@ router.patch("/:id/visibility", authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/products/:id - Actualizar producto completo
+router.put('/:id', authenticateToken, [
+  body('nombre').optional().isLength({ min: 3 }).withMessage('Nombre debe tener al menos 3 caracteres'),
+  body('descripcion').optional().isLength({ min: 10 }).withMessage('Descripción debe tener al menos 10 caracteres'),
+  body('precioActual').optional().isFloat({ min: 0 }).withMessage('Precio debe ser un número positivo'),
+  body('categoriaId').optional().isInt({ min: 1 }).withMessage('Categoría inválida'),
+  body('cantidad').optional().isInt({ min: 0 }).withMessage('Cantidad debe ser un número entero positivo')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Datos de entrada inválidos',
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { 
+      nombre, 
+      descripcion, 
+      precioAnterior, 
+      precioActual,
+      categoriaId,
+      cantidad,
+      estadoId
+    } = req.body;
+
+    // ✅ PASO 1: Verificar que el producto existe
+    const productoExistente = await prisma.productos.findUnique({
+      where: { id: parseInt(id) },
+      include: { vendedor: true }
+    });
+
+    if (!productoExistente) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Producto no encontrado'
+      });
+    }
+
+    // ✅ PASO 2: Verificar permisos (solo el vendedor dueño o admin)
+    if (productoExistente.vendedorId !== req.user.userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        ok: false,
+        message: 'No tienes permiso para modificar este producto'
+      });
+    }
+
+    // ✅ PASO 3: Preparar datos de actualización
+    const updateData = {};
+    if (nombre !== undefined) updateData.nombre = nombre;
+    if (descripcion !== undefined) updateData.descripcion = descripcion;
+    if (precioAnterior !== undefined) updateData.precioAnterior = precioAnterior ? parseFloat(precioAnterior) : null;
+    if (precioActual !== undefined) updateData.precioActual = parseFloat(precioActual);
+    if (categoriaId !== undefined) updateData.categoriaId = parseInt(categoriaId);
+    if (cantidad !== undefined) updateData.cantidad = parseInt(cantidad);
+    if (estadoId !== undefined) updateData.estadoId = parseInt(estadoId);
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        ok: false,
+        message: 'No se proporcionaron campos para actualizar'
+      });
+    }
+
+    // ✅ PASO 4: Si se cambió la categoría, verificar que existe
+    if (categoriaId) {
+      const categoria = await prisma.categorias.findUnique({
+        where: { id: parseInt(categoriaId) }
+      });
+
+      if (!categoria) {
+        return res.status(400).json({
+          ok: false,
+          message: 'Categoría no encontrada'
+        });
+      }
+    }
+
+    // ✅ PASO 5: Actualizar producto
+    const productoActualizado = await prisma.productos.update({
+      where: { id: parseInt(id) },
+      data: updateData,
+      include: {
+        categoria: true,
+        vendedor: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            correo: true,
+            usuario: true
+          }
+        },
+        estado: true
+      }
+    });
+
+    res.json({
+      ok: true,
+      message: 'Producto actualizado exitosamente',
+      product: {
+        id: productoActualizado.id,
+        nombre: productoActualizado.nombre,
+        descripcion: productoActualizado.descripcion,
+        precioActual: Number(productoActualizado.precioActual),
+        precioAnterior: productoActualizado.precioAnterior ? Number(productoActualizado.precioAnterior) : null,
+        categoria: productoActualizado.categoria?.nombre,
+        cantidad: productoActualizado.cantidad,
+        visible: productoActualizado.visible,
+        estado: productoActualizado.estado.nombre,
+        vendedor: productoActualizado.vendedor
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error actualizando producto:', error);
+    res.status(500).json({
+      ok: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// DELETE /api/products/:id - Eliminar producto (soft delete)
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // ✅ PASO 1: Verificar que el producto existe
+    const producto = await prisma.productos.findUnique({
+      where: { id: parseInt(id) },
+      include: { vendedor: true, estado: true }
+    });
+
+    if (!producto) {
+      return res.status(404).json({
+        ok: false,
+        message: 'Producto no encontrado'
+      });
+    }
+
+    // ✅ PASO 2: Verificar permisos (solo el vendedor dueño o admin)
+    if (producto.vendedorId !== req.user.userId && req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        ok: false,
+        message: 'No tienes permiso para eliminar este producto'
+      });
+    }
+
+    // ✅ PASO 3: Verificar si tiene transacciones pendientes
+    const transaccionesPendientes = await prisma.transacciones.findFirst({
+      where: {
+        productoId: parseInt(id),
+        estadoId: { in: [1, 2] } // Estados: Pendiente o En proceso
+      }
+    });
+
+    if (transaccionesPendientes) {
+      return res.status(400).json({
+        ok: false,
+        message: 'No se puede eliminar el producto porque tiene transacciones pendientes'
+      });
+    }
+
+    // ✅ PASO 4: Buscar estado "Eliminado" o "Inactivo"
+    const estadoEliminado = await prisma.estadosProducto.findFirst({
+      where: { 
+        OR: [
+          { nombre: { equals: 'Eliminado', mode: 'insensitive' } },
+          { nombre: { equals: 'Inactivo', mode: 'insensitive' } }
+        ]
+      }
+    });
+
+    if (!estadoEliminado) {
+      return res.status(500).json({
+        ok: false,
+        message: 'Error: Estado "Eliminado" no encontrado en el sistema'
+      });
+    }
+
+    // ✅ PASO 5: Soft delete (cambiar estado a "Eliminado")
+    const productoEliminado = await prisma.productos.update({
+      where: { id: parseInt(id) },
+      data: { 
+        estadoId: estadoEliminado.id,
+        visible: false // También ocultarlo
+      },
+      include: {
+        estado: true,
+        vendedor: {
+          select: { id: true, nombre: true, usuario: true }
+        }
+      }
+    });
+
+    res.json({
+      ok: true,
+      message: 'Producto eliminado exitosamente',
+      product: {
+        id: productoEliminado.id,
+        nombre: productoEliminado.nombre,
+        estado: productoEliminado.estado.nombre,
+        eliminadoPor: {
+          id: req.user.userId,
+          role: req.user.role
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error eliminando producto:', error);
+    res.status(500).json({
+      ok: false,
+      message: 'Error interno del servidor',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 module.exports = router;

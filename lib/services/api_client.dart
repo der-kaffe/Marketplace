@@ -411,26 +411,26 @@ class ApiClient {
     }
   }
 
-  // Crear producto
+  // Crear producto (VERIFICADO)
   Future<Map<String, dynamic>> createProduct({
-    required String title,
-    required String description,
-    required double price,
-    required String category,
-    String? conditionType,
-    List<String>? images,
+    required String nombre,
+    required String descripcion,
+    required double precioActual,
+    required int categoriaId,
+    double? precioAnterior,
+    int? cantidad,
   }) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/products'),
         headers: _headers,
         body: json.encode({
-          'title': title,
-          'description': description,
-          'price': price,
-          'category': category,
-          'condition_type': conditionType ?? 'used',
-          'images': images ?? [],
+          'nombre': nombre,
+          'descripcion': descripcion,
+          'precioActual': precioActual,
+          'categoriaId': categoriaId,
+          'precioAnterior': precioAnterior,
+          'cantidad': cantidad ?? 1,
         }),
       );
       return _handleResponse(response);

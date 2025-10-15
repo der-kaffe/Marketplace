@@ -59,6 +59,35 @@ class ProductService {
       rethrow;
     }
   }
+  
+  /// ✅ Crear nuevo producto
+  Future<Map<String, dynamic>> createProduct({
+    required String nombre,
+    required String descripcion,
+    required double precioActual,
+    required int categoriaId,
+    double? precioAnterior,
+    int? cantidad,
+  }) async {
+    try {
+      final token = await _auth_service_token_or_throw();
+      _apiClient.setToken(token);
+
+      final result = await _apiClient.createProduct(
+        nombre: nombre,
+        descripcion: descripcion,
+        precioActual: precioActual,
+        categoriaId: categoriaId,
+        precioAnterior: precioAnterior,
+        cantidad: cantidad,
+      );
+
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error en createProduct (service): $e');
+      rethrow;
+    }
+  }
 
   /// Helper para obtener token o lanzar excepción
   Future<String> _auth_service_token_or_throw() async {
