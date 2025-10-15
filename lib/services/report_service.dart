@@ -27,8 +27,9 @@ class ReportService {
     try {
       final token = await _storage.read(key: 'session_token');
       if (token == null) throw Exception('No se encontró token de sesión');
+      // ✅ CAMBIAR: usar productId en lugar de productoId
       final data = await _apiClient.reportProduct(
-        productoId: productoId,
+        productId: productoId, // ✅ CAMBIAR nombre del parámetro
         motivo: motivo,
       );
       print('✅ Reporte enviado correctamente: $data');
@@ -46,8 +47,9 @@ class ReportService {
       final token = await _storage.read(key: 'session_token');
       if (token == null) throw Exception('No se encontró token de sesión');
 
+      // ✅ CAMBIAR: usar userId en lugar de usuarioReportadoId
       final data = await _apiClient.reportUser(
-        usuarioReportadoId: usuarioReportadoId,
+        userId: usuarioReportadoId, // ✅ CAMBIAR nombre del parámetro
         motivo: motivo,
       );
       print('✅ Reporte de usuario enviado correctamente: $data');

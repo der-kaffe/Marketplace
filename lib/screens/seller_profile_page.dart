@@ -39,7 +39,9 @@ class SellerProfilePage extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 48,
-                  backgroundImage: NetworkImage(seller.avatar),
+                  backgroundImage: seller.avatar != null 
+                    ? NetworkImage(seller.avatar!) 
+                    : const NetworkImage('https://via.placeholder.com/150'),
                 ),
                 const SizedBox(height: 12),
                 Text(

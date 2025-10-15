@@ -37,11 +37,11 @@ class RatingService {
 
       if (token == null) throw Exception('No se encontró token de sesión');
 
-      // Enviar la calificación al backend
+      // ✅ CAMBIAR: mapear a los nombres correctos
       final data = await _apiClient.rateSeller(
         sellerId: sellerId,
-        puntuacion: puntuacion,
-        comentario: comentario,
+        rating: puntuacion, // ✅ MAPEAR puntuacion -> rating
+        comment: comentario, // ✅ MAPEAR comentario -> comment
       );
 
       print('✅ Calificación enviada correctamente: $data');
@@ -51,7 +51,7 @@ class RatingService {
       print('   Tipo de error: ${e.runtimeType}');
 
       // Propagar la excepción tal cual para que el UI pueda manejarla
-      rethrow; // ESTO ES CRUCIAL
+      rethrow;
     }
   }
 

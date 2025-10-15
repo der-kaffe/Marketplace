@@ -63,55 +63,42 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> reportProduct({
-    required int productoId,
+    required int productId, // ✅ CAMBIAR nombre del parámetro
     required String motivo,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/reports'),
+        Uri.parse('$baseUrl/api/reports/product'),
         headers: _headers,
         body: json.encode({
-          'productoId': productoId,
+          'productId': productId, // ✅ USAR productId
           'motivo': motivo,
         }),
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data;
-      } else {
-        final data = json.decode(response.body);
-        throw Exception(data['message'] ?? 'Error creando reporte');
-      }
+      return _handleResponse(response);
     } catch (e) {
-      throw Exception('Error: $e');
+      throw ApiException(message: 'Error reportando producto: $e');
     }
   }
 
-  // Crear un reporte de usuario
   Future<Map<String, dynamic>> reportUser({
-    required int usuarioReportadoId,
+    required int userId, // ✅ CAMBIAR nombre del parámetro
     required String motivo,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/reports'),
+        Uri.parse('$baseUrl/api/reports/user'),
         headers: _headers,
         body: json.encode({
-          'usuarioReportadoId': usuarioReportadoId,
+          'userId': userId, // ✅ USAR userId
           'motivo': motivo,
         }),
       );
 
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data;
-      } else {
-        final data = json.decode(response.body);
-        throw Exception(data['message'] ?? 'Error creando reporte');
-      }
+      return _handleResponse(response);
     } catch (e) {
-      throw Exception('Error: $e');
+      throw ApiException(message: 'Error reportando usuario: $e');
     }
   }
 
@@ -276,6 +263,7 @@ class ApiClient {
 
   // Actualizar campos editables del perfil
   Future<Map<String, dynamic>> updateProfile({
+    String? name, // ✅ AGREGAR name
     String? apellido,
     String? usuario,
     String? campus,
@@ -284,6 +272,7 @@ class ApiClient {
   }) async {
     try {
       final body = <String, dynamic>{};
+      if (name != null) body['name'] = name; // ✅ AGREGAR
       if (apellido != null) body['apellido'] = apellido;
       if (usuario != null) body['usuario'] = usuario;
       if (campus != null) body['campus'] = campus;
@@ -303,13 +292,13 @@ class ApiClient {
 
   Future<Map<String, dynamic>> rateSeller({
     required int sellerId,
-    required int puntuacion,
-    String? comentario,
+    required int rating, // ✅ CAMBIAR nombre del parámetro
+    String? comment, // ✅ CAMBIAR nombre del parámetro
   }) async {
     print('🔍 ApiClient.rateSeller - Parámetros:');
     print('   sellerId: $sellerId');
-    print('   puntuacion: $puntuacion');
-    print('   comentario: $comentario');
+    print('   rating: $rating'); // ✅ ACTUALIZAR
+    print('   comment: $comment'); // ✅ ACTUALIZAR
     print('   token actual: $_token');
 
     final url = Uri.parse('$baseUrl/api/users/rate/$sellerId');
@@ -322,8 +311,8 @@ class ApiClient {
         if (_token != null) 'Authorization': 'Bearer $_token',
       },
       body: jsonEncode({
-        'puntuacion': puntuacion,
-        'comentario': comentario ?? '',
+        'puntuacion': rating, // ✅ CAMBIAR de puntuacion a rating
+        'comentario': comment ?? '', // ✅ CAMBIAR de comentario a comment
       }),
     );
 
@@ -332,26 +321,22 @@ class ApiClient {
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final data = jsonDecode(response.body);
-      print('   ✅ Response  $data');
+      print('   ✅ Response: $data');
       return data;
     } else {
       print('   ❌ Error HTTP: ${response.statusCode}');
       print('   ❌ Response body: ${response.body}');
 
-      // Extraer el mensaje de error del cuerpo JSON
       try {
         final errorBody = jsonDecode(response.body);
-        final errorMessage =
-            errorBody['error']?['message'] ?? 'Error desconocido';
+        final errorMessage = errorBody['error']?['message'] ?? 'Error desconocido';
         final errorCode = errorBody['error']?['code'] ?? 'UNKNOWN_ERROR';
 
         print('   ❌ Error code: $errorCode');
         print('   ❌ Error message: $errorMessage');
 
-        // Lanzar una excepción con el código de error en el mensaje
         throw Exception('ERROR_CODE:$errorCode:$errorMessage');
       } catch (e) {
-        // 🔥 CAMBIO AQUÍ: Si ya tiene formato ERROR_CODE, propagarlo sin modificar
         if (e.toString().contains('ERROR_CODE:')) {
           print('   ✅ Error con formato correcto, propagando: $e');
           rethrow;
@@ -454,6 +439,53 @@ class ApiClient {
     }
   }
 
+  // ============================================================================
+  // MÉTODOS ADICIONALES DE PRODUCTOS Y USUARIOS
+  // ============================================================================
+
+  /// Actualizar visibilidad de un producto (admin/vendedor)
+  Future<void> updateProductVisibility(int productId, bool visible) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/api/products/$productId/visibility'),
+        headers: _headers,
+        body: json.encode({'visible': visible}),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final body = response.body.isNotEmpty ? json.decode(response.body) : null;
+        final message = body != null ? (body['message'] ?? response.body) : response.body;
+        throw ApiException(
+          message: 'Error actualizando visibilidad: $message',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Obtener información de un usuario por ID
+  Future<Map<String, dynamic>> getUserById(int userId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/users/$userId');
+      final response = await http.get(uri, headers: _headers);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data;
+      } else {
+        throw ApiException(
+          message: 'Usuario no encontrado',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+
   // FAVORITES ENDPOINTS
 
   // ✅ Métodos de favoritos existentes (ya funcionan)
@@ -554,25 +586,25 @@ class LoginResponse {
 
 class User {
   final int id;
-  final String email; // 🔒 Solo lectura (de Google)
-  final String name; // 🔒 Solo lectura (de Google)
-  final String apellido; // ✏️ Editable
-  final String role; // 🔒 Solo lectura (sistema)
-  final String usuario; // ✏️ Editable
-  final String campus; // ✏️ Editable
-  final String? telefono; // ✏️ Editable
-  final String? direccion; // ✏️ Editable
+  final String email;
+  final String name;
+  final String role;
+  final String? apellido; // ✅ CAMBIAR a nullable
+  final String? usuario; // ✅ CAMBIAR a nullable
+  final String? campus; // ✅ CAMBIAR a nullable
+  final String? telefono;
+  final String? direccion;
 
   User({
     required this.id,
     required this.email,
     required this.name,
     required this.role,
-    this.apellido = '',
-    this.usuario = '',
-    this.campus = 'Campus Temuco',
-    this.telefono = '',
-    this.direccion = '',
+    this.apellido, // ✅ CAMBIAR
+    this.usuario, // ✅ CAMBIAR
+    this.campus, // ✅ CAMBIAR
+    this.telefono,
+    this.direccion,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -580,12 +612,12 @@ class User {
       id: json['id'] ?? 0,
       email: json['correo'] ?? json['email'] ?? '',
       name: json['nombre'] ?? json['name'] ?? '',
-      role: json['role'] ?? 'Cliente', // Por defecto Cliente para Google login
-      apellido: json['apellido'] ?? '',
-      usuario: json['usuario'] ?? '',
-      campus: json['campus'] ?? 'Campus Temuco',
-      telefono: json['telefono'] ?? '',
-      direccion: json['direccion'] ?? '',
+      role: json['role'] ?? 'Cliente',
+      apellido: json['apellido'],
+      usuario: json['usuario'],
+      campus: json['campus'],
+      telefono: json['telefono'],
+      direccion: json['direccion'],
     );
   }
 
@@ -984,10 +1016,10 @@ class FavoritedProduct {
   final int usuarioId;
   final int productoId;
   final DateTime fecha;
-  final String nombre;
-  final String? categoria;
-  final double? precioActual;
-  final String vendedorNombre;
+  final String nombre; // ✅ MANTENER
+  final String? categoria; // ✅ MANTENER
+  final double? precioActual; // ✅ MANTENER
+  final String vendedorNombre; // ✅ MANTENER
 
   FavoritedProduct({
     required this.id,
@@ -1037,3 +1069,6 @@ class ApiException implements Exception {
     return 'ApiException: $message (Status: $statusCode)';
   }
 }
+
+
+

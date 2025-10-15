@@ -49,9 +49,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() {
           _userName = currentUser.name;
           _userEmail = currentUser.email;
-          _apellido = currentUser.apellido;
-          _usuario = currentUser.usuario;
-          _campus = currentUser.campus;
+          // ✅ CORREGIR: Manejar valores nullable con ?? ''
+          _apellido = currentUser.apellido ?? '';
+          _usuario = currentUser.usuario ?? '';
+          _campus = currentUser.campus ?? 'Campus Temuco';
           _telefono = currentUser.telefono;
           _direccion = currentUser.direccion;
         });
@@ -812,7 +813,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final response = await apiClient.updateProfile(
         apellido: updateParams['apellido'],
-        usuario: updateParams['usuario'],
+        // ✅ REMOVIDO: usuario: updateParams['usuario'],
         campus: updateParams['campus'],
         telefono: updateParams['telefono'],
         direccion: updateParams['direccion'],

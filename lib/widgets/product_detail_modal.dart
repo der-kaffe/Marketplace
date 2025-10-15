@@ -645,7 +645,44 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
-                              SellerProfilePage(seller: seller),
+                              FutureBuilder<Map<String, dynamic>>(
+                                future: seller,
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return Scaffold(
+                                      appBar: AppBar(title: const Text('Perfil del Vendedor')),
+                                      body: const Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
+
+                                  if (snapshot.hasError || !snapshot.hasData) {
+                                    return Scaffold(
+                                      appBar: AppBar(title: const Text('Perfil del Vendedor')),
+                                      body: Center(
+                                        child: Text('Error cargando perfil: ${snapshot.error}'),
+                                      ),
+                                    );
+                                  }
+
+                                  // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
+                                  final sellerData = snapshot.data!;
+                                  final sellerObject = Seller(
+                                    id: sellerData['id']?.toString() ?? widget.product.sellerId, // ✅ AGREGADO
+                                    name: sellerData['nombre'] ?? sellerData['name'] ?? 'Vendedor',
+                                    email: sellerData['correo'] ?? sellerData['email'] ?? '',
+                                    avatar: sellerData['avatar'],
+                                    location: sellerData['campus'] ?? 'Desconocido',
+                                    reputation: sellerData['reputacion']?.toDouble() ?? 0.0,
+                                    totalSales: 0, // ✅ Por ahora, valor por defecto
+                                    activeListings: 0, // ✅ Por ahora, valor por defecto
+                                    soldListings: 0, // ✅ Por ahora, valor por defecto
+                                  );
+
+                                  return SellerProfilePage(seller: sellerObject);
+                                },
+                              ),
                         ),
                       );
                     },
