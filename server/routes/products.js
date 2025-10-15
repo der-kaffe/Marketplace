@@ -39,10 +39,30 @@ router.get('/', async (req, res) => {
     const skip = Math.max(0, (currentPage - 1) * currentLimit);
     
     console.log(`🔢 Calculando skip: ${skip} = (${currentPage} - 1) * ${currentLimit}`);
-    
+
+    // Verificamos si hay usuario autenticado
+    const user = req.user; // viene desde middleware de auth
+
+    // Base: solo productos activos
+    const whereClause = {
+      ...where, // mantiene filtros de categoría, búsqueda y estadoId
+    };
+
+    // Añadir reglas según tipo de usuario
+    if (!user) {
+      // Usuario no logeado → solo visibles
+      whereClause.visible = true;
+    } else if (user.role === "CLIENTE") {
+      whereClause.visible = true;
+    } else if (user.role === "VENDEDOR") {
+      whereClause.vendedorId = user.userId;
+    } else if (user.role === "ADMIN") {
+      // Admin ve todo
+    }
+
     // Obtener productos con información del vendedor y categoría
     const products = await prisma.productos.findMany({
-      where,
+      where: whereClause,
       include: {
         vendedor: {
           select: {
@@ -66,7 +86,7 @@ router.get('/', async (req, res) => {
     });
 
     // Obtener total para paginación
-    const total = await prisma.productos.count({ where });
+    const total = await prisma.productos.count({ where: whereClause });
 
     console.log(`✅ Productos encontrados: ${products.length}/${total}`);
 
@@ -103,7 +123,7 @@ router.get('/', async (req, res) => {
         page: currentPage,
         limit: currentLimit,
         total,
-        totalPages: Math.ceil(total / currentLimit)
+        totalPages: Math.max(1, Math.ceil(total / currentLimit))
       }
     });
 
@@ -296,5 +316,43 @@ router.get('/categories/list', async (req, res) => {
     });
   }
 });
+
+// Cambiar visibilidad del producto
+router.patch("/:id/visibility", authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { visible } = req.body;
+
+    const producto = await prisma.productos.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (typeof visible !== "boolean") {
+      return res.status(400).json({ ok: false, message: "El valor de 'visible' debe ser booleano (true o false)" });
+    }
+
+    if (!producto) {
+      return res.status(404).json({ ok: false, message: "Producto no encontrado" });
+    }
+
+    // Solo el vendedor o admin puede cambiar visibilidad
+    if (producto.vendedorId !== req.user.userId && req.user.role !== "ADMIN") {
+      return res
+        .status(403)
+        .json({ ok: false, message: "No tienes permiso para modificar este producto" });
+    }
+
+    const actualizado = await prisma.productos.update({
+      where: { id: parseInt(id) },
+      data: { visible },
+    });
+
+    res.json({ ok: true, message: "Visibilidad actualizada", producto: actualizado });
+  } catch (error) {
+    console.error("❌ Error al cambiar visibilidad:", error);
+    res.status(500).json({ ok: false, message: "Error interno al cambiar visibilidad" });
+  }
+});
+
 
 module.exports = router;

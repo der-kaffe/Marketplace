@@ -113,8 +113,8 @@ model Productos {
   fechaAgregado  DateTime @default(now()) @map("fecha_agregado")
   estadoId       Int      @map("estado_id")
 
-  // 👇 Nueva relación
-  favoritos Favoritos[]
+  /// 👇 Nuevo campo agregado para control de visibilidad de publicaciones
+  visible        Boolean  @default(true)
 
   // Relaciones
   categoria     Categorias?        @relation(fields: [categoriaId], references: [id])
@@ -124,6 +124,7 @@ model Productos {
   carrito       Carrito[]
   imagenes      ImagenesProducto[]
   reportes      Reportes[]         @relation("ProductoReportado")
+  favoritos     Favoritos[]
 
   @@index([estadoId])
   @@index([categoriaId])
