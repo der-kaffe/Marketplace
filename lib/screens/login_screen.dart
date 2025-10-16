@@ -149,48 +149,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     if (mounted) context.go('/home');
   }
 
-  void _loginAsAdmin() async {
-    setState(() => _isLoading = true);
-    try {
-      final authService = AuthService();
-
-      final result = await authService.loginWithEmail('admin@uct.cl', 'admin123');
-      
-      if (result.ok && result.token != null) {
-        // Token válido guardado automáticamente en authService
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login admin exitoso'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          context.go('/admin');
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error login admin: ${result.message}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error inesperado: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -292,20 +250,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _loginAsAdmin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.withOpacity(0.8),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: const Text('Admin', style: TextStyle(fontSize: 12)),
-                            ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 20),

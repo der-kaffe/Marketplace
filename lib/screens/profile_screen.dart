@@ -56,6 +56,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _telefono = currentUser.telefono;
           _direccion = currentUser.direccion;
         });
+        print('🧠 Rol del usuario: ${currentUser.role}');
+        print('🔑 rolId: ${currentUser.rolId}');
+        print('👑 ¿Es admin?: ${currentUser.isAdmin}');
         print('✅ Datos cargados exitosamente');
       } else {
         print('⚠️ No hay usuario autenticado');
@@ -198,6 +201,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () =>
                           _showFeatureMessage(context, 'Ayuda y Soporte'),
                     ),
+                    if (AuthService().isAdmin) 
+                      _buildActionItem(
+                        icon: Icons.admin_panel_settings,
+                        title: 'Panel de Administrador',
+                        color: Colors.deepPurple,
+                        onTap: () => context.push('/admin'),
+                      ),
                     _buildActionItem(
                       icon: Icons.logout,
                       title: 'Cerrar Sesión',

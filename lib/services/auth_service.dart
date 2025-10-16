@@ -4,17 +4,20 @@ import 'dart:convert';
 import 'api_client.dart';
 
 class AuthService {
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+
+  AuthService._internal() {
+    _apiClient = ApiClient(baseUrl: getDefaultBaseUrl());
+    _initializeToken();
+  }
+
   final _storage = const FlutterSecureStorage();
   final _tokenKey = 'session_token';
   final _userKey = 'user_data';
   
   late final ApiClient _apiClient;
   User? _currentUser;
-
-  AuthService() {
-    _apiClient = ApiClient(baseUrl: getDefaultBaseUrl());
-    _initializeToken();
-  }
 
   // Inicializar token al crear el servicio
   Future<void> _initializeToken() async {
@@ -46,12 +49,7 @@ class AuthService {
   // Guardar datos del usuario
   Future<void> saveUserData(User user) async {
     _currentUser = user;
-    await _storage.write(key: _userKey, value: json.encode({
-      'id': user.id,
-      'email': user.email,
-      'name': user.name,
-      'role': user.role,
-    }));
+    await _storage.write(key: _userKey, value: json.encode(user.toJson()));
   }
   // Guardar datos adicionales de Google (como foto)
   Future<void> saveGoogleUserData({
@@ -97,6 +95,8 @@ class AuthService {
 
   // Obtener usuario actual
   User? get currentUser => _currentUser;
+
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
 
   // Obtener usuario actual como Map (para compatibilidad)
   Future<Map<String, dynamic>?> getCurrentUser() async {

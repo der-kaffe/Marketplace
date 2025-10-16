@@ -17,7 +17,13 @@ class AdminMenuPage extends StatelessWidget {
 
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/login'),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop(); 
+            } else {
+              context.go('/home/profile'); 
+            }
+          },
         ),
 
       ),

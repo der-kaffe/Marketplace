@@ -588,10 +588,11 @@ class User {
   final int id;
   final String email;
   final String name;
-  final String role;
-  final String? apellido; // ✅ CAMBIAR a nullable
-  final String? usuario; // ✅ CAMBIAR a nullable
-  final String? campus; // ✅ CAMBIAR a nullable
+  final int? rolId;
+  final String? role;
+  final String? apellido;
+  final String? usuario;
+  final String? campus;
   final String? telefono;
   final String? direccion;
 
@@ -599,10 +600,11 @@ class User {
     required this.id,
     required this.email,
     required this.name,
-    required this.role,
-    this.apellido, // ✅ CAMBIAR
-    this.usuario, // ✅ CAMBIAR
-    this.campus, // ✅ CAMBIAR
+    this.rolId,
+    this.role,
+    this.apellido,
+    this.usuario,
+    this.campus,
     this.telefono,
     this.direccion,
   });
@@ -612,7 +614,8 @@ class User {
       id: json['id'] ?? 0,
       email: json['correo'] ?? json['email'] ?? '',
       name: json['nombre'] ?? json['name'] ?? '',
-      role: json['role'] ?? 'Cliente',
+      rolId: json['rolId'] ?? json['rol_id'],
+      role: json['rol']?['nombre'] ?? json['role'], // ✅ soporta backend Prisma
       apellido: json['apellido'],
       usuario: json['usuario'],
       campus: json['campus'],
@@ -621,19 +624,21 @@ class User {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'correo': email,
-      'nombre': name,
-      'role': role,
-      'apellido': apellido,
-      'usuario': usuario,
-      'campus': campus,
-      'telefono': telefono,
-      'direccion': direccion,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'correo': email,
+        'nombre': name,
+        'rolId': rolId,
+        'role': role,
+        'apellido': apellido,
+        'usuario': usuario,
+        'campus': campus,
+        'telefono': telefono,
+        'direccion': direccion,
+      };
+
+  bool get isAdmin =>
+      (rolId == 1) || ((role?.toUpperCase() ?? '') == 'ADMINISTRADOR');
 }
 
 // ✅ NUEVOS: Modelos para productos reales
