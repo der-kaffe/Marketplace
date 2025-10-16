@@ -54,10 +54,11 @@ class ChatPage extends StatelessWidget {
                     maxLines: 1,
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.call, color: AppColors.blanco),
-                  onPressed: () {},
-                ),
+                // Botón de llamada - desactivado por ahora
+                // IconButton(
+                //   icon: Icon(Icons.call, color: AppColors.blanco),
+                //   onPressed: () {},
+                // ),
               ],
             ),
           ),

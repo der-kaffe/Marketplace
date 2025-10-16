@@ -83,12 +83,61 @@ class ImageUploadService {
     }
   }
 
-  // Convertir imagen a base64 (fallback)
+  // Convertir imagen a base64 (fallback) - versión mejorada
   Future<String?> imageToBase64(File imageFile) async {
     try {
+      print('🔄 Convirtiendo imagen a base64: ${imageFile.path}');
+      
+      // Verificar que el archivo existe
+      if (!await imageFile.exists()) {
+        throw Exception('Archivo de imagen no existe');
+      }
+      
+      // Leer bytes del archivo
       final bytes = await imageFile.readAsBytes();
+      
+      if (bytes.isEmpty) {
+        throw Exception('Archivo de imagen vacío');
+      }
+      
+      print('📏 Tamaño del archivo: ${bytes.length} bytes');
+      
+      // Determinar el tipo MIME basado en la extensión del archivo
+      String mimeType = 'image/jpeg'; // Por defecto
+      final extension = imageFile.path.toLowerCase().split('.').last;
+      
+      switch (extension) {
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'gif':
+          mimeType = 'image/gif';
+          break;
+        case 'webp':
+          mimeType = 'image/webp';
+          break;
+        case 'bmp':
+          mimeType = 'image/bmp';
+          break;
+        case 'jpeg':
+        case 'jpg':
+        default:
+          mimeType = 'image/jpeg';
+          break;
+      }
+      
+      // Codificar a base64
       final base64String = base64Encode(bytes);
-      return 'data:image/jpeg;base64,$base64String';
+      
+      // Crear el data URL completo
+      final dataUrl = 'data:$mimeType;base64,$base64String';
+      
+      print('✅ Imagen convertida a base64 exitosamente');
+      print('📏 Tamaño base64: ${base64String.length} caracteres');
+      print('🔍 MIME type: $mimeType');
+      
+      return dataUrl;
+      
     } catch (e) {
       print('❌ Error convirtiendo imagen a base64: $e');
       return null;

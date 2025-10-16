@@ -75,6 +75,7 @@ flutter:
     - assets/universidad.jpg
     - assets/topologia.png
     - assets/producto_sin_foto.jpg
+    - assets/icons/svg/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
