@@ -1,0 +1,437 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "windows", "darwin"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo principal de usuarios - basado en migration.sql
+model Cuentas {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(50)
+  apellido      String?  @db.VarChar(50)
+  correo        String   @unique @db.VarChar(255)
+  usuario       String   @unique @db.VarChar(255)
+  contrasena    String   @db.VarChar(255)
+  rolId         Int      @map("rol_id")
+  estadoId      Int      @map("estado_id")
+  fechaRegistro DateTime @default(now()) @map("fecha_registro")
+  campus        String?  @db.VarChar(100)
+  reputacion    Decimal  @default(0.00) @db.Decimal(5, 2)
+
+  // Relaciones
+  rol                     Roles                    @relation(fields: [rolId], references: [id])
+  estado                  EstadosUsuario           @relation(fields: [estadoId], references: [id])
+  productos               Productos[]              @relation("VendedorProductos")
+  transaccionesCompra     Transacciones[]          @relation("CompradorTransacciones")
+  transaccionesVenta      Transacciones[]          @relation("VendedorTransacciones")
+  calificacionesDadas     Calificaciones[]         @relation("CalificadorCalificaciones")
+  calificacionesRecibidas Calificaciones[]         @relation("CalificadoCalificaciones")
+  carrito                 Carrito[]
+  actividades             ActividadUsuario[]
+  mensajesEnviados        Mensajes[]               @relation("RemitenteMessage")
+  mensajesRecibidos       Mensajes[]               @relation("DestinatarioMessage")
+  reportes                Reportes[]               @relation("ReportanteReportes")
+  reportesRecibidos       Reportes[]               @relation("UsuarioReportadoReportes")
+  publicaciones           Publicaciones[]
+  foros                   Foros[]
+  publicacionesForo       PublicacionesForo[]
+  comentariosPublicacion  ComentariosPublicacion[]
+  notificaciones          Notificaciones[]
+  ubicaciones             Ubicaciones[]
+  resumenUsuario          ResumenUsuario?
+  siguiendo               Seguidores[]             @relation("UsuarioSigue")
+  seguidores              Seguidores[]             @relation("UsuarioSeguido")
+
+  // 👇 Nueva relación
+  favoritos Favoritos[]
+
+  @@index([rolId])
+  @@index([estadoId])
+  @@map("cuentas")
+}
+
+// Tabla de roles
+model Roles {
+  id      Int       @id @default(autoincrement())
+  nombre  String    @db.VarChar(50)
+  cuentas Cuentas[]
+
+  @@map("roles")
+}
+
+// Estados de usuario
+model EstadosUsuario {
+  id      Int       @id @default(autoincrement())
+  nombre  String    @db.VarChar(50)
+  cuentas Cuentas[]
+
+  @@map("estados_usuario")
+}
+
+// Categorías (con jerarquía)
+model Categorias {
+  id               Int    @id @default(autoincrement())
+  nombre           String @db.VarChar(255)
+  categoriaPadreId Int?   @map("categoria_padre_id")
+
+  // Relaciones
+  categoriaPadre Categorias?  @relation("CategoriaHijos", fields: [categoriaPadreId], references: [id])
+  subcategorias  Categorias[] @relation("CategoriaHijos")
+  productos      Productos[]
+
+  @@index([categoriaPadreId])
+  @@map("categorias")
+}
+
+// Estados de productos
+model EstadosProducto {
+  id        Int         @id @default(autoincrement())
+  nombre    String      @db.VarChar(50)
+  productos Productos[]
+
+  @@map("estados_producto")
+}
+
+// Productos basado en migration.sql
+model Productos {
+  id             Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(100)
+  categoriaId    Int?     @map("categoria_id")
+  vendedorId     Int      @map("vendedor_id")
+  precioAnterior Decimal? @map("precio_anterior") @db.Decimal(10, 2)
+  precioActual   Decimal? @map("precio_actual") @db.Decimal(10, 2)
+  descripcion    String?  @db.Text
+  calificacion   Decimal? @db.Decimal(3, 2)
+  cantidad       Int?
+  fechaAgregado  DateTime @default(now()) @map("fecha_agregado")
+  estadoId       Int      @map("estado_id")
+
+  /// 👇 Nuevo campo agregado para control de visibilidad de publicaciones
+  visible        Boolean  @default(true)
+
+  // Relaciones
+  categoria     Categorias?        @relation(fields: [categoriaId], references: [id])
+  vendedor      Cuentas            @relation("VendedorProductos", fields: [vendedorId], references: [id], onDelete: Cascade)
+  estado        EstadosProducto    @relation(fields: [estadoId], references: [id])
+  transacciones Transacciones[]
+  carrito       Carrito[]
+  imagenes      ImagenesProducto[]
+  reportes      Reportes[]         @relation("ProductoReportado")
+  favoritos     Favoritos[]
+
+  @@index([estadoId])
+  @@index([categoriaId])
+  @@index([vendedorId])
+  @@map("productos")
+}
+
+// Imágenes de productos
+model ImagenesProducto {
+  id         Int    @id @default(autoincrement())
+  productoId Int    @map("producto_id")
+  urlImagen  Bytes? @map("url_imagen")
+
+  // Relaciones
+  producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([productoId])
+  @@map("imagenes_producto")
+}
+
+// Estados de transacciones
+model EstadosTransaccion {
+  id            Int             @id @default(autoincrement())
+  nombre        String          @db.VarChar(50)
+  transacciones Transacciones[]
+
+  @@map("estados_transaccion")
+}
+
+// Transacciones basado en migration.sql
+model Transacciones {
+  id          Int      @id @default(autoincrement())
+  productoId  Int      @map("producto_id")
+  compradorId Int      @map("comprador_id")
+  vendedorId  Int      @map("vendedor_id")
+  fecha       DateTime @default(now())
+  estadoId    Int      @map("estado_id")
+
+  // Relaciones
+  producto       Productos          @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  comprador      Cuentas            @relation("CompradorTransacciones", fields: [compradorId], references: [id], onDelete: Cascade)
+  vendedor       Cuentas            @relation("VendedorTransacciones", fields: [vendedorId], references: [id], onDelete: Cascade)
+  estado         EstadosTransaccion @relation(fields: [estadoId], references: [id])
+  calificaciones Calificaciones[]
+
+  @@index([productoId])
+  @@index([compradorId])
+  @@index([vendedorId])
+  @@index([estadoId])
+  @@map("transacciones")
+}
+
+// Calificaciones
+model Calificaciones {
+  id            Int      @id @default(autoincrement())
+  transaccionId Int      @map("transaccion_id")
+  calificadorId Int      @map("calificador_id")
+  calificadoId  Int      @map("calificado_id")
+  puntuacion    Decimal? @db.Decimal(3, 2)
+  comentario    String?  @db.Text
+  fecha         DateTime @default(now())
+
+  // Relaciones
+  transaccion Transacciones @relation(fields: [transaccionId], references: [id], onDelete: Cascade)
+  calificador Cuentas       @relation("CalificadorCalificaciones", fields: [calificadorId], references: [id], onDelete: Cascade)
+  calificado  Cuentas       @relation("CalificadoCalificaciones", fields: [calificadoId], references: [id], onDelete: Cascade)
+
+  @@index([transaccionId])
+  @@index([calificadorId])
+  @@index([calificadoId])
+  @@map("calificaciones")
+}
+
+// Carrito de compras
+model Carrito {
+  id         Int @id @default(autoincrement())
+  usuarioId  Int @map("usuario_id")
+  productoId Int @map("producto_id")
+  cantidad   Int
+
+  // Relaciones
+  usuario  Cuentas   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([productoId])
+  @@map("carrito")
+}
+
+// Sistema de mensajería
+model Mensajes {
+  id             Int      @id @default(autoincrement())
+  remitenteId    Int      @map("remitente_id")
+  destinatarioId Int      @map("destinatario_id")
+  contenido      String?  @db.Text
+  tipo           String   @default("texto") @db.VarChar(50)
+  fechaEnvio     DateTime @default(now()) @map("fecha_envio")
+  leido          Boolean  @default(false)
+
+  // Relaciones
+  remitente    Cuentas @relation("RemitenteMessage", fields: [remitenteId], references: [id], onDelete: Cascade)
+  destinatario Cuentas @relation("DestinatarioMessage", fields: [destinatarioId], references: [id], onDelete: Cascade)
+
+  @@index([remitenteId])
+  @@index([destinatarioId])
+  @@map("mensajes")
+}
+
+// Estados de reportes
+model EstadosReporte {
+  id       Int        @id @default(autoincrement())
+  nombre   String     @db.VarChar(50)
+  reportes Reportes[]
+
+  @@map("estados_reporte")
+}
+
+// Sistema de reportes
+model Reportes {
+  id                 Int      @id @default(autoincrement())
+  reportanteId       Int      @map("reportante_id")
+  usuarioReportadoId Int?     @map("usuario_reportado_id")
+  productoId         Int?     @map("producto_id")
+  motivo             String?  @db.Text
+  fecha              DateTime @default(now())
+  estadoId           Int      @map("estado_id")
+
+  // Relaciones
+  reportante       Cuentas        @relation("ReportanteReportes", fields: [reportanteId], references: [id], onDelete: Cascade)
+  usuarioReportado Cuentas?       @relation("UsuarioReportadoReportes", fields: [usuarioReportadoId], references: [id])
+  producto         Productos?     @relation("ProductoReportado", fields: [productoId], references: [id])
+  estado           EstadosReporte @relation(fields: [estadoId], references: [id])
+
+  @@index([reportanteId])
+  @@index([usuarioReportadoId])
+  @@index([productoId])
+  @@index([estadoId])
+  @@map("reportes")
+}
+
+// Actividad de usuarios
+model ActividadUsuario {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @map("usuario_id")
+  accion    String?  @db.VarChar(50)
+  detalles  String?  @db.Text
+  fecha     DateTime @default(now())
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("actividad_usuario")
+}
+
+// Notificaciones
+model Notificaciones {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @map("usuario_id")
+  tipo      String?  @db.VarChar(50)
+  mensaje   String?  @db.Text
+  leido     Boolean  @default(false)
+  fecha     DateTime @default(now())
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("notificaciones")
+}
+
+// Sistema de publicaciones generales
+model Publicaciones {
+  id        Int      @id @default(autoincrement())
+  titulo    String?  @db.VarChar(255)
+  cuerpo    String?  @db.Text
+  usuarioId Int      @map("usuario_id")
+  estado    String?  @db.VarChar(255)
+  fecha     DateTime @default(now())
+  visto     Boolean  @default(false)
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+
+  @@index([usuarioId])
+  @@map("publicaciones")
+}
+
+// Sistema de foros
+model Foros {
+  id            Int      @id @default(autoincrement())
+  nombre        String   @db.VarChar(255)
+  descripcion   String?  @db.Text
+  creadorId     Int      @map("creador_id")
+  fechaCreacion DateTime @default(now()) @map("fecha_creacion")
+
+  // Relaciones
+  creador       Cuentas             @relation(fields: [creadorId], references: [id], onDelete: Cascade)
+  publicaciones PublicacionesForo[]
+
+  @@index([creadorId])
+  @@map("foros")
+}
+
+// Publicaciones en foros
+model PublicacionesForo {
+  id        Int      @id @default(autoincrement())
+  foroId    Int      @map("foro_id")
+  autorId   Int      @map("autor_id")
+  titulo    String?  @db.VarChar(255)
+  contenido String?  @db.Text
+  fecha     DateTime @default(now())
+
+  // Relaciones
+  foro        Foros                    @relation(fields: [foroId], references: [id], onDelete: Cascade)
+  autor       Cuentas                  @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  comentarios ComentariosPublicacion[]
+
+  @@index([foroId])
+  @@index([autorId])
+  @@map("publicaciones_foro")
+}
+
+// Comentarios en publicaciones de foros
+model ComentariosPublicacion {
+  id            Int      @id @default(autoincrement())
+  publicacionId Int      @map("publicacion_id")
+  autorId       Int      @map("autor_id")
+  contenido     String?  @db.Text
+  fecha         DateTime @default(now())
+
+  // Relaciones
+  publicacion PublicacionesForo @relation(fields: [publicacionId], references: [id], onDelete: Cascade)
+  autor       Cuentas           @relation(fields: [autorId], references: [id], onDelete: Cascade)
+
+  @@index([publicacionId])
+  @@index([autorId])
+  @@map("comentarios_publicacion")
+}
+
+// Ubicaciones de usuarios
+model Ubicaciones {
+  id          Int     @id @default(autoincrement())
+  usuarioId   Int     @map("usuario_id")
+  nombreLugar String? @map("nombre_lugar") @db.VarChar(255)
+  descripcion String? @db.Text
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("ubicaciones")
+}
+
+// Resumen estadístico por usuario
+model ResumenUsuario {
+  usuarioId            Int     @id @map("usuario_id")
+  totalProductos       Int     @default(0) @map("total_productos")
+  totalVentas          Int     @default(0) @map("total_ventas")
+  totalCompras         Int     @default(0) @map("total_compras")
+  promedioCalificacion Decimal @default(0.00) @map("promedio_calificacion") @db.Decimal(3, 2)
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("resumen_usuario")
+}
+
+// Sistema de seguimiento entre usuarios
+model Seguidores {
+  usuarioSigueId   Int      @map("usuario_sigue_id")
+  usuarioSeguidoId Int      @map("usuario_seguido_id")
+  fecha            DateTime @default(now())
+
+  // Relaciones
+  usuarioSigue   Cuentas @relation("UsuarioSigue", fields: [usuarioSigueId], references: [id], onDelete: Cascade)
+  usuarioSeguido Cuentas @relation("UsuarioSeguido", fields: [usuarioSeguidoId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioSigueId, usuarioSeguidoId])
+  @@index([usuarioSeguidoId])
+  @@map("seguidores")
+}
+
+// Métricas diarias del sistema
+model MetricasDiarias {
+  id                       Int      @id @default(autoincrement())
+  fechaMetricas            DateTime @map("fecha_metricas") @db.Date
+  usuariosActivos          Int      @default(0) @map("usuarios_activos")
+  nuevosUsuarios           Int      @default(0) @map("nuevos_usuarios")
+  productosCreados         Int      @default(0) @map("productos_creados")
+  transaccionesCompletadas Int      @default(0) @map("transacciones_completadas")
+  mensajesEnviados         Int      @default(0) @map("mensajes_enviados")
+
+  @@map("metricas_diarias")
+}
+
+model Favoritos {
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int      @map("usuario_id")
+  productoId    Int      @map("producto_id")
+  fecha         DateTime @default(now())
+
+  // Relaciones
+  usuario     Cuentas       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  producto    Productos     @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, productoId]) // evita duplicados
+  @@map("favoritos")
+}
