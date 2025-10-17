@@ -443,7 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // --- NUEVO: Widget para construir la sección de "Mis Productos" ---
   Widget _buildMyProductsSection() {
     return _buildInfoSection(
-      title: 'Mis Productos',
+      title: 'Mis Publicaciones',
       items: [
         if (_isLoadingMyProducts)
           const Padding(
