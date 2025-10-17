@@ -43,11 +43,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingMyProducts = true;
   // --- FIN NUEVO ---
 
+  int _favoritesCount = 0;
+  int _reviewsCount = 0; // Placeholder, actualizar si tienes endpoint
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _loadMyProducts(); // Cargar los productos del usuario
+    _loadFavoritesCount();
+    // Si tienes endpoint de reseñas, llama aquí a _loadReviewsCount();
   }
 
   Future<void> _loadUserData() async {
@@ -125,6 +130,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
   // --- FIN NUEVO ---
+
+  Future<void> _loadFavoritesCount() async {
+    try {
+      final authService = AuthService();
+      final token = await authService.getToken();
+      if (token != null && token.isNotEmpty) {
+        authService.apiClient.setToken(token);
+      }
+      final resp = await authService.apiClient.getProductFavorites(page: 1, limit: 100);
+      if (mounted) {
+        setState(() {
+          _favoritesCount = resp.favorites.length;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _favoritesCount = 0);
+      }
+    }
+  }
 
   // Método para refrescar los datos del usuario (simplificado)
   Future<void> _refreshUserData() async {
@@ -331,11 +356,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildStatistic('12', 'Pedidos'),
+              _buildStatistic(_myProducts.length.toString(), 'Publicaciones'),
               _verticalDivider(),
-              _buildStatistic('5', 'Favoritos'),
+              _buildStatistic(_favoritesCount.toString(), 'Favoritos'),
               _verticalDivider(),
-              _buildStatistic('3', 'Reseñas'),
+              _buildStatistic(_reviewsCount.toString(), 'Reseñas'),
             ],
           ),
         ],

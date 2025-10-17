@@ -3,6 +3,8 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
+import '../models/product_model.dart';
+import '../widgets/product_detail_modal.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -71,11 +73,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.fondoClaro,
-      appBar: AppBar(
-        title: const Text('Mis Favoritos'),
-        backgroundColor: AppColors.azulPrimario,
-        foregroundColor: Colors.white,
-      ),
       body: _isLoading
           ? Center(
               child: SpinKitWave(
@@ -159,8 +156,30 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           icon: const Icon(Icons.delete_outline, color: AppColors.error),
           onPressed: () => _removeFavorite(fav.productoId),
         ),
-        onTap: () {
-          // TODO: Navegar al detalle del producto
+        onTap: () async {
+          // Mostrar detalle del producto al presionar la tarjeta
+          // Primero, construimos un Product a partir de FavoritedProduct (ajusta los campos según tu modelo)
+          final product = Product(
+            id: fav.productoId.toString(),
+            title: fav.nombre,
+            description: '', // Si tienes descripción, agrégala aquí
+            price: fav.precioActual ?? 0.0,
+            imageUrl: null, // Si tienes imagen, agrégala aquí
+            rating: 0.0,
+            reviewCount: 0,
+            category: fav.categoria ?? '',
+            isAvailable: true,
+            isFavorite: true,
+            sellerId: '', // Si tienes sellerId, agrégalo aquí
+            sellerName: fav.vendedorNombre,
+            sellerAvatar: null,
+          );
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => ProductDetailModal(product: product),
+          );
         },
       ),
     );

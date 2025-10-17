@@ -35,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingCategories = true;
   String? _errorCategories;
   int _page = 1;
-  final int _limit = 4;
+  final int _limit = 20;
   final Set<String> _favoriteProductIds = {};
 
   String? _selectedCategoryName;
