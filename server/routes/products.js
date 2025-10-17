@@ -136,6 +136,75 @@ router.get('/', async (req, res) => {
     });
   }
 });
+// GET /api/products/my-products - Listar productos del vendedor autenticado
+router.get('/my-products', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    
+    const currentPage = Math.max(1, parseInt(page) || 1);
+    const currentLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const skip = Math.max(0, (currentPage - 1) * currentLimit);
+
+    // Filtrar productos por el ID del usuario autenticado
+    const whereClause = {
+      vendedorId: req.user.userId
+    };
+
+    // Obtener productos del vendedor
+    const [products, total] = await prisma.$transaction([
+      prisma.productos.findMany({
+        where: whereClause,
+        include: {
+          categoria: true,
+          estado: true,
+          imagenes: true,
+          vendedor: {
+            select: { id: true, nombre: true, apellido: true }
+          }
+        },
+        orderBy: { fechaAgregado: 'desc' },
+        skip,
+        take: currentLimit
+      }),
+      prisma.productos.count({ where: whereClause })
+    ]);
+
+    // Formatear productos para una respuesta consistente
+    const formattedProducts = products.map(product => ({
+      id: product.id,
+      nombre: product.nombre,
+      descripcion: product.descripcion,
+      precioAnterior: product.precioAnterior ? Number(product.precioAnterior) : null,
+      precioActual: product.precioActual ? Number(product.precioActual) : null,
+      categoria: product.categoria?.nombre,
+      calificacion: product.calificacion ? Number(product.calificacion) : null,
+      cantidad: product.cantidad,
+      estado: product.estado.nombre,
+      visible: product.visible,
+      fechaAgregado: product.fechaAgregado,
+      imagenes: product.imagenes,
+      vendedor: product.vendedor
+    }));
+
+    res.json({
+      ok: true,
+      products: formattedProducts,
+      pagination: {
+        page: currentPage,
+        limit: currentLimit,
+        total,
+        totalPages: Math.ceil(total / currentLimit)
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error listando mis productos:', error);
+    res.status(500).json({
+      ok: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
 
 // GET /api/products/:id - Obtener producto por ID
 router.get('/:id', async (req, res) => {

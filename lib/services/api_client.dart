@@ -142,6 +142,32 @@ class ApiClient {
     }
   }
 
+  // NUEVO: Obtener los productos del usuario autenticado
+  Future<ProductsResponse> getMyProducts({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
+
+      final uri = Uri.parse('$baseUrl/api/products/my-products').replace(
+        queryParameters: queryParams,
+      );
+
+      print('🔍 Obteniendo mis productos de: $uri');
+
+      final response = await http.get(uri, headers: _headers);
+      final data = _handleResponse(response);
+      return ProductsResponse.fromJson(data);
+    } catch (e) {
+      print('❌ Error obteniendo mis productos: $e');
+      rethrow;
+    }
+  }
+
   // --- NUEVO: Método para obtener categorías desde la API ---
   Future<List<ProductModel.ApiCategory>> getCategoriesFromApi() async {
     try {

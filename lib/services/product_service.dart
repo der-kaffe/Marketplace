@@ -123,6 +123,29 @@ class ProductService {
     }
   }
 
+  /// ✅ Obtiene los productos del usuario actual desde el backend
+  Future<List<Product>> fetchMyProducts({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final token = await _auth_service_token_or_throw();
+      _apiClient.setToken(token);
+
+      final response = await _apiClient.getMyProducts(
+        page: page,
+        limit: limit,
+      );
+
+      // Convertir cada ProductFromDB a ProductModel.Product
+      final list = response.products.map((p) => p.toProductModel()).toList();
+      return list;
+    } catch (e) {
+      debugPrint('❌ Error cargando mis productos: $e');
+      rethrow;
+    }
+  }
+
   /// ✅ Obtener info del vendedor. Intenta endpoint /api/users/:id, si no funciona devuelve fallback
   Future<Map<String, dynamic>> getSellerInfo(String sellerId) async {
     try {
