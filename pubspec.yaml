@@ -40,6 +40,7 @@ dependencies:
   path_provider: ^2.1.1
   # Navegación declarativa para Flutter
   go_router: ^13.2.0
+  flutter_svg: ^2.0.10+1
 
   google_sign_in: ^6.1.5
 

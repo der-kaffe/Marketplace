@@ -1,3 +1,5 @@
+// lib/screens/profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -5,6 +7,10 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
+import '../services/product_service.dart'; // Importar servicio de productos
+import '../models/product_model.dart'; // Importar modelo de producto
+import '../widgets/product_card.dart'; // Reutilizar la tarjeta de producto
+import '../widgets/product_detail_modal.dart'; // Reutilizar el modal de detalle
 
 // Instancia global para manejar Google Sign-In
 final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -31,11 +37,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _telefono;
   String? _direccion;
 
+  // --- NUEVO: Estado para los productos del usuario ---
+  final ProductService _productService = ProductService();
+  List<Product> _myProducts = [];
+  bool _isLoadingMyProducts = true;
+  // --- FIN NUEVO ---
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
-  } // Cargar datos del usuario desde el backend
+    _loadMyProducts(); // Cargar los productos del usuario
+  }
 
   Future<void> _loadUserData() async {
     try {
@@ -80,12 +93,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userPhotoUrl = null;
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if(mounted){
+        setState(() {
+          _isLoading = false;
+        });
+      }
       print('🏁 Carga de perfil completada');
     }
   }
+
+  // --- NUEVO: Método para cargar los productos del usuario ---
+  Future<void> _loadMyProducts() async {
+    if (!mounted) return;
+    setState(() => _isLoadingMyProducts = true);
+
+    try {
+      final products = await _productService.fetchMyProducts();
+      if (mounted) {
+        setState(() {
+          _myProducts = products;
+          _isLoadingMyProducts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingMyProducts = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar mis productos: $e')),
+        );
+      }
+    }
+  }
+  // --- FIN NUEVO ---
 
   // Método para refrescar los datos del usuario (simplificado)
   Future<void> _refreshUserData() async {
@@ -94,6 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isLoading = true;
     });
     await _loadUserData();
+    await _loadMyProducts(); // Refrescar también los productos
   }
 
   @override
@@ -146,36 +186,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         () => _editField('dirección')),
                   ],
                 ),
-
+                
                 const SizedBox(height: 16),
 
-                // Historial de pedidos
-                _buildInfoSection(
-                  title: 'Mis Pedidos',
-                  items: [
-                    _buildOrderItem(
-                      orderNumber: '#12345',
-                      date: '30 ago. 2025',
-                      status: 'Entregado',
-                      amount: 47990,
-                      statusColor: Colors.green,
-                    ),
-                    _buildOrderItem(
-                      orderNumber: '#12340',
-                      date: '25 ago. 2025',
-                      status: 'En proceso',
-                      amount: 89990,
-                      statusColor: AppColors.amarilloPrimario,
-                    ),
-                    _buildOrderItem(
-                      orderNumber: '#12335',
-                      date: '20 ago. 2025',
-                      status: 'Cancelado',
-                      amount: 25990,
-                      statusColor: AppColors.error,
-                    ),
-                  ],
-                ),
+                // --- NUEVO: Sección "Mis Productos" ---
+                _buildMyProductsSection(),
+                // --- FIN NUEVO ---
+
+                const SizedBox(height: 16),
 
                 const SizedBox(height: 16), // Opciones de cuenta
                 _buildInfoSection(
@@ -194,14 +212,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () =>
                           _showFeatureMessage(context, 'Notificaciones'),
                     ),
-                    _buildActionItem(
-                      icon: Icons.help_outline,
-                      title: 'Ayuda y Soporte',
-                      color: AppColors.azulPrimario,
-                      onTap: () =>
-                          _showFeatureMessage(context, 'Ayuda y Soporte'),
-                    ),
-                    if (AuthService().isAdmin) 
+
+                    if (AuthService().isAdmin)
                       _buildActionItem(
                         icon: Icons.admin_panel_settings,
                         title: 'Panel de Administrador',
@@ -261,7 +273,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               border: Border.all(color: AppColors.blanco, width: 3),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
+                  color: Colors.black.withAlpha((0.2 * 255).toInt()),
                   blurRadius: 10,
                   offset: const Offset(0, 5),
                 ),
@@ -349,7 +361,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label,
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.blanco.withValues(alpha: 0.8),
+              color: AppColors.blanco.withAlpha((0.8 * 255).toInt()),
             ),
           ),
         ],
@@ -361,7 +373,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       height: 30,
       width: 1,
-      color: AppColors.blanco.withValues(alpha: 0.3),
+      color: AppColors.blanco.withAlpha((0.3 * 255).toInt()),
     );
   }
 
@@ -376,7 +388,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withAlpha((0.05 * 255).toInt()),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -402,6 +414,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+  
+  // --- NUEVO: Widget para construir la sección de "Mis Productos" ---
+  Widget _buildMyProductsSection() {
+    return _buildInfoSection(
+      title: 'Mis Productos',
+      items: [
+        if (_isLoadingMyProducts)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40.0),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_myProducts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Center(
+              child: Column(
+                children: [
+                  const Text('No has publicado ningún producto.'),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () => context.push('/new_post'), 
+                    child: const Text('Publicar mi primer producto')
+                  )
+                ],
+              )
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(16),
+            height: 260, // Altura ajustada para la tarjeta
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _myProducts.length,
+              itemBuilder: (context, index) {
+                final product = _myProducts[index];
+                return Container(
+                  width: 180,
+                  margin: const EdgeInsets.only(right: 12),
+                  child: ProductCard(
+                    title: product.title,
+                    description: product.description,
+                    price: product.price,
+                    imageUrl: product.imageUrl,
+                    isFavorite: product.isFavorite,
+                    isAvailable: product.isAvailable,
+                    onToggleFavorite: () {
+                       _showFeatureMessage(context, 'Manejar favoritos desde el perfil');
+                    },
+                    onToggleVisibility: () {
+                      // Lógica para cambiar visibilidad (opcional, requiere más estado)
+                       _showFeatureMessage(context, 'Manejar visibilidad desde el perfil');
+                    },
+                    onTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => ProductDetailModal(product: product),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+  // --- FIN NUEVO ---
 
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Padding(
@@ -411,7 +493,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.azulPrimario.withValues(alpha: 0.1),
+              color: AppColors.azulPrimario.withAlpha((0.1 * 255).toInt()),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, size: 20, color: AppColors.azulPrimario),
@@ -440,12 +522,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _formatCLP(num value) {
     final format =
-        NumberFormat.currency(locale: 'es_CL', symbol: ' 24', decimalDigits: 0);
+        NumberFormat.currency(locale: 'es_CL', symbol: '\$', decimalDigits: 0);
     // Elimina el espacio y el símbolo CLP si lo agrega
     return format
         .format(value)
         .replaceAll('CLP', '')
-        .replaceAll(' a0', '')
+        .replaceAll(' ', '')
         .trim();
   }
 
@@ -464,7 +546,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: AppColors.azulPrimario.withValues(alpha: 0.1),
+              color: AppColors.azulPrimario.withAlpha((0.1 * 255).toInt()),
               borderRadius: BorderRadius.circular(8),
             ),
             child:
@@ -501,7 +583,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                          color: statusColor.withValues(alpha: 0.1),
+                          color: statusColor.withAlpha((0.1 * 255).toInt()),
                           borderRadius: BorderRadius.circular(4)),
                       child: Text(status,
                           style: TextStyle(
@@ -534,7 +616,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: color.withAlpha((0.1 * 255).toInt()),
                   borderRadius: BorderRadius.circular(8)),
               child: Icon(icon, size: 20, color: color),
             ),
@@ -619,7 +701,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.azulPrimario.withValues(alpha: 0.1),
+                color: AppColors.azulPrimario.withAlpha((0.1 * 255).toInt()),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 20, color: AppColors.azulPrimario),
