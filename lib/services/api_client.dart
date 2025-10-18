@@ -120,6 +120,73 @@ class ApiClient {
     }
   }
 
+  /// Obtiene la lista de notificaciones para el usuario autenticado
+  Future<List<dynamic>> getNotifications() async {
+    try {
+      // Endpoint que definimos en el backend
+      final uri = Uri.parse('$baseUrl/api/users/notifications');
+
+      print('🔍 Obteniendo notificaciones de: $uri');
+
+      final response = await http.get(
+        uri,
+        headers:
+            _headers, // Asume que tus headers de autenticación ya están aquí
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // Validamos la respuesta del backend
+        if (data['success'] == true && data['data'] is List) {
+          return data['data'] as List<dynamic>;
+        } else {
+          throw Exception(
+              'La API no devolvió una lista de notificaciones válida');
+        }
+      } else {
+        print('❌ Error de servidor: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Error del servidor al obtener notificaciones: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error en ApiClient.getNotifications: $e');
+      rethrow; // Re-lanza la excepción para que el servicio la maneje
+    }
+  }
+
+// Método para marcar una notificación como leída
+  Future<Map<String, dynamic>> markNotificationAsRead(
+      int notificationId) async {
+    try {
+      // El endpoint que acabamos de crear en el backend
+      final uri =
+          Uri.parse('$baseUrl/api/users/notifications/$notificationId/read');
+
+      print('🔍 Marcando notificación como leída: $uri');
+
+      // Usamos http.put ya que estamos actualizando un recurso
+      final response = await http.put(
+        uri,
+        headers:
+            _headers, // Asume que tus headers de autenticación ya están aquí
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        return data;
+      } else {
+        print('❌ Error de servidor: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Error al marcar como leída: ${data['error']?['message'] ?? response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error en ApiClient.markNotificationAsRead: $e');
+      rethrow;
+    }
+  }
+
   // Obtener estados de reporte disponibles
   Future<List<ReportStatus>> getReportStatuses() async {
     try {
@@ -355,7 +422,8 @@ class ApiClient {
 
       try {
         final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['error']?['message'] ?? 'Error desconocido';
+        final errorMessage =
+            errorBody['error']?['message'] ?? 'Error desconocido';
         final errorCode = errorBody['error']?['code'] ?? 'UNKNOWN_ERROR';
 
         print('   ❌ Error code: $errorCode');
@@ -479,8 +547,10 @@ class ApiClient {
       );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        final body = response.body.isNotEmpty ? json.decode(response.body) : null;
-        final message = body != null ? (body['message'] ?? response.body) : response.body;
+        final body =
+            response.body.isNotEmpty ? json.decode(response.body) : null;
+        final message =
+            body != null ? (body['message'] ?? response.body) : response.body;
         throw ApiException(
           message: 'Error actualizando visibilidad: $message',
           statusCode: response.statusCode,
@@ -510,7 +580,6 @@ class ApiClient {
       rethrow;
     }
   }
-
 
   // FAVORITES ENDPOINTS
 
@@ -1100,6 +1169,3 @@ class ApiException implements Exception {
     return 'ApiException: $message (Status: $statusCode)';
   }
 }
-
-
-

@@ -1,3 +1,5 @@
+// product_detail_modal.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/product_model.dart';
@@ -22,9 +24,11 @@ class ProductDetailModal extends StatefulWidget {
 class _ProductDetailModalState extends State<ProductDetailModal> {
   int _userRating = 0;
   final AuthService _authService = AuthService();
-  final RatingService _ratingService = RatingService(); // Añadido
-  double _sellerReputation = 0.0; // Añadido para mostrar reputación
-  bool _isLoadingReputation = true; // Añadido para estado de carga
+  final RatingService _ratingService = RatingService();
+  final ProductService _productService =
+      ProductService(); // ✅ Instancia del servicio
+  double _sellerReputation = 0.0;
+  bool _isLoadingReputation = true;
 
   @override
   void initState() {
@@ -32,44 +36,36 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     _loadSellerReputation(); // Cargar reputación del vendedor al iniciar
   }
 
-  // Método para cargar la reputación del vendedor
+  // 👇 MÉTODO CORREGIDO
+  // Método para cargar la reputación del vendedor (optimizado)
   Future<void> _loadSellerReputation() async {
+    setState(() {
+      _isLoadingReputation = true;
+    });
     try {
-      final sellerId = int.parse(widget.product.sellerId);
-      final ratings = await _ratingService.getSellerRatings(sellerId);
+      final sellerId = widget.product.sellerId;
+      // 1. Llama al servicio que obtiene el perfil del vendedor
+      final sellerInfo = await _productService.getSellerInfo(sellerId);
 
-      if (ratings.isNotEmpty) {
-        // Calcular promedio de reputación
-        double total = 0;
-        for (var rating in ratings) {
-          // Convertir de forma segura el valor a double
-          dynamic puntuacionValue = rating['puntuacion'];
-          double puntuacion = 0.0;
+      // 2. Extrae la reputación que ya viene calculada desde el backend
+      //    El .toString() y double.tryParse() da robustez si viene como String, num, o Decimal
+      final reputationValue = sellerInfo['reputacion']?.toString() ?? '0.0';
+      final reputation = double.tryParse(reputationValue) ?? 0.0;
 
-          if (puntuacionValue is num) {
-            puntuacion = puntuacionValue.toDouble();
-          } else if (puntuacionValue is String) {
-            puntuacion = double.tryParse(puntuacionValue) ?? 0.0;
-          }
-
-          total += puntuacion;
-        }
+      if (mounted) {
         setState(() {
-          _sellerReputation = total / ratings.length;
-          _isLoadingReputation = false;
-        });
-      } else {
-        setState(() {
-          _sellerReputation = 0.0;
+          _sellerReputation = reputation;
           _isLoadingReputation = false;
         });
       }
     } catch (e) {
       print('❌ Error cargando reputación: $e');
-      setState(() {
-        _sellerReputation = 0.0;
-        _isLoadingReputation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _sellerReputation = 0.0;
+          _isLoadingReputation = false;
+        });
+      }
     }
   }
 
@@ -128,6 +124,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       print(
           '   ✅ Calificación enviada exitosamente, actualizando reputación...');
 
+      // Llama a la versión optimizada para refrescar la reputación
       await _loadSellerReputation();
 
       setState(() {
@@ -646,43 +643,55 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                         MaterialPageRoute(
                           builder: (context) =>
                               FutureBuilder<Map<String, dynamic>>(
-                                future: seller,
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return Scaffold(
-                                      appBar: AppBar(title: const Text('Perfil del Vendedor')),
-                                      body: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
+                            future: seller,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Scaffold(
+                                  appBar: AppBar(
+                                      title: const Text('Perfil del Vendedor')),
+                                  body: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
 
-                                  if (snapshot.hasError || !snapshot.hasData) {
-                                    return Scaffold(
-                                      appBar: AppBar(title: const Text('Perfil del Vendedor')),
-                                      body: Center(
-                                        child: Text('Error cargando perfil: ${snapshot.error}'),
-                                      ),
-                                    );
-                                  }
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return Scaffold(
+                                  appBar: AppBar(
+                                      title: const Text('Perfil del Vendedor')),
+                                  body: Center(
+                                    child: Text(
+                                        'Error cargando perfil: ${snapshot.error}'),
+                                  ),
+                                );
+                              }
 
-                                  // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
-                                  final sellerData = snapshot.data!;
-                                  final sellerObject = Seller(
-                                    id: sellerData['id']?.toString() ?? widget.product.sellerId, // ✅ AGREGADO
-                                    name: sellerData['nombre'] ?? sellerData['name'] ?? 'Vendedor',
-                                    email: sellerData['correo'] ?? sellerData['email'] ?? '',
-                                    avatar: sellerData['avatar'],
-                                    location: sellerData['campus'] ?? 'Desconocido',
-                                    reputation: sellerData['reputacion']?.toDouble() ?? 0.0,
-                                    totalSales: 0, // ✅ Por ahora, valor por defecto
-                                    activeListings: 0, // ✅ Por ahora, valor por defecto
-                                    soldListings: 0, // ✅ Por ahora, valor por defecto
-                                  );
+                              // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
+                              final sellerData = snapshot.data!;
+                              final sellerObject = Seller(
+                                id: sellerData['id']?.toString() ??
+                                    widget.product.sellerId, // ✅ AGREGADO
+                                name: sellerData['nombre'] ??
+                                    sellerData['name'] ??
+                                    'Vendedor',
+                                email: sellerData['correo'] ??
+                                    sellerData['email'] ??
+                                    '',
+                                avatar: sellerData['avatar'],
+                                location: sellerData['campus'] ?? 'Desconocido',
+                                reputation:
+                                    sellerData['reputacion']?.toDouble() ?? 0.0,
+                                totalSales: 0, // ✅ Por ahora, valor por defecto
+                                activeListings:
+                                    0, // ✅ Por ahora, valor por defecto
+                                soldListings:
+                                    0, // ✅ Por ahora, valor por defecto
+                              );
 
-                                  return SellerProfilePage(seller: sellerObject);
-                                },
-                              ),
+                              return SellerProfilePage(seller: sellerObject);
+                            },
+                          ),
                         ),
                       );
                     },

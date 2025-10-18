@@ -252,30 +252,152 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
 });
 
 // GET /api/users/:sellerId/ratings - Obtener todas las calificaciones de un vendedor
-router.get('/:sellerId/ratings', authenticateToken, async (req, res, next) => {
+router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
   try {
     const { sellerId } = req.params;
+    const sellerIdInt = parseInt(sellerId); // ID del Vendedor (el calificado)
+    const { puntuacion, comentario } = req.body;
+    const buyerId = req.user.userId; // ID del Comprador (el calificador)
 
-    const ratings = await prisma.calificaciones.findMany({
-      where: { calificadoId: parseInt(sellerId) },
-      include: {
-        calificador: {
-          select: { id: true, usuario: true, nombre: true, apellido: true }
-        }
-      },
-      orderBy: { id: 'desc' }
+    // 1️⃣ Validaciones básicas
+    if (!puntuacion || puntuacion < 1 || puntuacion > 5) {
+      throw new AppError(/*...*/);
+    }
+
+    // ⭐️ (NUEVO) Obtener el nombre de usuario del comprador
+    const buyer = await prisma.cuentas.findUnique({
+      where: { id: buyerId },
+      select: { usuario: true }
+    });
+    // Si no se encuentra (raro, pero seguro), usa 'Un usuario'
+    const buyerName = buyer ? buyer.usuario : 'Un usuario';
+
+
+    // 2️⃣ Verificar que haya al menos una transacción con este vendedor
+    const transactionExists = await prisma.transacciones.findFirst({
+      where: {
+        compradorId: buyerId, // Usar buyerId
+        vendedorId: sellerIdInt
+      }
+    });
+
+    if (!transactionExists) {
+      throw new AppError(/*...*/);
+    }
+
+    // 3️⃣ Verificar que el usuario no haya calificado antes...
+    const alreadyRated = await prisma.calificaciones.findFirst({
+      where: {
+        calificadorId: buyerId, // Usar buyerId
+        calificadoId: sellerIdInt, // Usar sellerIdInt
+        transaccionId: transactionExists.id
+      }
+    });
+
+    if (alreadyRated) {
+      throw new AppError(/*...*/);
+    }
+
+    // 4️⃣ Crear la calificación
+    const rating = await prisma.calificaciones.create({
+      data: {
+        transaccionId: transactionExists.id,
+        calificadorId: buyerId,
+        calificadoId: sellerIdInt,
+        puntuacion,
+        comentario
+      }
+    });
+
+    // 5️⃣ Recalcular la reputación promedio del vendedor
+    const promedio = await prisma.calificaciones.aggregate({
+      where: { calificadoId: sellerIdInt },
+      _avg: { puntuacion: true }
+    });
+
+    await prisma.cuentas.update({
+      where: { id: sellerIdInt },
+      data: { reputacion: promedio._avg.puntuacion || 0 }
+    });
+
+    // ⭐️⭐️ (NUEVO) PASO 6: Crear la notificación para el VENDEDOR ⭐️⭐️
+    // Construimos el mensaje
+    const message = `${buyerName} te ha calificado con ${puntuacion} estrellas.`;
+
+    await prisma.notificaciones.create({
+      data: {
+        usuarioId: sellerIdInt, // El ID del vendedor (quien recibe la notif)
+        tipo: 'valoracion',
+        mensaje: message
+        // 'leido' y 'fecha' usarán sus valores por defecto
+      }
+    });
+
+
+    // 7️⃣ Respuesta (antes era el paso 6)
+    res.status(201).json({
+      success: true,
+      message: 'Calificación registrada correctamente',
+      data: {
+        rating,
+        reputacionPromedio: promedio._avg.puntuacion || 0
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/users/notifications - Obtener notificaciones del usuario actual
+router.get('/notifications', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    const notifications = await prisma.notificaciones.findMany({
+      where: { usuarioId: userId },
+      orderBy: { fecha: 'desc' },
+      take: 20 // Limitar a las últimas 20
     });
 
     res.json({
       success: true,
-      data: ratings.map(r => ({
-        id: r.id,
-        puntuacion: r.puntuacion,
-        comentario: r.comentario,
-        fecha: r.fechaCreacion,
-        calificador: r.calificador,
-      }))
+      data: notifications
     });
+
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/users/notifications/:id/read - Marcar una notificación como leída
+router.put('/notifications/:id/read', authenticateToken, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const notificationId = parseInt(id);
+    const userId = req.user.userId;
+
+    // Actualiza la notificación SOLO si el ID coincide Y le pertenece al usuario
+    const updateOperation = await prisma.notificaciones.updateMany({
+      where: {
+        id: notificationId,
+        usuarioId: userId, //  crucial para seguridad
+      },
+      data: {
+        leido: true,
+      },
+    });
+
+    // Si 'count' es 0, la notificación no se encontró o no le pertenecía
+    if (updateOperation.count === 0) {
+      throw new AppError(
+        'Notificación no encontrada o no autorizada',
+        'NOT_FOUND',
+        404,
+      );
+    }
+
+    res.json({ success: true, message: 'Notificación marcada como leída' });
   } catch (error) {
     next(error);
   }
