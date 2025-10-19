@@ -101,6 +101,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+// comando
   // --- 👇 AÑADE ESTA FUNCIÓN 👇 ---
   String _getTitleForType(String? type) {
     switch (type) {
