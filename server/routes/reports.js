@@ -53,7 +53,7 @@ router.post(
             }
 
             // Validar que no se reporte a sí mismo
-            if (usuarioReportadoId && usuarioReportadoId === reportanteId) {
+            if (usuarioReportadoId && Number(usuarioReportadoId) === reportanteId) { // Convertir a Number para comparación estricta
                 return res.status(400).json({
                     ok: false,
                     message: 'No puedes reportarte a ti mismo',
@@ -61,19 +61,20 @@ router.post(
             }
 
             // Validar existencia del producto
+            let productoReportado = null; // Guardamos el producto para usarlo después
             if (productoId) {
-                const producto = await prisma.productos.findUnique({
+                productoReportado = await prisma.productos.findUnique({
                     where: { id: Number(productoId) },
                 });
 
-                if (!producto) {
+                if (!productoReportado) {
                     return res.status(404).json({
                         ok: false,
                         message: 'Producto no encontrado',
                     });
                 }
 
-                if (producto.vendedorId === reportanteId) {
+                if (productoReportado.vendedorId === reportanteId) {
                     return res.status(400).json({
                         ok: false,
                         message: 'No puedes reportar tu propio producto',
@@ -119,12 +120,12 @@ router.post(
                     productoId: productoId ? Number(productoId) : null,
                     usuarioReportadoId: usuarioReportadoId ? Number(usuarioReportadoId) : null,
                     motivo,
-                    estadoId: 1, // Pendiente
+                    estadoId: 1, // Pendiente por defecto
                 },
-                include: {
-                    reportante: { select: { id: true, nombre: true, apellido: true, correo: true } },
+                include: { // Incluimos datos necesarios para la notificación
+                    reportante: { select: { id: true, nombre: true, usuario: true } }, // Añadimos 'usuario' si no estaba
                     producto: { select: { id: true, nombre: true, vendedorId: true } },
-                    usuarioReportado: { select: { id: true, nombre: true, apellido: true, correo: true } },
+                    usuarioReportado: { select: { id: true, nombre: true } },
                     estado: true,
                 },
             });
@@ -138,10 +139,55 @@ router.post(
                 },
             });
 
+            // --- 👇👇👇 INICIO: LÓGICA PARA CREAR NOTIFICACIÓN 👇👇👇 ---
+            let recipientId = null;
+            let notificationMessage = '';
+            const reporterName = nuevoReporte.reportante.usuario || nuevoReporte.reportante.nombre || 'Alguien'; // Usar username, nombre o fallback
+
+            // Determinar quién recibe la notificación
+            if (nuevoReporte.usuarioReportadoId) {
+                // Notificar al usuario reportado directamente
+                recipientId = nuevoReporte.usuarioReportadoId;
+                notificationMessage = `${reporterName} ha reportado tu cuenta. Motivo: "${motivo}"`;
+                console.log(`🔔 Notificando al usuario ${recipientId} sobre reporte de cuenta.`);
+
+            } else if (nuevoReporte.productoId && productoReportado) { // Usamos la variable guardada
+                // Notificar al vendedor del producto reportado
+                recipientId = productoReportado.vendedorId;
+                // Verificación extra (aunque ya se validó antes)
+                if (recipientId !== reportanteId) {
+                    notificationMessage = `${reporterName} ha reportado tu producto "${productoReportado.nombre}". Motivo: "${motivo}"`;
+                    console.log(`🔔 Notificando al vendedor ${recipientId} sobre reporte del producto ${nuevoReporte.productoId}.`);
+                } else {
+                    recipientId = null; // No notificar si el vendedor es el mismo reportante
+                }
+            }
+
+            // Si se determinó un destinatario, crear la notificación
+            if (recipientId && notificationMessage) {
+                try {
+                    await prisma.notificaciones.create({
+                        data: {
+                            usuarioId: recipientId,        // Quién la recibe
+                            tipo: 'reporte_recibido',      // Tipo nuevo
+                            mensaje: notificationMessage,  // Mensaje construido
+                            // 'leido' y 'fecha' usarán valores por defecto (false, now())
+                        }
+                    });
+                    console.log(`✅ Notificación de reporte creada para usuario ${recipientId}.`);
+                } catch (notificationError) {
+                    // Si falla la notificación, solo lo registramos, no detenemos todo
+                    console.error(`❌ Error al crear notificación de reporte para usuario ${recipientId}:`, notificationError);
+                }
+            }
+            // --- 👆👆👆 FIN: LÓGICA PARA CREAR NOTIFICACIÓN 👆👆👆 ---
+
+
+            // Respuesta final al usuario que creó el reporte
             res.status(201).json({
                 ok: true,
                 message: 'Reporte enviado exitosamente',
-                reporte: {
+                reporte: { // Enviamos datos simplificados
                     id: nuevoReporte.id,
                     motivo: nuevoReporte.motivo,
                     fecha: nuevoReporte.fecha,
@@ -152,6 +198,10 @@ router.post(
             });
         } catch (error) {
             console.error('❌ Error creando reporte:', error);
+            // Asegurarse de que los errores de validación de Prisma también se manejen bien
+            if (error.code === 'P2003' || error.code === 'P2025') { // Foreign key constraint or record not found
+                return res.status(400).json({ ok: false, message: 'ID de producto o usuario inválido.' });
+            }
             res.status(500).json({ ok: false, message: 'Error interno del servidor' });
         }
     }
@@ -454,5 +504,7 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
         });
     }
 });
+
+
 
 module.exports = router;

@@ -166,7 +166,7 @@ router.post('/google', [
     let user = await prisma.cuentas.findFirst({
       where: { correo: email, estadoId: 1 },
       include: { rol: true, estado: true }
-    });    if (!user) {
+    }); if (!user) {
       // Todos los usuarios de Google son "Cliente" por defecto (ID 3)
       const rolId = 3; // Cliente
       const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
@@ -201,7 +201,7 @@ router.post('/google', [
       { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );    res.json({
+    ); res.json({
       ok: true,
       message: '¡Cuenta creada/actualizada en base de datos!',
       token,
@@ -296,7 +296,8 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.json({
       ok: true,
       user
-    });  } catch (error) {
+    });
+  } catch (error) {
     console.error('Error en /me:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }

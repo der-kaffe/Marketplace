@@ -89,44 +89,39 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   IconData _getIconForType(String? type) {
-    if (type == 'valoracion') {
-      return Icons.star;
-    } else if (type == 'mensaje') {
-      return Icons.message;
+    switch (type) {
+      case 'valoracion':
+        return Icons.star; // ⭐
+      case 'mensaje':
+        return Icons.message; // 💬
+      case 'reporte_recibido': // 🚩 ¡Nuevo tipo!
+        return Icons.flag;
+      default:
+        return Icons.notifications_active; // 🔔
     }
-    return Icons.notifications_active;
   }
+
+  // --- 👇 AÑADE ESTA FUNCIÓN 👇 ---
+  String _getTitleForType(String? type) {
+    switch (type) {
+      case 'valoracion':
+        return '¡Nueva Valoración!';
+      case 'mensaje':
+        return 'Nuevo Mensaje';
+      case 'reporte_recibido': // 🚩 ¡Nuevo tipo!
+        return 'Reporte Recibido';
+      default:
+        return 'Notificación';
+    }
+  }
+  // ---
 
   @override
   Widget build(BuildContext context) {
     return _isLoading
-        ? Scaffold(
-            appBar: AppBar(
-              title: const Text('Notificaciones'),
-            ),
-            body: Center(
-              child: SpinKitWave(
-                color: AppColors.azulPrimario,
-                size: 50.0,
-              ),
-            ),
-          )
+        ? Scaffold(/* ... Loading State ... */)
         : Scaffold(
-            appBar: AppBar(
-              title: const Text('Notificaciones'),
-              // Botón para refrescar
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: () {
-                    setState(() {
-                      _isLoading = true;
-                    });
-                    _loadNotifications();
-                  },
-                ),
-              ],
-            ),
+            appBar: AppBar(/* ... AppBar ... */),
             body: _notifications.isEmpty
                 ? const Center(child: Text('No tienes notificaciones nuevas.'))
                 : ListView.separated(
@@ -139,18 +134,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                       return Card(
                         child: ListTile(
-                          leading:
-                              Icon(_getIconForType(tipo), color: Colors.amber),
-                          title: Text(tipo == 'valoracion'
-                              ? '¡Nueva Valoración!'
-                              : 'Notificación'),
+                          // --- 👇 MODIFICADO leading y title 👇 ---
+                          leading: Icon(
+                            _getIconForType(tipo),
+                            // Cambia el color si es un reporte
+                            color: tipo == 'reporte_recibido'
+                                ? Colors
+                                    .redAccent.shade100 // Rojo para reportes
+                                : Colors.amber, // Amarillo para otros
+                          ),
+                          title: Text(_getTitleForType(
+                                  tipo) // Usa la función para el título
+                              ),
+                          // ---
                           subtitle: Text(notif['mensaje'] ?? 'Sin mensaje'),
                           trailing: IconButton(
-                            icon: const Icon(
-                              Icons.check, // Siempre es 'check'
-                              color: Colors.green,
-                            ),
-                            // ⭐️ (MODIFICADO) Llama al nuevo método
+                            icon: const Icon(Icons.check, color: Colors.green),
                             onPressed: () {
                               _markNotificationAsRead(notif['id'], index);
                             },
