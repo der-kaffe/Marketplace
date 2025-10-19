@@ -34,6 +34,7 @@ class ApiClient {
     return headers;
   }
 
+
   // Manejo de respuestas
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = json.decode(response.body);
@@ -560,6 +561,7 @@ class ApiClient {
       rethrow;
     }
   }
+
 
   /// Obtener información de un usuario por ID
   Future<Map<String, dynamic>> getUserById(int userId) async {

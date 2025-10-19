@@ -49,24 +49,27 @@ class _ConversationsPageState extends State<ConversationsPage> {
     try {
       print('🔄 Cargando conversaciones...');
       print('👤 Usuario actual ID: $_currentUserId');
-      
+
       final conversationsList = await _chatService.getConversations();
-      print('📋 Conversaciones obtenidas del servicio: ${conversationsList.length}');
-      
+      print(
+          '📋 Conversaciones obtenidas del servicio: ${conversationsList.length}');
+
       for (int i = 0; i < conversationsList.length; i++) {
         print('   ${i + 1}. ${conversationsList[i]}');
       }
-      
+
       setState(() {
-        conversations = conversationsList.map((conv) => 
-          _chatService.formatConversation(conv, _currentUserId ?? 0)
-        ).toList();
+        conversations = conversationsList
+            .map((conv) =>
+                _chatService.formatConversation(conv, _currentUserId ?? 0))
+            .toList();
         _isLoading = false;
       });
-      
+
       print('✅ Conversaciones formateadas: ${conversations.length}');
       for (int i = 0; i < conversations.length; i++) {
-        print('   ${i + 1}. ${conversations[i]["name"]}: "${conversations[i]["lastMessage"]}"');
+        print(
+            '   ${i + 1}. ${conversations[i]["name"]}: "${conversations[i]["lastMessage"]}"');
       }
     } catch (e) {
       print('❌ Error cargando conversaciones: $e');
@@ -85,21 +88,40 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _openChat(int index) async {
     final chat = conversations[index];
+    final int otroUsuarioId = chat["id"];
 
+    // ⭐️ Lógica para marcar como leído
+    if (chat["unread"] > 0) {
+      print('🔵 Marcando como leída la conversación con $otroUsuarioId');
+
+      // 1. Actualiza la UI inmediatamente
+      setState(() {
+        conversations[index]["unread"] = 0;
+      });
+
+      // 2. Llama a la API (ahora sí existe en ChatService)
+      try {
+        await _chatService.markMessagesAsRead(otroUsuarioId);
+      } catch (e) {
+        print("Error al marcar como leído: $e");
+        // Opcional: Si falla, revertir el cambio en la UI
+      }
+    }
+
+    // 3. Navega a la pantalla de chat
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatPage(
           userName: chat["name"],
           avatar: chat["avatar"],
-          destinatarioId: chat["id"],
+          destinatarioId: otroUsuarioId,
         ),
       ),
     );
 
-    setState(() {
-      conversations[index]["unread"] = 0;
-    });
+    // 4. Al volver, recarga las conversaciones
+    _loadConversations();
   }
 
   @override
@@ -205,9 +227,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
                               if (chat["isMe"])
                                 Container(
                                   margin: const EdgeInsets.only(left: 6),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: AppColors.azulPrimario.withOpacity(0.1),
+                                    color:
+                                        AppColors.azulPrimario.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
