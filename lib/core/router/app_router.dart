@@ -13,6 +13,7 @@ import '../../screens/profile_screen.dart';
 import '../../screens/new_post_screen.dart';
 import '../../screens/startup.dart';
 import '../../screens/notifications_screen.dart';
+import '../../screens/edit_product_screen.dart';
 
 // Admin
 import '../../screens/admin_menu_page.dart';
@@ -88,6 +89,16 @@ class AppRouter {
           transitionDuration: const Duration(milliseconds: 700),
         ),
       ),
+
+      GoRoute(
+        path: '/edit_product/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          if (id == null) return const Scaffold(body: Center(child: Text('ID inválido')));
+          return EditProductScreen(productId: id);
+        },
+      ),
+
 
       // Rutas principales de la aplicación dentro de un ShellRoute para la barra de navegación
       ShellRoute(

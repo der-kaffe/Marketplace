@@ -404,6 +404,88 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     );
   }
 
+  Future<void> _confirmAndDeleteProduct() async {
+    print('🆔 DEBUG: widget.product = ${widget.product}');
+    print('🆔 DEBUG: widget.product.id = ${widget.product.id}');
+    if (widget.product == null || widget.product.id == null || widget.product.id.toString().isEmpty) {
+      print('❌ El producto o su id es null o vacío');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: El producto no tiene ID válido')),
+        );
+      }
+      return;
+    }
+
+    print('🟡 Abriendo diálogo de confirmación...');
+    final confirm = await showDialog<bool>(
+      context: context, 
+      barrierDismissible: false,
+      
+      // ⬇️ FIX 1: Recibe el 'dialogContext' del builder
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text("Eliminar producto"),
+        content: const Text("¿Seguro que deseas eliminar este producto?"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              print('🔴 Cancelar presionado');
+              // ⬇️ FIX 2: Usa 'dialogContext'
+              Navigator.pop(dialogContext, false); 
+            },
+            child: const Text("Cancelar"),
+          ),
+          TextButton(
+            onPressed: () {
+              print('🟢 Eliminar presionado');
+              // ⬇️ FIX 3: Usa 'dialogContext'
+              Navigator.pop(dialogContext, true); 
+            },
+            child: const Text("Eliminar"),
+          ),
+        ],
+      ),
+    );
+
+    // ⬇️ Tu otra corrección (que sigue siendo necesaria)
+    if (!mounted) return; 
+
+    print('🟣 Valor de confirm: $confirm');
+    if (confirm == true) {
+      try {
+        final productId = int.tryParse(widget.product.id.toString());
+        print('🗑️ Eliminando producto con id: $productId');
+        
+        await _productService.deleteProduct(productId!); 
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Producto eliminado correctamente')),
+          );
+          
+          await Future.delayed(const Duration(milliseconds: 300)); 
+
+          if (!mounted) return; 
+          
+          Navigator.of(context).pop(); 
+        }
+        
+        print('✅ Producto eliminado, cerrando modal');
+      
+      } catch (e) {
+        print('❌ Error al eliminar producto: $e');
+        if (mounted) { 
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('❌ Error eliminando producto: $e')),
+          );
+        }
+      }
+    } else {
+      print('🟠 Eliminación cancelada o diálogo cerrado sin aceptar');
+    }
+  }
+
+
   Widget _buildModalImage() {
     if (widget.product.imageUrl == null || widget.product.imageUrl!.isEmpty) {
       return Image.asset(
@@ -736,6 +818,50 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                       _showReportDialog(context);
                     },
                   ),
+                ),
+                const SizedBox(height: 16),
+
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: _authService.getCurrentUser(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    final currentUser = snapshot.data;
+                    final isMyProduct =
+                        currentUser != null &&
+                        currentUser['id'].toString() == widget.product.sellerId;
+
+                    if (!isMyProduct) return const SizedBox.shrink();
+
+                    return Column(
+                      children: [
+                        const Divider(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                // Navegar a pantalla de edición usando el id en la URL
+                                context.push('/edit_product/${widget.product.id}');
+                              },
+                              icon: const Icon(Icons.edit),
+                              label: const Text('Editar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                                onPressed: _confirmAndDeleteProduct,
+                                icon: const Icon(Icons.delete),
+                                label: const Text('Eliminar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),

@@ -156,7 +156,7 @@ class ApiClient {
     }
   }
 
-// Método para marcar una notificación como leída
+  // Método para marcar una notificación como leída
   Future<Map<String, dynamic>> markNotificationAsRead(
       int notificationId) async {
     try {
@@ -643,6 +643,60 @@ class ApiClient {
       throw Exception('Error: $e');
     }
   }
+
+
+  // 🔥 NUEVO: Eliminar producto
+  Future<void> deleteProduct(int productId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/products/$productId');
+      final response = await http.delete(uri, headers: _headers);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ Producto $productId eliminado correctamente');
+        return;
+      } else {
+        print('❌ Error al eliminar producto: ${response.statusCode}');
+        final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        throw ApiException(
+          message: body['message'] ?? 'Error al eliminar producto',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      print('❌ Excepción al eliminar producto: $e');
+      throw ApiException(message: 'Error de conexión: $e');
+    }
+  }
+
+  // 🔥 NUEVO: Actualizar producto
+  Future<Map<String, dynamic>> updateProduct(
+      int productId, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/products/$productId');
+      final response = await http.put(
+        uri,
+        headers: _headers,
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ Producto actualizado correctamente');
+        return jsonDecode(response.body);
+      } else {
+        print('❌ Error actualizando producto: ${response.statusCode}');
+        final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        throw ApiException(
+          message: body['message'] ?? 'Error al actualizar producto',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      print('❌ Excepción en updateProduct: $e');
+      throw ApiException(message: 'Error de conexión: $e');
+    }
+  }
+
+
 }
 
 // Helper para obtener la URL base según la plataforma

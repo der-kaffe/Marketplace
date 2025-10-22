@@ -607,14 +607,15 @@ router.put('/:id', authenticateToken, [
   }
 });
 
-// DELETE /api/products/:id - Eliminar producto (soft delete)
+// DELETE /api/products/:id - Eliminar producto (Hard Delete)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const productoId = parseInt(id); // ⬅️ FIX 1: Definir la variable 'productoId' aquí
 
     // ✅ PASO 1: Verificar que el producto existe
     const producto = await prisma.productos.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: productoId }, // ⬅️ FIX 2: Usar 'productoId'
       include: { vendedor: true, estado: true }
     });
 
@@ -636,7 +637,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // ✅ PASO 3: Verificar si tiene transacciones pendientes
     const transaccionesPendientes = await prisma.transacciones.findFirst({
       where: {
-        productoId: parseInt(id),
+        productoId: productoId, // ⬅️ FIX 3: Usar 'productoId'
         estadoId: { in: [1, 2] } // Estados: Pendiente o En proceso
       }
     });
@@ -648,54 +649,36 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // ✅ PASO 4: Buscar estado "Eliminado" o "Inactivo"
-    const estadoEliminado = await prisma.estadosProducto.findFirst({
-      where: { 
-        OR: [
-          { nombre: { equals: 'Eliminado', mode: 'insensitive' } },
-          { nombre: { equals: 'Inactivo', mode: 'insensitive' } }
-        ]
-      }
+    // ⬇️ PASO 4 (MODIFICADO): Borrado físico (Hard Delete)
+    // Esto elimina permanentemente la fila de la base de datos.
+    const productoEliminado = await prisma.productos.delete({
+      where: { id: productoId }, // ⬅️ FIX 4: Usar 'productoId'
     });
 
-    if (!estadoEliminado) {
-      return res.status(500).json({
-        ok: false,
-        message: 'Error: Estado "Eliminado" no encontrado en el sistema'
-      });
-    }
-
-    // ✅ PASO 5: Soft delete (cambiar estado a "Eliminado")
-    const productoEliminado = await prisma.productos.update({
-      where: { id: parseInt(id) },
-      data: { 
-        estadoId: estadoEliminado.id,
-        visible: false // También ocultarlo
-      },
-      include: {
-        estado: true,
-        vendedor: {
-          select: { id: true, nombre: true, usuario: true }
-        }
-      }
-    });
-
+    // ⬇️ PASO 5 (MODIFICADO): Respuesta de éxito simple
     res.json({
       ok: true,
       message: 'Producto eliminado exitosamente',
       product: {
         id: productoEliminado.id,
-        nombre: productoEliminado.nombre,
-        estado: productoEliminado.estado.nombre,
-        eliminadoPor: {
-          id: req.user.userId,
-          role: req.user.role
-        }
+        nombre: productoEliminado.nombre
       }
     });
 
   } catch (error) {
     console.error('❌ Error eliminando producto:', error);
+
+    // ⚠️ IMPORTANTE: Manejo de error de borrado
+    // Si el producto está en favoritos, reportes, etc.,
+    // la base de datos lanzará un error de "foreign key".
+    if (error.code === 'P2003') {
+       return res.status(400).json({
+         ok: false,
+         message: 'No se puede eliminar el producto porque está referenciado en otra parte (ej: transacciones, favoritos, reportes).',
+         error: 'Foreign key constraint failed'
+       });
+    }
+
     res.status(500).json({
       ok: false,
       message: 'Error interno del servidor',

@@ -89,6 +89,66 @@ class ProductService {
     }
   }
 
+  /// 🗑️ Eliminar producto
+  Future<void> deleteProduct(int productId) async {
+    try {
+      final token = await _auth_service_token_or_throw();
+      _apiClient.setToken(token);
+
+      await _apiClient.deleteProduct(productId);
+    } catch (e) {
+      debugPrint('❌ Error al eliminar producto: $e');
+      rethrow;
+    }
+  }
+
+  /// ✏️ Actualizar producto (ejemplo: precio, descripción, etc.)
+  Future<Map<String, dynamic>> updateProduct({
+    required int productId,
+    String? nombre,
+    String? descripcion,
+    double? precioActual,
+    int? categoriaId,
+  }) async {
+    try {
+      final token = await _auth_service_token_or_throw();
+      _apiClient.setToken(token);
+
+      final Map<String, dynamic> data = {};
+      if (nombre != null) data['nombre'] = nombre;
+      if (descripcion != null) data['descripcion'] = descripcion;
+      if (precioActual != null) data['precioActual'] = precioActual;
+      if (categoriaId != null) data['categoriaId'] = categoriaId;
+
+      final result = await _apiClient.updateProduct(productId, data);
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error al actualizar producto: $e');
+      rethrow;
+    }
+  }
+
+  Future<Product?> getProductById(String id) async {
+    try {
+      final token = await _auth_service_token_or_throw();
+      _apiClient.setToken(token);
+
+      final response = await _apiClient.getProductById(int.parse(id));
+
+      // ✅ ProductDetailResponse tiene un campo 'product' (tipo ProductFromDB)
+      final productFromDB = response.product;
+
+      // ✅ ProductFromDB sí tiene el método toProductModel()
+      final productModel = productFromDB.toProductModel();
+
+      return productModel;
+    } catch (e) {
+      debugPrint('❌ Error al obtener producto por ID: $e');
+      return null;
+    }
+  }
+
+
   /// Helper para obtener token o lanzar excepción
   Future<String> _auth_service_token_or_throw() async {
     final token = await _auth_service_token();
