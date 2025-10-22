@@ -467,7 +467,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
 
           if (!mounted) return; 
           
-          Navigator.of(context).pop(); 
+          Navigator.of(context).pop(widget.product.id); 
         }
         
         print('✅ Producto eliminado, cerrando modal');
