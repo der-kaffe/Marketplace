@@ -16,10 +16,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   final ProductService _productService = ProductService();
   final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
@@ -242,11 +242,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Método para cargar productos (simula paginación)
   Future<void> _loadMoreProducts() async {
-    if (_isLoadingProducts || _selectedCategoryName != null)
-      return; // No cargar si hay filtro activo o ya está cargando
+    // ⬇️ 1. GUARDIÁN SIMPLIFICADO
+    //    Tu scroll listener ya comprueba el filtro de categoría, 
+    //    así que aquí solo evitamos cargas duplicadas.
+    if (_isLoadingProducts) return;
 
+    // 2. Establecer la animación de carga
     setState(() => _isLoadingProducts = true);
-
+    
     try {
       final newProducts = await _productService.fetchProducts(
         page: _page,
@@ -258,11 +261,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (_allProducts.isEmpty && _originalProducts.isEmpty) {
           // Primera carga: poblar ambas listas
           _allProducts.addAll(newProducts);
-          _originalProducts
-              .addAll(newProducts); // Guardar copia limpia original
-          _filteredProducts =
-              List.from(_originalProducts); // Mostrar originales
-        } else if (_allProducts.isNotEmpty && _originalProducts.isNotEmpty) {
+          _originalProducts.addAll(newProducts); // Guardar copia limpia original
+          _filteredProducts = List.from(_originalProducts); // Mostrar originales
+
+        } else {
           // Carga paginada: añadir solo a _allProducts
           _allProducts.addAll(newProducts);
           // Si NO hay filtro activo, también añadir a _filteredProducts
@@ -275,16 +277,57 @@ class _HomeScreenState extends State<HomeScreen> {
 
       print(
           '✅ Productos cargados: ${newProducts.length} (total _allProducts: ${_allProducts.length}, total _originalProducts: ${_originalProducts.length})');
+
     } catch (e) {
       print('❌ Error cargando productos: $e');
-      setState(() => _isLoadingProducts = false);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error cargando productos: $e')),
         );
       }
+    } finally {
+      // ⬇️ 3. ¡LA SOLUCIÓN!
+      //    Esto se ejecuta SIEMPRE (éxito o error) y apaga la animación.
+      if (mounted) {
+        setState(() => _isLoadingProducts = false);
+      }
     }
+  }
+
+  Future<void> forceRefreshProducts() async {
+      print('🔄 Forzando recarga de productos...');
+      
+      // 1. Limpia las listas y filtros
+      setState(() {
+        _page = 1;
+        _allProducts.clear();
+        _originalProducts.clear();
+        _filteredProducts.clear();
+        
+        _selectedCategoryName = null; 
+        _selectedCategoryId = null;
+        _precioMinimo = null;
+        _precioMaximo = null;
+        
+        // ❌ 2. NO PONGAS _isLoadingProducts = true AQUÍ
+        //    Deja que _loadMoreProducts() lo haga.
+        // _isLoadingProducts = true; 
+      });
+
+      // 3. Llama a la función de carga.
+      //    Como _isLoadingProducts es 'false', el guardián de
+      //    _loadMoreProducts pasará sin problemas.
+      await _loadMoreProducts();
+    }
+
+  // ✅ PASO 2: (YA LO TIENES) Asegúrate de tener esta función del paso anterior
+  void _removeProductFromUI(String productId) {
+    setState(() {
+      _originalProducts.removeWhere((p) => p.id == productId);
+      _filteredProducts.removeWhere((p) => p.id == productId);
+      _allProducts.removeWhere((p) => p.id == productId); // Asegúrate de limpiar las 3 listas
+    });
+    print('✅ UI actualizada. Producto $productId eliminado de la lista.');
   }
 
   // --- NUEVO: Función auxiliar corregida para obtener nombres de subcategorías ---
@@ -820,15 +863,26 @@ class _HomeScreenState extends State<HomeScreen> {
                               // ✅ CAMBIAR: Usar el nuevo método conectado al backend
                               onToggleVisibility: () => _toggleProductVisibility(product),
                               onToggleFavorite: () => _toggleFavorite(product),
-                              onTap: () {
+                              
+                              // 👇 AQUÍ ESTÁ EL CAMBIO 👇
+                              onTap: () async { // 1. Marcar la función como 'async'
                                 print('🆔 ID del producto: ${product.id}');
-                                showModalBottomSheet(
+                                
+                                // 2. Usar 'await' y especificar que esperamos un <String>
+                                final deletedProductId = await showModalBottomSheet<String>(
                                   context: context,
                                   isScrollControlled: true,
                                   backgroundColor: Colors.transparent,
                                   builder: (_) => ProductDetailModal(product: product),
                                 );
+
+                                // 3. Comprobar si recibimos un ID de vuelta
+                                if (deletedProductId != null) {
+                                  // 4. Llamar a la función que actualiza la UI
+                                  _removeProductFromUI(deletedProductId);
+                                }
                               },
+                              // 👆 FIN DEL CAMBIO 👆
                             );
                           },
                         ),

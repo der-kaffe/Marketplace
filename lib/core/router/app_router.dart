@@ -29,6 +29,9 @@ class AppRouter {
   // Instancia del servicio de autenticación para usar en el redirect
   static final _authService = AuthService();
 
+  // ✅ 1. CREA LA GLOBAL KEY
+  static final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey<HomeScreenState>();
+
   static final GoRouter router = GoRouter(
     initialLocation: '/startup',
 
@@ -102,11 +105,16 @@ class AppRouter {
 
       // Rutas principales de la aplicación dentro de un ShellRoute para la barra de navegación
       ShellRoute(
-        builder: (context, state, child) => MainScreen(child: child),
+        builder: (context, state, child) => MainScreen(
+          // ✅ 2. PASA LA KEY AL BUILDER DE MAINSCREEN
+          homeScreenKey: _homeScreenKey,
+          child: child,
+        ),
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => const HomeScreen(),
+            // ✅ 3. ASIGNA LA KEY AL HOMESCREEN
+            builder: (context, state) => HomeScreen(key: _homeScreenKey),
           ),
           GoRoute(
             path: '/home/messages',

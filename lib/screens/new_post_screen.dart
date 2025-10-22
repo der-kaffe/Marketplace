@@ -5,11 +5,9 @@ import '../services/product_service.dart';
 import '../models/product_model.dart' as ProductModel;
 
 class NewPostScreen extends StatefulWidget {
-  final VoidCallback? onProductCreated;
 
   const NewPostScreen({
     super.key, 
-    this.onProductCreated,
   });
 
   @override
@@ -101,7 +99,13 @@ class _NewPostScreenState extends State<NewPostScreen> {
 
       if (mounted) {
         setState(() => _isLoading = false);
-        await _showSuccessSheet();
+
+        final bool shouldGoHome = await _showSuccessSheet() ?? false;
+        
+        if (shouldGoHome && mounted) {
+          // Si el usuario presionó "Ir al inicio", cerramos NewPostScreen
+          Navigator.of(context).pop();
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
@@ -116,15 +120,16 @@ class _NewPostScreenState extends State<NewPostScreen> {
     }
   }
 
-  Future<void> _showSuccessSheet() async {
-    await showModalBottomSheet(
+  Future<bool?> _showSuccessSheet() async {
+    // Usamos 'return await' para devolver el valor del modal
+    return await showModalBottomSheet<bool>(
       context: context,
       isDismissible: false,
       enableDrag: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) {
+      builder: (dialogContext) { // <-- 1. Obtenemos el dialogContext
         return WillPopScope(
           onWillPop: () async => false,
           child: Padding(
@@ -150,7 +155,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.pop(dialogContext, false); 
                           _formKey.currentState?.reset();
                           _titleCtrl.clear();
                           _descCtrl.clear();
@@ -169,10 +174,8 @@ class _NewPostScreenState extends State<NewPostScreen> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.pop(context); // Cerrar modal
-                          // ✅ EJECUTAR CALLBACK antes de navegar
-                          widget.onProductCreated?.call();
-                          context.go('/home');
+                          // 3. Pop con 'true' para "Ir al inicio"
+                          Navigator.pop(dialogContext, true);
                         },
                         child: const Text('Ir al inicio'),
                       ),
