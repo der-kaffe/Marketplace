@@ -32,10 +32,11 @@ server/.env
 .env.production.local
 .env
 
-
-# Firebase Service Account Key
+# Firebase Service Account Key (Backend)
 server/config/firebase-service-account.json
 
+# Firebase Client Options (Frontend)
+lib/firebase_options.dart
 
 # ====================
 # Node.js
