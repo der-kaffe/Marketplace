@@ -11,13 +11,13 @@ class WebSocketService {
 
   IO.Socket? _socket;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  
+
   // Streams para notificar cambios
-  final StreamController<Map<String, dynamic>> _messageController = 
+  final StreamController<Map<String, dynamic>> _messageController =
       StreamController<Map<String, dynamic>>.broadcast();
-  final StreamController<Map<String, dynamic>> _typingController = 
+  final StreamController<Map<String, dynamic>> _typingController =
       StreamController<Map<String, dynamic>>.broadcast();
-  final StreamController<bool> _connectionController = 
+  final StreamController<bool> _connectionController =
       StreamController<bool>.broadcast();
 
   // Getters para los streams
@@ -50,10 +50,10 @@ class WebSocketService {
   Future<void> connect() async {
     try {
       print('🔌 Iniciando conexión WebSocket...');
-      
+
       final token = await _storage.read(key: 'session_token');
       print('🔑 Token encontrado: ${token != null ? 'Sí' : 'No'}');
-      
+
       if (token == null) {
         print('❌ No se encontró token de autenticación (session_token)');
         return;
@@ -71,13 +71,13 @@ class WebSocketService {
 
       print('🔌 Creando nuevo socket...');
       _socket = IO.io(
-        NetworkConfig.websocketUrl, 
+        NetworkConfig.websocketUrl,
         IO.OptionBuilder()
             .setTransports(['websocket'])
             .enableAutoConnect()
             .enableReconnection()
-            .setReconnectionDelay(1000)
-            .setReconnectionDelayMax(5000)
+            .setReconnectionDelay(1500)
+            .setReconnectionDelayMax(30000)
             .setAuth({'token': token})
             .setTimeout(10000) // 10 segundos de timeout
             .build(),
@@ -85,13 +85,12 @@ class WebSocketService {
 
       print('🔌 Configurando event listeners...');
       _setupEventListeners();
-      
+
       print('✅ Configuración WebSocket completada');
-      
+
       // Forzar conexión manual si autoConnect no funciona
       print('🔌 Intentando conexión manual...');
       _socket!.connect();
-      
     } catch (e) {
       print('❌ Error conectando WebSocket: $e');
       print('❌ Stack trace: ${StackTrace.current}');
@@ -173,7 +172,7 @@ class WebSocketService {
     print('👤 Destinatario ID: $destinatarioId');
     print('📝 Contenido: "$contenido"');
     print('🏷️ Tipo: $tipo');
-    
+
     if (_socket?.connected != true) {
       print('❌ WebSocket no conectado. Estado: ${_socket?.connected}');
       print('🔧 Intentando reconectar...');
@@ -186,7 +185,7 @@ class WebSocketService {
       'contenido': contenido,
       'tipo': tipo,
     };
-    
+
     print('📤 Emitiendo evento send_message con datos: $messageData');
     _socket?.emit('send_message', messageData);
     print('✅ Evento send_message emitido');
@@ -194,7 +193,7 @@ class WebSocketService {
 
   void startTyping(int destinatarioId) {
     if (_socket?.connected != true) return;
-    
+
     _socket?.emit('typing_start', {
       'destinatarioId': destinatarioId,
     });
@@ -202,7 +201,7 @@ class WebSocketService {
 
   void stopTyping(int destinatarioId) {
     if (_socket?.connected != true) return;
-    
+
     _socket?.emit('typing_stop', {
       'destinatarioId': destinatarioId,
     });
@@ -221,4 +220,3 @@ class WebSocketService {
     _connectionController.close();
   }
 }
-

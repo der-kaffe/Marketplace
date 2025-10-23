@@ -51,6 +51,8 @@ dependencies:
   # Para WebSocket en tiempo real
   socket_io_client: ^2.0.3+1
   intl: ^0.20.2
+  firebase_core: ^2.27.0
+  firebase_messaging: ^14.7.19
 
 dev_dependencies:
   flutter_test:

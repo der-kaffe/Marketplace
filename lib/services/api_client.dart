@@ -34,7 +34,6 @@ class ApiClient {
     return headers;
   }
 
-
   // Manejo de respuestas
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = json.decode(response.body);
@@ -121,73 +120,6 @@ class ApiClient {
     }
   }
 
-  /// Obtiene la lista de notificaciones para el usuario autenticado
-  Future<List<dynamic>> getNotifications() async {
-    try {
-      // Endpoint que definimos en el backend
-      final uri = Uri.parse('$baseUrl/api/users/notifications');
-
-      print('🔍 Obteniendo notificaciones de: $uri');
-
-      final response = await http.get(
-        uri,
-        headers:
-            _headers, // Asume que tus headers de autenticación ya están aquí
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        // Validamos la respuesta del backend
-        if (data['success'] == true && data['data'] is List) {
-          return data['data'] as List<dynamic>;
-        } else {
-          throw Exception(
-              'La API no devolvió una lista de notificaciones válida');
-        }
-      } else {
-        print('❌ Error de servidor: ${response.statusCode} - ${response.body}');
-        throw Exception(
-            'Error del servidor al obtener notificaciones: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ Error en ApiClient.getNotifications: $e');
-      rethrow; // Re-lanza la excepción para que el servicio la maneje
-    }
-  }
-
-  // Método para marcar una notificación como leída
-  Future<Map<String, dynamic>> markNotificationAsRead(
-      int notificationId) async {
-    try {
-      // El endpoint que acabamos de crear en el backend
-      final uri =
-          Uri.parse('$baseUrl/api/users/notifications/$notificationId/read');
-
-      print('🔍 Marcando notificación como leída: $uri');
-
-      // Usamos http.put ya que estamos actualizando un recurso
-      final response = await http.put(
-        uri,
-        headers:
-            _headers, // Asume que tus headers de autenticación ya están aquí
-      );
-
-      final data = json.decode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        return data;
-      } else {
-        print('❌ Error de servidor: ${response.statusCode} - ${response.body}');
-        throw Exception(
-            'Error al marcar como leída: ${data['error']?['message'] ?? response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ Error en ApiClient.markNotificationAsRead: $e');
-      rethrow;
-    }
-  }
-
   // Obtener estados de reporte disponibles
   Future<List<ReportStatus>> getReportStatuses() async {
     try {
@@ -207,6 +139,21 @@ class ApiClient {
       }
     } catch (e) {
       throw Exception('Error: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> saveFcmToken(String fcmToken) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/users/profile/fcm-token'),
+        headers: _headers, // Usa los headers de autenticación
+        body: json.encode({
+          'fcmToken': fcmToken,
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
     }
   }
 
@@ -562,7 +509,6 @@ class ApiClient {
     }
   }
 
-
   /// Obtener información de un usuario por ID
   Future<Map<String, dynamic>> getUserById(int userId) async {
     try {
@@ -644,7 +590,6 @@ class ApiClient {
     }
   }
 
-
   // 🔥 NUEVO: Eliminar producto
   Future<void> deleteProduct(int productId) async {
     try {
@@ -695,8 +640,6 @@ class ApiClient {
       throw ApiException(message: 'Error de conexión: $e');
     }
   }
-
-
 }
 
 // Helper para obtener la URL base según la plataforma

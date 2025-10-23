@@ -1,7 +1,6 @@
 import 'dart:async'; // 1. Importar 'async' para el Timer
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../services/notification_service.dart'; // 2. Importar el servicio
 import '../widgets/custom_bottom_navigation.dart';
 import '../theme/app_colors.dart';
 import 'new_post_screen.dart';
@@ -13,32 +12,25 @@ class MainScreen extends StatefulWidget {
   // ✅ 1. ACEPTA LA GLOBALKEY
   final GlobalKey<HomeScreenState> homeScreenKey;
 
-  const MainScreen({
-    super.key, 
-    this.child, 
-    required this.homeScreenKey // ✅ 2. RECÍBELA EN EL CONSTRUCTOR
-  });
+  const MainScreen(
+      {super.key,
+      this.child,
+      required this.homeScreenKey // ✅ 2. RECÍBELA EN EL CONSTRUCTOR
+      });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-
   // --- 3. Añadir estado para notificaciones ---
   Timer? _notificationTimer;
-  final NotificationService _notificationService = NotificationService();
   bool _hasUnreadNotifications = false;
 
   @override
   void initState() {
     super.initState();
     // 4. Iniciar el sondeo de notificaciones
-    _notificationTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
-      _checkNotifications();
-    });
-    // Comprobar una vez al inicio
-    _checkNotifications();
   }
 
   @override
@@ -46,27 +38,6 @@ class _MainScreenState extends State<MainScreen> {
     // 5. Cancelar el timer al salir
     _notificationTimer?.cancel();
     super.dispose();
-  }
-
-  /// 6. Método que llama a la API y actualiza el estado del icono
-  Future<void> _checkNotifications() async {
-    try {
-      final notifications = await _notificationService.getNotifications();
-
-      // Comprobamos si CUALQUIER notificación tiene 'leido' == false
-      final bool hasUnread = notifications.any((notif) {
-        return notif['leido'] == false;
-      });
-
-      if (mounted && hasUnread != _hasUnreadNotifications) {
-        setState(() {
-          _hasUnreadNotifications = hasUnread;
-        });
-      }
-    } catch (e) {
-      print('Error en sondeo de notificaciones (MainScreen): $e');
-      // No mostramos error para no ser invasivos
-    }
   }
 
   // ✅ 4. NUEVA FUNCIÓN PARA CALCULAR EL ÍNDICE BASADO EN GOROUTER
@@ -82,11 +53,16 @@ class _MainScreenState extends State<MainScreen> {
   // ✅ 5. NUEVA FUNCIÓN PARA OBTENER EL TÍTULO BASADO EN GOROUTER
   String _getTitle(int currentIndex) {
     switch (currentIndex) {
-      case 0: return 'Inicio';
-      case 1: return 'Mensajes';
-      case 2: return 'Favoritos';
-      case 3: return 'Perfil';
-      default: return 'MicroMarket';
+      case 0:
+        return 'Inicio';
+      case 1:
+        return 'Mensajes';
+      case 2:
+        return 'Favoritos';
+      case 3:
+        return 'Perfil';
+      default:
+        return 'MicroMarket';
     }
   }
 
@@ -94,7 +70,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     // ✅ 6. CALCULA EL ÍNDICE ACTUAL
     final int currentIndex = _calculateCurrentIndex(context);
-    
+
     //final body = widget.child ?? _screens[_currentIndex];
 
     return Scaffold(
@@ -156,7 +132,7 @@ class _MainScreenState extends State<MainScreen> {
         ],
         elevation: 0,
       ),
-      
+
       // ✅ 8. ASIGNA EL 'widget.child' DIRECTAMENTE AL BODY
       body: widget.child,
 
@@ -178,9 +154,9 @@ class _MainScreenState extends State<MainScreen> {
               break;
           }
         },
-        
+
         // ✅ 9. IMPLEMENTA LA LÓGICA DE 'await' Y 'forceRefresh'
-        
+
         onNewPost: () async {
           await Navigator.push(
             context,
@@ -190,7 +166,7 @@ class _MainScreenState extends State<MainScreen> {
           );
 
           // CUANDO VUELVA (después del 'await'):
-          
+
           // Llama a la función de recarga usando la Key
           widget.homeScreenKey.currentState?.forceRefreshProducts();
 

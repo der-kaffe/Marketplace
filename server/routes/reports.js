@@ -163,25 +163,6 @@ router.post(
                 }
             }
 
-            // Si se determinó un destinatario, crear la notificación
-            if (recipientId && notificationMessage) {
-                try {
-                    await prisma.notificaciones.create({
-                        data: {
-                            usuarioId: recipientId,        // Quién la recibe
-                            tipo: 'reporte_recibido',      // Tipo nuevo
-                            mensaje: notificationMessage,  // Mensaje construido
-                            // 'leido' y 'fecha' usarán valores por defecto (false, now())
-                        }
-                    });
-                    console.log(`✅ Notificación de reporte creada para usuario ${recipientId}.`);
-                } catch (notificationError) {
-                    // Si falla la notificación, solo lo registramos, no detenemos todo
-                    console.error(`❌ Error al crear notificación de reporte para usuario ${recipientId}:`, notificationError);
-                }
-            }
-            // --- 👆👆👆 FIN: LÓGICA PARA CREAR NOTIFICACIÓN 👆👆👆 ---
-
 
             // Respuesta final al usuario que creó el reporte
             res.status(201).json({

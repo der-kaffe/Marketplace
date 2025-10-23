@@ -24,6 +24,7 @@ model Cuentas {
   fechaRegistro DateTime @default(now()) @map("fecha_registro")
   campus        String?  @db.VarChar(100)
   reputacion    Decimal  @default(0.00) @db.Decimal(5, 2)
+  fcm_token    String? @db.Text
 
   // Relaciones
   rol                     Roles                    @relation(fields: [rolId], references: [id])
@@ -43,7 +44,6 @@ model Cuentas {
   foros                   Foros[]
   publicacionesForo       PublicacionesForo[]
   comentariosPublicacion  ComentariosPublicacion[]
-  notificaciones          Notificaciones[]
   ubicaciones             Ubicaciones[]
   resumenUsuario          ResumenUsuario?
   siguiendo               Seguidores[]             @relation("UsuarioSigue")
@@ -280,21 +280,7 @@ model ActividadUsuario {
   @@map("actividad_usuario")
 }
 
-// Notificaciones
-model Notificaciones {
-  id        Int      @id @default(autoincrement())
-  usuarioId Int      @map("usuario_id")
-  tipo      String?  @db.VarChar(50)
-  mensaje   String?  @db.Text
-  leido     Boolean  @default(false)
-  fecha     DateTime @default(now())
 
-  // Relaciones
-  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-
-  @@index([usuarioId])
-  @@map("notificaciones")
-}
 
 // Sistema de publicaciones generales
 model Publicaciones {

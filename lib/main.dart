@@ -6,6 +6,9 @@ import 'package:flutter/services.dart';
 import 'core/router/app_router.dart';
 import 'theme/app_theme.dart';
 import 'services/chat_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // El archivo que generaste
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,8 +29,10 @@ void main() async {
   );
 
   // Inicializar servicios
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await ChatService().initialize();
-
   runApp(MyApp(googleSignIn: googleSignIn));
 }
 

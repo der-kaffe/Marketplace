@@ -320,19 +320,6 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
       data: { reputacion: promedio._avg.puntuacion || 0 }
     });
 
-    // ⭐️⭐️ (NUEVO) PASO 6: Crear la notificación para el VENDEDOR ⭐️⭐️
-    // Construimos el mensaje
-    const message = `${buyerName} te ha calificado con ${puntuacion} estrellas.`;
-
-    await prisma.notificaciones.create({
-      data: {
-        usuarioId: sellerIdInt, // El ID del vendedor (quien recibe la notif)
-        tipo: 'valoracion',
-        mensaje: message
-        // 'leido' y 'fecha' usarán sus valores por defecto
-      }
-    });
-
 
     // 7️⃣ Respuesta (antes era el paso 6)
     res.status(201).json({
@@ -349,60 +336,38 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
   }
 });
 
-// GET /api/users/notifications - Obtener notificaciones del usuario actual
-router.get('/notifications', authenticateToken, async (req, res, next) => {
+
+// ==========================================
+// PUT /api/users/profile/fcm-token - Guardar Token FCM
+// ==========================================
+router.put('/profile/fcm-token', authenticateToken, async (req, res, next) => {
   try {
+    const { fcmToken } = req.body;
     const userId = req.user.userId;
 
-    const notifications = await prisma.notificaciones.findMany({
-      where: { usuarioId: userId },
-      orderBy: { fecha: 'desc' },
-      take: 20 // Limitar a las últimas 20
+    if (!fcmToken || typeof fcmToken !== 'string') {
+      return res.status(400).json({
+        ok: false,
+        message: 'fcmToken es requerido y debe ser un string',
+      });
+    }
+
+    await prisma.cuentas.update({
+      where: { id: userId },
+      data: { fcm_token: fcmToken },
     });
 
     res.json({
-      success: true,
-      data: notifications
+      ok: true,
+      message: 'Token FCM guardado exitosamente',
     });
 
   } catch (error) {
-    next(error);
+    next(error); // Pasa el error al manejador de errores
   }
 });
 
-// PUT /api/users/notifications/:id/read - Marcar una notificación como leída
-router.put('/notifications/:id/read', authenticateToken, async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const notificationId = parseInt(id);
-    const userId = req.user.userId;
-
-    // Actualiza la notificación SOLO si el ID coincide Y le pertenece al usuario
-    const updateOperation = await prisma.notificaciones.updateMany({
-      where: {
-        id: notificationId,
-        usuarioId: userId, //  crucial para seguridad
-      },
-      data: {
-        leido: true,
-      },
-    });
-
-    // Si 'count' es 0, la notificación no se encontró o no le pertenecía
-    if (updateOperation.count === 0) {
-      throw new AppError(
-        'Notificación no encontrada o no autorizada',
-        'NOT_FOUND',
-        404,
-      );
-    }
-
-    res.json({ success: true, message: 'Notificación marcada como leída' });
-  } catch (error) {
-    next(error);
-  }
-});
-
-
+// ... (el resto de tus rutas)
+module.exports = router;
 
 module.exports = router;

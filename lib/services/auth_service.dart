@@ -2,6 +2,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:convert';
 import 'api_client.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -15,7 +16,7 @@ class AuthService {
   final _storage = const FlutterSecureStorage();
   final _tokenKey = 'session_token';
   final _userKey = 'user_data';
-  
+
   late final ApiClient _apiClient;
   User? _currentUser;
 
@@ -38,6 +39,7 @@ class AuthService {
   Future<String?> getToken() async {
     return await _storage.read(key: _tokenKey);
   }
+
   // Borrar el token (para cerrar sesión)
   Future<void> deleteToken() async {
     await _storage.delete(key: _tokenKey);
@@ -46,11 +48,13 @@ class AuthService {
     _apiClient.clearToken();
     _currentUser = null;
   }
+
   // Guardar datos del usuario
   Future<void> saveUserData(User user) async {
     _currentUser = user;
     await _storage.write(key: _userKey, value: json.encode(user.toJson()));
   }
+
   // Guardar datos adicionales de Google (como foto)
   Future<void> saveGoogleUserData({
     required String email,
@@ -63,8 +67,10 @@ class AuthService {
       'photoUrl': photoUrl,
     };
     print('💾 AuthService: Guardando datos de Google: $googleData');
-    await _storage.write(key: 'google_user_data', value: json.encode(googleData));
+    await _storage.write(
+        key: 'google_user_data', value: json.encode(googleData));
   }
+
   // Obtener datos de Google guardados
   Future<Map<String, dynamic>?> getGoogleUserData() async {
     try {
@@ -90,6 +96,38 @@ class AuthService {
     if (userData != null) {
       final data = json.decode(userData);
       _currentUser = User.fromJson(data);
+    }
+  }
+  // ... dentro de la clase AuthService
+
+  // 👇 AÑADE ESTA NUEVA FUNCIÓN 👇
+  Future<void> initializeFirebaseNotifications() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+    try {
+      // 1. Pedir permiso al usuario (necesario en iOS)
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // 2. Obtener el Token FCM
+      final fcmToken = await messaging.getToken();
+
+      if (fcmToken != null) {
+        print("================= TOKEN FCM ==================");
+        print(fcmToken);
+        print("==============================================");
+
+        // ‼️ IMPORTANTE ‼️
+        // Aquí es donde llamaremos a tu API para guardar el token.
+        await _apiClient.saveFcmToken(fcmToken);
+      } else {
+        print("Error: No se pudo obtener el token FCM.");
+      }
+    } catch (e) {
+      print("Error al inicializar notificaciones FCM: $e");
     }
   }
 
@@ -131,7 +169,8 @@ class AuthService {
   }
 
   // Registro
-  Future<LoginResponse> register(String email, String password, String name) async {
+  Future<LoginResponse> register(
+      String email, String password, String name) async {
     try {
       final response = await _apiClient.register(email, password, name);
       if (response.ok && response.token != null && response.user != null) {
@@ -160,7 +199,7 @@ class AuthService {
         googleId: googleId,
         avatarUrl: avatarUrl,
       );
-      
+
       if (response.ok && response.token != null && response.user != null) {
         await saveToken(response.token!);
         await saveUserData(response.user!);
@@ -169,7 +208,8 @@ class AuthService {
     } catch (e) {
       rethrow;
     }
-  }  // Login con Google - SOLO Backend y PostgreSQL
+  } // Login con Google - SOLO Backend y PostgreSQL
+
   Future<Map<String, dynamic>> loginWithGoogleBackend({
     required String? idToken,
     required String? accessToken,
@@ -181,42 +221,43 @@ class AuthService {
     print('📧 Email: $email');
     print('👤 Nombre: $name');
     print('🖼️ Foto URL: $photoUrl');
-    
+
     try {
       // Usar idToken o accessToken
       final tokenToUse = idToken ?? accessToken;
       if (tokenToUse == null || tokenToUse.isEmpty) {
         throw Exception('No se pudo obtener token de Google');
       }
-      
+
       print('🌐 Conectando a API backend...');
-      
+
       final response = await _apiClient.loginWithGoogle(
         idToken: tokenToUse,
         email: email,
         name: name,
         avatarUrl: photoUrl,
       );
-      
+
       if (response.ok && response.token != null) {
         // ✅ Login exitoso con BD - Guardar token JWT real
         await saveToken(response.token!);
-        
+
         // Guardar datos del usuario en storage local para perfil
         if (response.user != null) {
           await saveUserData(response.user!);
         }
-        
+
         // También guardar datos de Google para el perfil
         await saveGoogleUserData(
           email: email,
           name: name,
           photoUrl: photoUrl,
         );
-        
+        await initializeFirebaseNotifications();
+
         print('✅ Login exitoso - Usuario guardado en PostgreSQL');
         print('🔐 Token JWT: ${response.token!.substring(0, 50)}...');
-        
+
         return {
           'success': true,
           'token': response.token!,
@@ -224,9 +265,10 @@ class AuthService {
           'user': response.user,
         };
       } else {
-        throw Exception(response.message.isNotEmpty ? response.message : 'Error en la respuesta del servidor');
+        throw Exception(response.message.isNotEmpty
+            ? response.message
+            : 'Error en la respuesta del servidor');
       }
-      
     } catch (e) {
       print('❌ Error en login con backend: $e');
       throw Exception('Error conectando al servidor: $e');
