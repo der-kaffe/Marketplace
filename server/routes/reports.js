@@ -3,7 +3,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-
+const admin = require('firebase-admin');
 const router = express.Router();
 
 // Util para manejar errores de validación
@@ -19,6 +19,9 @@ const handleValidationErrors = (req, res, next) => {
     next();
 };
 
+// ==========================================
+// POST /api/reports - Crear un reporte
+// ==========================================
 // ==========================================
 // POST /api/reports - Crear un reporte
 // ==========================================
@@ -123,7 +126,7 @@ router.post(
                     estadoId: 1, // Pendiente por defecto
                 },
                 include: { // Incluimos datos necesarios para la notificación
-                    reportante: { select: { id: true, nombre: true, usuario: true } }, // Añadimos 'usuario' si no estaba
+                    reportante: { select: { id: true, nombre: true, usuario: true } },
                     producto: { select: { id: true, nombre: true, vendedorId: true } },
                     usuarioReportado: { select: { id: true, nombre: true } },
                     estado: true,
@@ -139,30 +142,53 @@ router.post(
                 },
             });
 
-            // --- 👇👇👇 INICIO: LÓGICA PARA CREAR NOTIFICACIÓN 👇👇👇 ---
+            // ⭐️ INICIO: Enviar Notificación Push (ESTE ES EL BLOQUE NUEVO) ⭐️
             let recipientId = null;
             let notificationMessage = '';
-            const reporterName = nuevoReporte.reportante.usuario || nuevoReporte.reportante.nombre || 'Alguien'; // Usar username, nombre o fallback
+            const reporterName = nuevoReporte.reportante.usuario || nuevoReporte.reportante.nombre || 'Alguien';
 
             // Determinar quién recibe la notificación
             if (nuevoReporte.usuarioReportadoId) {
-                // Notificar al usuario reportado directamente
                 recipientId = nuevoReporte.usuarioReportadoId;
                 notificationMessage = `${reporterName} ha reportado tu cuenta. Motivo: "${motivo}"`;
-                console.log(`🔔 Notificando al usuario ${recipientId} sobre reporte de cuenta.`);
-
-            } else if (nuevoReporte.productoId && productoReportado) { // Usamos la variable guardada
-                // Notificar al vendedor del producto reportado
+            } else if (nuevoReporte.productoId && productoReportado) {
                 recipientId = productoReportado.vendedorId;
-                // Verificación extra (aunque ya se validó antes)
                 if (recipientId !== reportanteId) {
                     notificationMessage = `${reporterName} ha reportado tu producto "${productoReportado.nombre}". Motivo: "${motivo}"`;
-                    console.log(`🔔 Notificando al vendedor ${recipientId} sobre reporte del producto ${nuevoReporte.productoId}.`);
                 } else {
-                    recipientId = null; // No notificar si el vendedor es el mismo reportante
+                    recipientId = null; // No notificar
                 }
             }
 
+            // Si se determinó un destinatario, enviar la notificación push
+            if (recipientId && notificationMessage) {
+                try {
+                    // 1. Buscar el token FCM del destinatario
+                    const usuario = await prisma.cuentas.findUnique({
+                        where: { id: recipientId },
+                        select: { fcm_token: true }
+                    });
+
+                    if (usuario && usuario.fcm_token) {
+                        // 2. Definir y enviar el mensaje
+                        console.log(`🔔 Enviando notificación de REPORTE a ${usuario.fcm_token}`);
+                        await admin.messaging().send({
+                            token: usuario.fcm_token,
+                            notification: {
+                                title: '¡Has recibido un reporte! 🚩',
+                                body: notificationMessage
+                            },
+                            data: {
+                                screen: 'reports',
+                                reportId: nuevoReporte.id.toString()
+                            }
+                        });
+                    }
+                } catch (fcmError) {
+                    console.error("❌ Error al enviar notificación FCM de reporte:", fcmError);
+                }
+            }
+            // ⭐️ FIN: Enviar Notificación Push ⭐️
 
             // Respuesta final al usuario que creó el reporte
             res.status(201).json({
@@ -179,15 +205,13 @@ router.post(
             });
         } catch (error) {
             console.error('❌ Error creando reporte:', error);
-            // Asegurarse de que los errores de validación de Prisma también se manejen bien
-            if (error.code === 'P2003' || error.code === 'P2025') { // Foreign key constraint or record not found
+            if (error.code === 'P2003' || error.code === 'P2025') {
                 return res.status(400).json({ ok: false, message: 'ID de producto o usuario inválido.' });
             }
             res.status(500).json({ ok: false, message: 'Error interno del servidor' });
         }
     }
 );
-
 
 // ==========================================
 // GET /api/reports - Listar reportes (Admin)

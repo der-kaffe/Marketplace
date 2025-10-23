@@ -176,6 +176,7 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
+  const { prisma } = require('./config/database');
   console.log(`🔌 Usuario conectado: ${socket.userName} (ID: ${socket.userId})`);
   console.log(`🔌 Socket ID: ${socket.id}`);
 
@@ -209,7 +210,6 @@ io.on('connection', (socket) => {
       }
 
       // Guardar mensaje en la base de datos
-      const { prisma } = require('./config/database');
       const mensaje = await prisma.Mensajes.create({
         data: {
           remitenteId: socket.userId,
@@ -229,19 +229,42 @@ io.on('connection', (socket) => {
       const destinatarioIdInt = parseInt(destinatarioId);
       const destinatarioSocketId = connectedUsers.get(destinatarioIdInt);
 
-      console.log(`📤 Enviando mensaje:`);
-      console.log(`   - DestinatarioId: ${destinatarioId} (${destinatarioIdInt})`);
-      console.log(`   - DestinatarioSocketId: ${destinatarioSocketId}`);
-      console.log(`   - Usuarios conectados:`, Array.from(connectedUsers.keys()));
-      console.log(`   - Map completo:`, Object.fromEntries(connectedUsers));
-
       if (destinatarioSocketId) {
+        // --- EL USUARIO ESTÁ CONECTADO ---
         console.log(`✅ Enviando mensaje a destinatario conectado: ${destinatarioSocketId}`);
         io.to(destinatarioSocketId).emit('new_message', mensaje);
-        console.log(`📤 Evento new_message emitido al socket: ${destinatarioSocketId}`);
+
       } else {
-        console.log(`⚠️ Destinatario ${destinatarioId} no está conectado`);
-        console.log(`🔍 Buscando en connectedUsers:`, connectedUsers.has(destinatarioIdInt));
+        // --- EL USUARIO ESTÁ DESCONECTADO (ENVIAR PUSH) ---
+        console.log(`⚠️ Destinatario ${destinatarioId} no está conectado. Enviando Push Notification.`);
+
+        // ⭐️ INICIO: Enviar Notificación Push de CHAT ⭐️
+        try {
+          // 1. Busca el token FCM del destinatario
+          const destinatario = await prisma.cuentas.findUnique({
+            where: { id: destinatarioIdInt },
+            select: { fcm_token: true }
+          });
+
+          // 2. Si tiene token, envía la notificación
+          if (destinatario && destinatario.fcm_token) {
+            console.log(`🔔 Enviando notificación de CHAT a ${destinatario.fcm_token}`);
+            await admin.messaging().send({
+              token: destinatario.fcm_token,
+              notification: {
+                title: `Nuevo mensaje de ${socket.userName} 💬`, // socket.userName viene del middleware
+                body: contenido
+              },
+              data: {
+                screen: 'chat', // Para abrir la pantalla de chat
+                senderId: socket.userId.toString() // socket.userId viene del middleware
+              }
+            });
+          }
+        } catch (fcmError) {
+          console.error("❌ Error al enviar notificación FCM de chat:", fcmError);
+        }
+        // ⭐️ FIN: Enviar Notificación Push de CHAT ⭐️
       }
 
       // Confirmar envío al remitente
