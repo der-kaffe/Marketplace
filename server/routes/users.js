@@ -5,6 +5,7 @@ const { authenticateToken } = require('../middleware/auth');
 const AppError = require('../utils/AppError');
 
 const router = express.Router();
+const admin = require('firebase-admin');
 
 // GET /api/users/profile - Obtener perfil del usuario actual
 router.get('/profile', authenticateToken, async (req, res, next) => {
@@ -164,12 +165,58 @@ router.get('/', authenticateToken, async (req, res, next) => {
   }
 });
 
+
+
 // POST /api/users/rate/:sellerId - Calificar a un vendedor
 router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
   try {
+    // --- Definiciones movidas al inicio ---
     const { sellerId } = req.params;
     const { puntuacion, comentario } = req.body;
     const userId = req.user.userId;
+
+    // 👇 Definiciones REQUERIDAS para la notificación
+    const sellerIdInt = parseInt(sellerId);
+    const buyer = await prisma.cuentas.findUnique({
+      where: { id: userId },
+      select: { usuario: true }
+    });
+    const buyerName = buyer ? buyer.usuario : 'Un usuario';
+    // 👆 Fin de definiciones requeridas
+
+    // ⭐️ INICIO: Enviar Notificación Push ⭐️
+    try {
+      // 1. Busca el token FCM (para la prueba, usamos tu ID 62)
+      const vendedor = await prisma.cuentas.findUnique({
+        where: { id: 62 }, // 👈 RECUERDA: Esto es para la prueba
+        select: { fcm_token: true }
+      });
+
+      // 2. Si el vendedor tiene un token, envía la notificación
+      if (vendedor && vendedor.fcm_token) {
+        // 3. Define el mensaje
+        const message = {
+          token: vendedor.fcm_token, // El "domicilio"
+          notification: {
+            title: '¡Prueba de Valoración! ⭐',
+            body: `${buyerName} te ha calificado con ${puntuacion} estrellas.` // ✅ Ahora funciona
+          },
+          data: {
+            screen: 'ratings',
+            sellerId: sellerIdInt.toString() // ✅ Ahora funciona
+          }
+        };
+
+        // 4. Envía el mensaje
+        console.log(`🔔 Enviando notificación a ${vendedor.fcm_token}`);
+        await admin.messaging().send(message);
+      }
+    } catch (fcmError) {
+      console.error("❌ Error al enviar notificación FCM:", fcmError);
+      // No detenemos la respuesta principal si la notificación falla
+    }
+    // ⭐️ FIN: Enviar Notificación Push ⭐️
+
 
     // 1️⃣ Validaciones básicas
     if (!puntuacion || puntuacion < 1 || puntuacion > 5) {
@@ -185,23 +232,24 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
     const transactionExists = await prisma.transacciones.findFirst({
       where: {
         compradorId: userId,
-        vendedorId: parseInt(sellerId)
+        vendedorId: sellerIdInt // ✅ Usamos la variable ya definida
       }
     });
+
 
     if (!transactionExists) {
       throw new AppError(
         'No puedes calificar a este vendedor sin haber realizado una transacción',
-        'NO_TRANSACTION_ERROR', // ✅ Código de error único
+        'NO_TRANSACTION_ERROR',
         400
       );
     }
 
-    // 3️⃣ Verificar que el usuario no haya calificado antes al mismo vendedor para esta transacción
+    // 3️⃣ Verificar que el usuario no haya calificado antes...
     const alreadyRated = await prisma.calificaciones.findFirst({
       where: {
         calificadorId: userId,
-        calificadoId: parseInt(sellerId),
+        calificadoId: sellerIdInt, // ✅ Usamos la variable ya definida
         transaccionId: transactionExists.id
       }
     });
@@ -209,7 +257,7 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
     if (alreadyRated) {
       throw new AppError(
         'Ya has calificado esta transacción específica con este vendedor',
-        'ALREADY_RATED_TRANSACTION_ERROR', // ✅ Código de error único
+        'ALREADY_RATED_TRANSACTION_ERROR',
         400
       );
     }
@@ -219,7 +267,7 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
       data: {
         transaccionId: transactionExists.id,
         calificadorId: userId,
-        calificadoId: parseInt(sellerId),
+        calificadoId: sellerIdInt, // ✅ Usamos la variable ya definida
         puntuacion,
         comentario
       }
@@ -227,12 +275,12 @@ router.post('/rate/:sellerId', authenticateToken, async (req, res, next) => {
 
     // 5️⃣ Recalcular la reputación promedio del vendedor
     const promedio = await prisma.calificaciones.aggregate({
-      where: { calificadoId: parseInt(sellerId) },
+      where: { calificadoId: sellerIdInt }, // ✅ Usamos la variable ya definida
       _avg: { puntuacion: true }
     });
 
     await prisma.cuentas.update({
-      where: { id: parseInt(sellerId) },
+      where: { id: sellerIdInt }, // ✅ Usamos la variable ya definida
       data: { reputacion: promedio._avg.puntuacion || 0 }
     });
 

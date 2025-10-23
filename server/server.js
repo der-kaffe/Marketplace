@@ -8,6 +8,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { testConnection, closeConnection } = require('./config/database');
+const admin = require('firebase-admin');
 
 // Importar rutas
 const authRoutes = require('./routes/auth');
@@ -19,6 +20,17 @@ const uploadRoutes = require('./routes/upload');
 const favoritesRoutes = require('./routes/favorites');
 const reportsRoutes = require('./routes/reports');
 
+
+try {
+  const serviceAccount = require('./config/firebase-service-account.json');
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log('✅ Firebase Admin SDK inicializado.');
+} catch (error) {
+  console.error('❌ Error inicializando Firebase Admin SDK:', error.message);
+}
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -26,14 +38,14 @@ const io = new Server(server, {
     origin: function (origin, callback) {
       // Permitir requests sin origin (mobile apps)
       if (!origin) return callback(null, true);
-      
+
       // En desarrollo, permitir localhost en cualquier puerto
       if (process.env.NODE_ENV === 'development') {
         if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
           return callback(null, true);
         }
       }
-      
+
       // Verificar la lista específica del .env
       const allowedOrigins = process.env.CORS_ORIGIN.split(',');
       const isAllowed = allowedOrigins.some(allowedOrigin => {
@@ -43,7 +55,7 @@ const io = new Server(server, {
         }
         return origin === allowedOrigin;
       });
-      
+
       callback(null, isAllowed);
     },
     credentials: true
@@ -166,16 +178,16 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`🔌 Usuario conectado: ${socket.userName} (ID: ${socket.userId})`);
   console.log(`🔌 Socket ID: ${socket.id}`);
-  
+
   // Guardar la conexión del usuario
   connectedUsers.set(socket.userId, socket.id);
-  
+
   console.log(`👥 Usuarios conectados ahora:`, Array.from(connectedUsers.keys()));
   console.log(`📋 Map de conexiones:`, Object.fromEntries(connectedUsers));
-  
+
   // Unir al usuario a una sala personal
   socket.join(`user_${socket.userId}`);
-  
+
   // Notificar a otros usuarios que este usuario está online
   socket.broadcast.emit('user_online', {
     userId: socket.userId,
@@ -187,15 +199,15 @@ io.on('connection', (socket) => {
     try {
       console.log('📨 Evento send_message recibido:', data);
       console.log('👤 Usuario remitente:', socket.userId, socket.userName);
-      
+
       const { destinatarioId, contenido, tipo = 'texto' } = data;
-      
+
       if (!destinatarioId || !contenido) {
         console.log('❌ Datos incompletos:', { destinatarioId, contenido });
         socket.emit('message_error', { error: 'Datos incompletos' });
         return;
       }
-      
+
       // Guardar mensaje en la base de datos
       const { prisma } = require('./config/database');
       const mensaje = await prisma.Mensajes.create({
@@ -216,13 +228,13 @@ io.on('connection', (socket) => {
       // Enviar mensaje al destinatario si está conectado
       const destinatarioIdInt = parseInt(destinatarioId);
       const destinatarioSocketId = connectedUsers.get(destinatarioIdInt);
-      
+
       console.log(`📤 Enviando mensaje:`);
       console.log(`   - DestinatarioId: ${destinatarioId} (${destinatarioIdInt})`);
       console.log(`   - DestinatarioSocketId: ${destinatarioSocketId}`);
       console.log(`   - Usuarios conectados:`, Array.from(connectedUsers.keys()));
       console.log(`   - Map completo:`, Object.fromEntries(connectedUsers));
-      
+
       if (destinatarioSocketId) {
         console.log(`✅ Enviando mensaje a destinatario conectado: ${destinatarioSocketId}`);
         io.to(destinatarioSocketId).emit('new_message', mensaje);
@@ -235,7 +247,7 @@ io.on('connection', (socket) => {
       // Confirmar envío al remitente
       socket.emit('message_sent', mensaje);
       console.log(`✅ Confirmación enviada al remitente: ${socket.userId}`);
-      
+
     } catch (error) {
       console.error('❌ Error enviando mensaje:', error);
       socket.emit('message_error', { error: 'Error enviando mensaje' });
@@ -271,7 +283,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`🔌 Usuario desconectado: ${socket.userName} (ID: ${socket.userId})`);
     connectedUsers.delete(socket.userId);
-    
+
     // Notificar a otros usuarios que este usuario está offline
     socket.broadcast.emit('user_offline', {
       userId: socket.userId,
@@ -309,7 +321,7 @@ async function startServer() {
       console.log('   Ejemplo: DATABASE_URL="postgresql://username:password@localhost:5432/marketplace"');
       process.exit(1);
     }
-    
+
     server.listen(PORT, async () => {
       console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
       console.log(`🗄️  PostgreSQL con Prisma configurado`);

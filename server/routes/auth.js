@@ -217,6 +217,7 @@ router.post('/google', [
         editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
       }
     });
+    console.log(token)
   } catch (error) {
     console.error('Error en login Google:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
