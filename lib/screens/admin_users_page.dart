@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import '../widgets/create_user_dialog.dart';
 
 class UserItem {
   final int id;
@@ -349,10 +350,14 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF00A8E8),
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Agregar usuario (a implementar)')),
+        onPressed: () async {
+          final created = await showDialog(
+            context: context,
+            builder: (context) => const CreateUserDialog(),
           );
+          if (created == true) {
+            _refreshUsers(); // recarga la lista si se creó un usuario
+          }
         },
         child: const Icon(Icons.add, size: 28),
       ),

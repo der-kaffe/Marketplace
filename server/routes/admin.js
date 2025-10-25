@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const { authenticateToken, requireAdmin } = require('../middleware/auth'); // pendiente
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const bcrypt = require('bcryptjs');
 
-// Ruta para obtener todos los usuarios (por ahora "async")
+// Ruta para obtener todos los usuarios
 router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const users = await prisma.cuentas.findMany({
@@ -195,6 +196,38 @@ router.get('/metrics', authenticateToken, requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error obteniendo métricas:', error);
     res.status(500).json({ ok: false, error: 'Error interno obteniendo métricas' });
+  }
+});
+
+// Crear un nuevo usuario (solo admin)
+router.post('/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { nombre, apellido, correo, usuario, contrasena, rolId, campus } = req.body;
+
+    if (!nombre || !correo || !usuario || !contrasena) {
+      return res.status(400).json({ ok: false, message: 'Faltan datos obligatorios.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(contrasena, 10);
+
+    const nuevoUsuario = await prisma.cuentas.create({
+      data: {
+        nombre,
+        apellido,
+        correo,
+        usuario,
+        contrasena: hashedPassword,
+        rolId: rolId || 3, // 3 = Cliente por defecto
+        estadoId: 1,
+        campus: campus || 'Campus Temuco',
+      },
+      include: { rol: true }
+    });
+
+    res.json({ ok: true, message: 'Usuario creado correctamente', user: nuevoUsuario });
+  } catch (error) {
+    console.error('❌ Error al crear usuario:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });
 
