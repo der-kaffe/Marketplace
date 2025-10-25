@@ -89,8 +89,8 @@ class _MainScreenState extends State<MainScreen> {
             ),
             const SizedBox(width: 10),
             Text(_getTitle(currentIndex),
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 20)),
           ],
         ),
         actions: [
