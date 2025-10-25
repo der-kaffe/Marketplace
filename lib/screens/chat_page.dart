@@ -9,8 +9,8 @@ class ChatPage extends StatelessWidget {
   final int destinatarioId;
 
   const ChatPage({
-    Key? key, 
-    required this.userName, 
+    Key? key,
+    required this.userName,
     required this.avatar,
     required this.destinatarioId,
   }) : super(key: key);
@@ -37,8 +37,7 @@ class ChatPage extends StatelessWidget {
                 const SizedBox(width: 12),
                 CircleAvatar(
                   backgroundImage: NetworkImage(avatar),
-                  onBackgroundImageError: (exception, stackTrace) {
-                  },
+                  onBackgroundImageError: (exception, stackTrace) {},
                 ),
                 const SizedBox(width: 12),
                 Expanded(

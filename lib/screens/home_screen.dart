@@ -40,6 +40,7 @@ class HomeScreenState extends State<HomeScreen> {
 
   String? _selectedCategoryName;
   int? _selectedCategoryId;
+  bool _hasLoadedAllProducts = false; // Control para evitar cargas innecesarias
 
   // --- NUEVO: Estados para el filtro de rango de precio ---
   double? _precioMinimo;
@@ -58,14 +59,16 @@ class HomeScreenState extends State<HomeScreen> {
       // 1. Estamos cerca del final del scroll
       // 2. No hay carga en progreso
       // 3. No hay filtros activos
-      // 4. Hay productos originales cargados (evita cargar en categorías filtradas)
+      // 4. Hay productos originales cargados
+      // 5. No se han cargado todos los productos disponibles
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
           !_isLoadingProducts &&
           _selectedCategoryId == null &&
           _precioMinimo == null &&
           _precioMaximo == null &&
-          _originalProducts.isNotEmpty) {
+          _originalProducts.isNotEmpty &&
+          !_hasLoadedAllProducts) {
         _loadMoreProducts();
       }
     });
@@ -257,7 +260,7 @@ class HomeScreenState extends State<HomeScreen> {
     // ⬇️ 1. GUARDIÁN SIMPLIFICADO
     //    Tu scroll listener ya comprueba el filtro de categoría,
     //    así que aquí solo evitamos cargas duplicadas.
-    if (_isLoadingProducts) return;
+    if (_isLoadingProducts || _hasLoadedAllProducts) return;
 
     // 2. Establecer la animación de carga
     setState(() => _isLoadingProducts = true);
@@ -269,6 +272,12 @@ class HomeScreenState extends State<HomeScreen> {
       );
 
       setState(() {
+        // Si no hay más productos o hay menos de lo esperado, marcar como cargado todo
+        if (newProducts.isEmpty || newProducts.length < _limit) {
+          _hasLoadedAllProducts = true;
+          print('✅ Todos los productos han sido cargados (${newProducts.length} productos en esta página)');
+        }
+
         // Lógica para poblar _allProducts y _originalProducts
         if (_allProducts.isEmpty && _originalProducts.isEmpty) {
           // Primera carga: poblar ambas listas
@@ -558,7 +567,7 @@ class HomeScreenState extends State<HomeScreen> {
       _precioMinimo = null;
       _precioMaximo = null;
       _filteredProducts = List.from(_originalProducts);
-      _page = 1; // Reiniciar página para evitar duplicados
+      // No reiniciar _page ni _hasLoadedAllProducts para evitar recargas
     });
     print(
         '🔍 Filtros limpiados. Mostrando todos los productos: ${_filteredProducts.length}');
