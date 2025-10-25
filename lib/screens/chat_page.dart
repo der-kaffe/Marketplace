@@ -38,7 +38,6 @@ class ChatPage extends StatelessWidget {
                 CircleAvatar(
                   backgroundImage: NetworkImage(avatar),
                   onBackgroundImageError: (exception, stackTrace) {
-                    print('Error cargando avatar: $exception');
                   },
                 ),
                 const SizedBox(width: 12),

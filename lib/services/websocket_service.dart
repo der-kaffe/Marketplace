@@ -29,16 +29,10 @@ class WebSocketService {
 
   // Método para verificar el estado de la conexión
   void debugConnectionStatus() {
-    print('🔍 DEBUG CONEXIÓN WEBSOCKET:');
-    print('   - Socket existe: ${_socket != null}');
-    print('   - Socket conectado: ${_socket?.connected}');
-    print('   - URL configurada: ${NetworkConfig.websocketUrl}');
-    print('   - Estado isConnected: $isConnected');
   }
 
   // Método para forzar reconexión
   Future<void> forceReconnect() async {
-    print('🔄 Forzando reconexión WebSocket...');
     if (_socket != null) {
       _socket!.disconnect();
       _socket!.dispose();
@@ -49,27 +43,20 @@ class WebSocketService {
 
   Future<void> connect() async {
     try {
-      print('🔌 Iniciando conexión WebSocket...');
 
       final token = await _storage.read(key: 'session_token');
-      print('🔑 Token encontrado: ${token != null ? 'Sí' : 'No'}');
 
       if (token == null) {
-        print('❌ No se encontró token de autenticación (session_token)');
         return;
       }
 
-      print('🌐 URL WebSocket: ${NetworkConfig.websocketUrl}');
-      print('🔑 Token (primeros 20 chars): ${token.substring(0, 20)}...');
 
       // Desconectar socket anterior si existe
       if (_socket != null) {
-        print('🔌 Desconectando socket anterior...');
         _socket!.disconnect();
         _socket!.dispose();
       }
 
-      print('🔌 Creando nuevo socket...');
       _socket = IO.io(
         NetworkConfig.websocketUrl,
         IO.OptionBuilder()
@@ -83,82 +70,60 @@ class WebSocketService {
             .build(),
       );
 
-      print('🔌 Configurando event listeners...');
       _setupEventListeners();
 
-      print('✅ Configuración WebSocket completada');
 
       // Forzar conexión manual si autoConnect no funciona
-      print('🔌 Intentando conexión manual...');
       _socket!.connect();
     } catch (e) {
-      print('❌ Error conectando WebSocket: $e');
-      print('❌ Stack trace: ${StackTrace.current}');
     }
   }
 
   void _setupEventListeners() {
     _socket?.onConnect((_) {
-      print('✅ WebSocket CONECTADO exitosamente');
       _connectionController.add(true);
     });
 
     _socket?.onDisconnect((reason) {
-      print('🔌 WebSocket DESCONECTADO. Razón: $reason');
       _connectionController.add(false);
     });
 
     _socket?.onConnectError((error) {
-      print('❌ ERROR de conexión WebSocket: $error');
-      print('❌ Tipo de error: ${error.runtimeType}');
       _connectionController.add(false);
     });
 
     _socket?.onReconnect((attemptNumber) {
-      print('🔄 WebSocket RECONECTADO (intento $attemptNumber)');
       _connectionController.add(true);
     });
 
     _socket?.onReconnectError((error) {
-      print('❌ ERROR de reconexión WebSocket: $error');
       _connectionController.add(false);
     });
 
     // Escuchar nuevos mensajes
     _socket?.on('new_message', (data) {
-      print('📨 Nuevo mensaje recibido: $data');
-      print('📨 Tipo de datos: ${data.runtimeType}');
-      print('📨 Contenido del mensaje: ${data['contenido']}');
-      print('📨 Remitente: ${data['remitenteId']}');
-      print('📨 Destinatario: ${data['destinatarioId']}');
       _messageController.add(Map<String, dynamic>.from(data));
     });
 
     // Escuchar confirmación de mensaje enviado
     _socket?.on('message_sent', (data) {
-      print('✅ Mensaje enviado confirmado: $data');
-      print('✅ Tipo de datos: ${data.runtimeType}');
       _messageController.add(Map<String, dynamic>.from(data));
     });
 
     // Escuchar errores de mensaje
     _socket?.on('message_error', (data) {
-      print('❌ Error enviando mensaje: $data');
     });
 
     // Escuchar indicadores de escritura
     _socket?.on('user_typing', (data) {
-      print('⌨️ Usuario escribiendo: $data');
       _typingController.add(Map<String, dynamic>.from(data));
     });
 
     // Escuchar usuarios online/offline
     _socket?.on('user_online', (data) {
-      print('🟢 Usuario online: $data');
     });
 
     _socket?.on('user_offline', (data) {
-      print('🔴 Usuario offline: $data');
     });
   }
 
@@ -167,15 +132,8 @@ class WebSocketService {
     required String contenido,
     String tipo = 'texto',
   }) {
-    print('📤 Intentando enviar mensaje...');
-    print('🔌 WebSocket conectado: ${_socket?.connected}');
-    print('👤 Destinatario ID: $destinatarioId');
-    print('📝 Contenido: "$contenido"');
-    print('🏷️ Tipo: $tipo');
 
     if (_socket?.connected != true) {
-      print('❌ WebSocket no conectado. Estado: ${_socket?.connected}');
-      print('🔧 Intentando reconectar...');
       connect(); // Intentar reconectar
       return;
     }
@@ -186,9 +144,7 @@ class WebSocketService {
       'tipo': tipo,
     };
 
-    print('📤 Emitiendo evento send_message con datos: $messageData');
     _socket?.emit('send_message', messageData);
-    print('✅ Evento send_message emitido');
   }
 
   void startTyping(int destinatarioId) {

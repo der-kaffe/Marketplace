@@ -26,7 +26,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   Future<void> _initializeChat() async {
-    print('🚀 Inicializando chat...');
     await _loadCurrentUser();
     await _loadConversations();
     _setupWebSocketListeners();
@@ -47,16 +46,9 @@ class _ConversationsPageState extends State<ConversationsPage> {
     });
 
     try {
-      print('🔄 Cargando conversaciones...');
-      print('👤 Usuario actual ID: $_currentUserId');
 
       final conversationsList = await _chatService.getConversations();
-      print(
-          '📋 Conversaciones obtenidas del servicio: ${conversationsList.length}');
 
-      for (int i = 0; i < conversationsList.length; i++) {
-        print('   ${i + 1}. ${conversationsList[i]}');
-      }
 
       setState(() {
         conversations = conversationsList
@@ -66,13 +58,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
         _isLoading = false;
       });
 
-      print('✅ Conversaciones formateadas: ${conversations.length}');
-      for (int i = 0; i < conversations.length; i++) {
-        print(
-            '   ${i + 1}. ${conversations[i]["name"]}: "${conversations[i]["lastMessage"]}"');
-      }
     } catch (e) {
-      print('❌ Error cargando conversaciones: $e');
       setState(() {
         _isLoading = false;
       });
@@ -92,7 +78,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
     // ⭐️ Lógica para marcar como leído
     if (chat["unread"] > 0) {
-      print('🔵 Marcando como leída la conversación con $otroUsuarioId');
 
       // 1. Actualiza la UI inmediatamente
       setState(() {
@@ -103,7 +88,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
       try {
         await _chatService.markMessagesAsRead(otroUsuarioId);
       } catch (e) {
-        print("Error al marcar como leído: $e");
         // Opcional: Si falla, revertir el cambio en la UI
       }
     }
