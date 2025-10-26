@@ -29,6 +29,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       ProductService(); // ✅ Instancia del servicio
   double _sellerReputation = 0.0;
   bool _isLoadingReputation = true;
+  int _cantidadAComprar = 1;
 
   @override
   void initState() {
@@ -404,6 +405,154 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     );
   }
 
+  // ✅ 2. AÑADE ESTOS MÉTODOS
+  //    para controlar el selector de cantidad y el botón de compra.
+
+  /// Incrementa la cantidad a comprar, con un tope máximo del stock.
+  void _incrementarCantidad() {
+    // Usamos el 'widget.product.cantidad' que asumimos que existe en tu modelo.
+    final int stockDisponible = widget.product.cantidad; 
+
+    if (_cantidadAComprar < stockDisponible) {
+      setState(() {
+        _cantidadAComprar++;
+      });
+    } else {
+      // Si intenta agregar más del stock, muéstrale un aviso.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay más unidades disponibles.'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  /// Decrementa la cantidad a comprar, con un tope mínimo de 1.
+  void _decrementarCantidad() {
+    if (_cantidadAComprar > 1) {
+      setState(() {
+        _cantidadAComprar--;
+      });
+    }
+  }
+
+  /// Placeholder para tu Tarea 1: Iniciar el proceso de compra.
+  void _comprarProducto() {
+    // Esta es la función que conectará con tu Tarea 1 y 2
+    print('🛒 Iniciando compra de ${widget.product.title}');
+    print('   - Producto ID: ${widget.product.id}');
+    print('   - Cantidad seleccionada: $_cantidadAComprar');
+    
+    // Aquí llamarías a un futuro servicio:
+    // await _transactionService.crearTransaccion(
+    //   productoId: widget.product.id,
+    //   cantidad: _cantidadAComprar,
+    // );
+    
+    // Mostramos un mensaje temporal
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Iniciando compra de $_cantidadAComprar unidad(es)... (Lógica pendiente)'),
+        backgroundColor: AppColors.azulPrimario,
+      ),
+    );
+  }
+
+  /// ✅ 2. AÑADE ESTE WIDGET BUILDER
+  ///   Este método construye la UI para la sección de compra.
+  Widget _buildBuySection() {
+    // Asumimos que 'widget.product.cantidad' es el stock
+    final int stockDisponible = widget.product.cantidad; 
+    final bool estaAgotado = stockDisponible <= 0;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.fondoClaro,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Mostrar la cantidad disponible
+          Text(
+            estaAgotado 
+              ? 'Producto Agotado' 
+              : 'Unidades disponibles: $stockDisponible',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: estaAgotado ? Colors.red : AppColors.azulOscuro,
+            ),
+          ),
+          
+          // Si no está agotado, muestra el selector y el botón
+          if (!estaAgotado) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Seleccionar cantidad:', style: TextStyle(fontSize: 16)),
+                
+                // 2. Selector de cantidad (+ / -)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, color: AppColors.azulPrimario),
+                        padding: EdgeInsets.zero,
+                        // Deshabilitar si la cantidad es 1
+                        onPressed: _cantidadAComprar <= 1 ? null : _decrementarCantidad, 
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          '$_cantidadAComprar',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, color: AppColors.azulPrimario),
+                        padding: EdgeInsets.zero,
+                        // Deshabilitar si se alcanza el stock
+                        onPressed: _cantidadAComprar >= stockDisponible ? null : _incrementarCantidad, 
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 3. Botón de Comprar
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _comprarProducto,
+                icon: const Icon(Icons.shopping_cart_checkout),
+                label: const Text('Comprar Ahora'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.amarilloPrimario,
+                  foregroundColor: AppColors.azulOscuro,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmAndDeleteProduct() async {
     print('🆔 DEBUG: widget.product = ${widget.product}');
     print('🆔 DEBUG: widget.product.id = ${widget.product.id}');
@@ -586,6 +735,12 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   style: const TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 16),
+
+                // ✅ 3. AÑADE TU NUEVA SECCIÓN AQUÍ
+                const SizedBox(height: 24), // Un buen espacio
+                _buildBuySection(),
+                const SizedBox(height: 16),
+                // ------------------------------------
 
                 // Sección de reputación del vendedor
                 Container(

@@ -157,23 +157,28 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           onPressed: () => _removeFavorite(fav.productoId),
         ),
         onTap: () async {
-          // Mostrar detalle del producto al presionar la tarjeta
-          // Primero, construimos un Product a partir de FavoritedProduct (ajusta los campos según tu modelo)
           final product = Product(
             id: fav.productoId.toString(),
             title: fav.nombre,
-            description: '', // Si tienes descripción, agrégala aquí
+            description: '', 
             price: fav.precioActual ?? 0.0,
-            imageUrl: null, // Si tienes imagen, agrégala aquí
-            rating: 0.0,
-            reviewCount: 0,
+            imageUrl: null, 
+            rating: 0.0,    
+            reviewCount: 0, 
             category: fav.categoria ?? '',
-            isAvailable: true,
-            isFavorite: true,
-            sellerId: '', // Si tienes sellerId, agrégalo aquí
+            isAvailable: true, 
+            isFavorite: true,  
+            sellerId: "0", 
             sellerName: fav.vendedorNombre,
-            sellerAvatar: null,
+            
+            // ✅ CORREGIDO: Pasa null ya que 'fav' no tiene el email
+            sellerEmail: null, 
+
+            cantidad: 1, 
+            sellerAvatar: null, 
           );
+
+          // El resto (showModalBottomSheet) se queda igual
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,

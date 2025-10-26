@@ -1,5 +1,6 @@
+// lib/models/product_model.dart
+
 /// Modelo para representar un producto en la aplicación
-/// product_model.dart
 class Product {
   final String id;
   final String title;
@@ -11,11 +12,13 @@ class Product {
   final String category;
   final bool isAvailable;
   final bool isFavorite;
+  final int cantidad; 
 
   // 👤 Datos del vendedor
   final String sellerId;
   final String? sellerName;
   final String? sellerAvatar;
+  final String? sellerEmail;
 
   const Product({
     required this.id,
@@ -28,9 +31,11 @@ class Product {
     required this.category,
     this.isAvailable = true,
     this.isFavorite = false,
+    required this.cantidad,
     required this.sellerId,
     this.sellerName,
     this.sellerAvatar,
+    this.sellerEmail,
   });
 
   /// Crea una copia del producto con algunos campos modificados
@@ -45,9 +50,11 @@ class Product {
     String? category,
     bool? isAvailable,
     bool? isFavorite,
+    int? cantidad, 
     String? sellerId,
     String? sellerName,
     String? sellerAvatar,
+    String? sellerEmail,
   }) {
     return Product(
       id: id ?? this.id,
@@ -60,9 +67,11 @@ class Product {
       category: category ?? this.category,
       isAvailable: isAvailable ?? this.isAvailable,
       isFavorite: isFavorite ?? this.isFavorite,
+      cantidad: cantidad ?? this.cantidad,
       sellerId: sellerId ?? this.sellerId,
       sellerName: sellerName ?? this.sellerName,
       sellerAvatar: sellerAvatar ?? this.sellerAvatar,
+      sellerEmail: sellerEmail ?? this.sellerEmail,
     );
   }
 
@@ -79,9 +88,11 @@ class Product {
       'category': category,
       'isAvailable': isAvailable,
       'isFavorite': isFavorite,
+      'cantidad': cantidad,
       'sellerId': sellerId,
       'sellerName': sellerName,
       'sellerAvatar': sellerAvatar,
+      'sellerEmail': sellerEmail,
     };
   }
 
@@ -98,9 +109,11 @@ class Product {
       category: json['category'] as String,
       isAvailable: json['isAvailable'] as bool? ?? true,
       isFavorite: json['isFavorite'] as bool? ?? false,
+      cantidad: (json['cantidad'] as int?) ?? 0, 
       sellerId: json['sellerId'] as String,
       sellerName: json['sellerName'] as String?,
       sellerAvatar: json['sellerAvatar'] as String?,
+      sellerEmail: json['sellerEmail'] as String?,
     );
   }
 }

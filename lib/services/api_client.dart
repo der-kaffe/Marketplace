@@ -807,14 +807,14 @@ class ProductFromDB {
   final double? precioAnterior;
   final double? precioActual;
   final String? categoria; // Campo de categoría (nombre)
-  final String?
-      categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
+  final String? categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
   final double? calificacion;
   final int? cantidad;
   final String estado;
   final DateTime fechaAgregado;
   final List<dynamic> imagenes; // Bytes de imágenes
   final VendedorFromDB vendedor;
+  final bool? visible; // ✅ Añadido campo visible
 
   ProductFromDB({
     required this.id,
@@ -823,13 +823,14 @@ class ProductFromDB {
     this.precioAnterior,
     this.precioActual,
     this.categoria,
-    this.categoriaId, // Añadir al constructor
+    this.categoriaId,
     this.calificacion,
     this.cantidad,
     required this.estado,
     required this.fechaAgregado,
     required this.imagenes,
     required this.vendedor,
+    required this.visible, // ✅ Añadido al constructor
   });
 
   factory ProductFromDB.fromJson(Map<String, dynamic> json) {
@@ -863,21 +864,59 @@ class ProductFromDB {
       return DateTime.now();
     }
 
+    // Helper para booleanos
+    bool safeToBool(dynamic value, {bool defaultValue = true}) {
+      if (value == null) return defaultValue;
+      if (value is bool) return value;
+      if (value is String) return value.toLowerCase() == 'true';
+      if (value is int) return value == 1;
+      return defaultValue;
+    }
+
+    // ✅ NUEVA LÓGICA MÁS SEGURA PARA CATEGORÍA Y ESTADO
+    String? categoriaNombre;
+    String? categoriaIdStr;
+    dynamic categoriaJson = json['categoria'];
+    if (categoriaJson is Map) {
+      categoriaNombre = categoriaJson['nombre']?.toString();
+      categoriaIdStr = categoriaJson['id']?.toString();
+    } else if (categoriaJson is String) {
+      categoriaNombre = categoriaJson;
+      // No podemos obtener el ID si solo viene el nombre
+    }
+    // Si la API envía 'categoriaId' directamente, úsalo como fallback si no lo obtuvimos del objeto anidado
+    categoriaIdStr ??= json['categoriaId']?.toString();
+
+
+    String estadoNombre = '';
+    dynamic estadoJson = json['estado'];
+    if (estadoJson is Map) {
+      estadoNombre = estadoJson['nombre']?.toString() ?? '';
+    } else if (estadoJson is String) {
+      estadoNombre = estadoJson;
+    }
+
     return ProductFromDB(
       id: safeToInt(json['id']) ?? 0,
       nombre: json['nombre']?.toString() ?? '',
       descripcion: json['descripcion']?.toString(),
       precioAnterior: safeToDouble(json['precioAnterior']),
       precioActual: safeToDouble(json['precioActual']),
-      categoria: json['categoria']?.toString(),
-      // Asumiendo que la API también devuelve 'categoriaId'
-      categoriaId: json['categoriaId']?.toString(), // Convertir a String
+
+      // ✅ USA LOS VALORES PROCESADOS
+      categoria: categoriaNombre,
+      categoriaId: categoriaIdStr,
+
       calificacion: safeToDouble(json['calificacion']),
       cantidad: safeToInt(json['cantidad']),
-      estado: json['estado']?.toString() ?? '',
+
+      // ✅ USA EL VALOR PROCESADO
+      estado: estadoNombre,
+
       fechaAgregado: safeParseDatetime(json['fechaAgregado']),
       imagenes: json['imagenes'] ?? [],
       vendedor: VendedorFromDB.fromJson(json['vendedor'] ?? {}),
+      visible: safeToBool(json['visible'], defaultValue: true),
     );
   }
 
@@ -887,6 +926,7 @@ class ProductFromDB {
     print('Nombre Producto: ${nombre}');
     print('Categoria Nombre (RAW): ${categoria}');
     print('Categoria ID (RAW): ${categoriaId}');
+    print('Cantidad (RAW): ${cantidad}'); // 👈 Añadí este print para verificar
     print('-----------------------------');
 
     // Usar categoriaId como el identificador para el filtro si está disponible y es numérico
@@ -895,21 +935,24 @@ class ProductFromDB {
         ? categoriaId.toString()
         : (categoria ?? 'Sin categoría');
     print(
-        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})');
+        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})'
+    );
 
     return ProductModel.Product(
       id: id.toString(),
       title: nombre,
       description: descripcion ?? 'Sin descripción',
       price: precioActual ?? 0.0,
-      imageUrl: _getImageUrl(), // Manejar imágenes como bytes o placeholder
+      imageUrl: _getImageUrl(),
       rating: calificacion ?? 0.0,
-      reviewCount: 0, // Por ahora
-      category: categoryIdentifier, // Ahora debería ser el ID como String
-      isAvailable: estado == 'Disponible',
+      reviewCount: 0, 
+      category: categoryIdentifier,
+      isAvailable: this.visible ?? true, 
+      cantidad: cantidad ?? 0,
       sellerId: vendedor.id.toString(),
-      sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}',
-      sellerAvatar: null, // Por ahora
+      sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}'.trim(), // Trim para quitar espacios extra
+      sellerAvatar: vendedor.avatarUrl, // ✅ Usar el avatar del vendedor si existe
+      sellerEmail: vendedor.correo,
     );
   }
 
@@ -928,6 +971,7 @@ class VendedorFromDB {
   final String correo;
   final String? campus;
   final double reputacion;
+  final String? avatarUrl; // 👈 AÑADE ESTO SI TU API LO DEVUELVE
 
   VendedorFromDB({
     required this.id,
@@ -936,6 +980,7 @@ class VendedorFromDB {
     required this.correo,
     this.campus,
     required this.reputacion,
+    this.avatarUrl, // 👈 AÑADE ESTO
   });
 
   factory VendedorFromDB.fromJson(Map<String, dynamic> json) {
@@ -967,6 +1012,7 @@ class VendedorFromDB {
       correo: json['correo']?.toString() ?? '',
       campus: json['campus']?.toString(),
       reputacion: safeToDouble(json['reputacion']),
+      avatarUrl: json['avatar']?.toString(), // 👈 AÑADE ESTO
     );
   }
 }
