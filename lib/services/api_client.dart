@@ -512,12 +512,71 @@ class ApiClient {
     }
   }
 
-  // --- AQUÍ AÑADIREMOS LOS MÉTODOS PARA CONFIRMAR ---
-  // Future<void> confirmDelivery(int transactionId) async { ... }
-  // Future<void> confirmReceipt(int transactionId) async { ... }
-  // Future<List<Transaction>> getMyPurchases() async { ... }
-  // Future<List<Transaction>> getMySales() async { ... }
+  // --- MÉTODOS PARA TRANSACCIONES Y CONFIRMACIÓN ---
 
+  /// Obtiene la lista de compras del usuario actual
+  Future<TransactionListResponse> getMyPurchases({int page = 1, int limit = 10}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/transactions/purchases').replace(
+        queryParameters: {'page': page.toString(), 'limit': limit.toString()},
+      );
+      print('🛍️ Obteniendo mis compras: GET $uri');
+      final response = await http.get(uri, headers: _headers);
+      final data = _handleResponse(response);
+      return TransactionListResponse.fromJsonPurchases(data);
+    } catch (e) {
+      print('❌ Excepción en getMyPurchases: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al obtener compras: $e');
+    }
+  }
+
+  /// Obtiene la lista de ventas del usuario actual
+  Future<TransactionListResponse> getMySales({int page = 1, int limit = 10}) async {
+    try {
+       final uri = Uri.parse('$baseUrl/api/transactions/sales').replace(
+        queryParameters: {'page': page.toString(), 'limit': limit.toString()},
+      );
+      print('💰 Obteniendo mis ventas: GET $uri');
+      final response = await http.get(uri, headers: _headers);
+       final data = _handleResponse(response);
+      return TransactionListResponse.fromJsonSales(data);
+    } catch (e) {
+       print('❌ Excepción en getMySales: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al obtener ventas: $e');
+    }
+  }
+
+  /// Vendedor confirma la entrega de una transacción
+  Future<Map<String, dynamic>> confirmDelivery(int transactionId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-delivery');
+      print('🚚 Confirmando entrega (Vendedor): PATCH $uri');
+      final response = await http.patch(uri, headers: _headers);
+      print('   -> Respuesta: ${response.statusCode}');
+      return _handleResponse(response);
+    } catch (e) {
+      print('❌ Excepción en confirmDelivery: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al confirmar entrega: $e');
+    }
+  }
+
+  /// Comprador confirma el recibo de una transacción
+  Future<Map<String, dynamic>> confirmReceipt(int transactionId) async {
+     try {
+      final uri = Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-receipt');
+      print('🤝 Confirmando recibo (Comprador): PATCH $uri');
+      final response = await http.patch(uri, headers: _headers);
+      print('   -> Respuesta: ${response.statusCode}');
+      return _handleResponse(response);
+    } catch (e) {
+      print('❌ Excepción en confirmReceipt: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al confirmar recibo: $e');
+    }
+  }
 
 
   // ============================================================================
@@ -1236,9 +1295,121 @@ class FavoritedProduct {
   }
 }
 
-// --- (Opcional pero recomendado) Añadir un modelo para la respuesta ---
-// class TransactionResponse { ... }
-// class Transaction { ... }
+// --- MODELOS PARA TRANSACCIONES ---
+
+// Modelo simplificado para las listas de compras/ventas
+class TransactionSummary {
+  final int id;
+  final DateTime fecha;
+  final String estado;
+  final int cantidad;
+  final double precioTotal;
+  final bool confirmacionComprador;
+  final bool confirmacionVendedor;
+  final TransactionProductInfo producto;
+  final TransactionUserInfo? comprador; // Nullable en la lista de compras
+  final TransactionUserInfo? vendedor; // Nullable en la lista de ventas
+
+  TransactionSummary({
+    required this.id,
+    required this.fecha,
+    required this.estado,
+    required this.cantidad,
+    required this.precioTotal,
+    required this.confirmacionComprador,
+    required this.confirmacionVendedor,
+    required this.producto,
+    this.comprador,
+    this.vendedor,
+  });
+
+  factory TransactionSummary.fromJson(Map<String, dynamic> json) {
+    return TransactionSummary(
+      id: json['id'] ?? 0,
+      fecha: DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
+      estado: json['estado'] ?? 'Desconocido',
+      cantidad: json['cantidad'] ?? 0,
+      precioTotal: (json['precioTotal'] as num?)?.toDouble() ?? 0.0,
+      confirmacionComprador: json['confirmacionComprador'] ?? false,
+      confirmacionVendedor: json['confirmacionVendedor'] ?? false,
+      producto: TransactionProductInfo.fromJson(json['producto'] ?? {}),
+      comprador: json['comprador'] != null
+          ? TransactionUserInfo.fromJson(json['comprador'])
+          : null,
+      vendedor: json['vendedor'] != null
+          ? TransactionUserInfo.fromJson(json['vendedor'])
+          : null,
+    );
+  }
+}
+
+// Info básica del producto en una transacción
+class TransactionProductInfo {
+  final int id;
+  final String nombre;
+  final String? imageUrl; // Placeholder
+
+  TransactionProductInfo({required this.id, required this.nombre, this.imageUrl});
+
+  factory TransactionProductInfo.fromJson(Map<String, dynamic> json) {
+    return TransactionProductInfo(
+      id: json['id'] ?? 0,
+      nombre: json['nombre'] ?? 'Producto Desconocido',
+      // imageUrl: json['imageUrl'], // Ajustar si la API envía la imagen
+    );
+  }
+}
+
+// Info básica del usuario (comprador/vendedor) en una transacción
+class TransactionUserInfo {
+  final int id;
+  final String nombreCompleto;
+  final String? usuario;
+
+  TransactionUserInfo({required this.id, required this.nombreCompleto, this.usuario});
+
+  factory TransactionUserInfo.fromJson(Map<String, dynamic> json) {
+    return TransactionUserInfo(
+      id: json['id'] ?? 0,
+      nombreCompleto: json['nombreCompleto'] ?? 'Usuario Desconocido',
+      usuario: json['usuario'],
+    );
+  }
+}
+
+// Respuesta para las listas de transacciones (con paginación)
+class TransactionListResponse {
+  final bool ok;
+  final List<TransactionSummary> transactions;
+  final PaginationInfo pagination;
+
+  TransactionListResponse({
+    required this.ok,
+    required this.transactions,
+    required this.pagination,
+  });
+
+  factory TransactionListResponse.fromJsonPurchases(Map<String, dynamic> json) {
+    return TransactionListResponse(
+      ok: json['ok'] ?? false,
+      transactions: (json['purchases'] as List<dynamic>?)
+              ?.map((item) => TransactionSummary.fromJson(item))
+              .toList() ??
+          [],
+      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
+    );
+  }
+   factory TransactionListResponse.fromJsonSales(Map<String, dynamic> json) {
+    return TransactionListResponse(
+      ok: json['ok'] ?? false,
+      transactions: (json['sales'] as List<dynamic>?)
+              ?.map((item) => TransactionSummary.fromJson(item))
+              .toList() ??
+          [],
+      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
+    );
+  }
+}
 
 // Excepción personalizada para errores de API
 class ApiException implements Exception {

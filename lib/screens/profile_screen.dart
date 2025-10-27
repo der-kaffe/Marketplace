@@ -7,10 +7,11 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
-import '../services/product_service.dart'; // Importar servicio de productos
-import '../models/product_model.dart'; // Importar modelo de producto
-import '../widgets/product_card.dart'; // Reutilizar la tarjeta de producto
-import '../widgets/product_detail_modal.dart'; // Reutilizar el modal de detalle
+import '../services/product_service.dart';
+import '../services/api_client.dart';
+import '../models/product_model.dart';
+import '../widgets/product_card.dart';
+import '../widgets/product_detail_modal.dart';
 
 // Instancia global para manejar Google Sign-In
 final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -37,31 +38,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _telefono;
   String? _direccion;
 
-  // --- NUEVO: Estado para los productos del usuario ---
   final ProductService _productService = ProductService();
   List<Product> _myProducts = [];
   bool _isLoadingMyProducts = true;
-  // --- FIN NUEVO ---
 
   int _favoritesCount = 0;
   int _reviewsCount = 0; // Placeholder, actualizar si tienes endpoint
+
+  // --- ✅ NUEVO: Estado para Transacciones ---
+  final ApiClient _apiClient = ApiClient(baseUrl: getDefaultBaseUrl());
+  final AuthService _authService = AuthService(); 
+  List<TransactionSummary> _myPurchases = [];
+  List<TransactionSummary> _mySales = [];
+  bool _isLoadingPurchases = true;
+  bool _isLoadingSales = true;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _loadMyProducts(); // Cargar los productos del usuario
+    _loadMyProducts();
     _loadFavoritesCount();
+    _loadMyPurchases(); 
+    _loadMySales();  
     // Si tienes endpoint de reseñas, llama aquí a _loadReviewsCount();
   }
 
   Future<void> _loadUserData() async {
     try {
       print('🔍 Cargando datos del perfil desde backend...');
-      final authService = AuthService();
 
       // Obtener datos del usuario actual desde AuthService
-      final currentUser = authService.currentUser;
+      final currentUser = _authService.currentUser;
       if (currentUser != null) {
         print('👤 Usuario actual del AuthService: ${currentUser.name}');
         setState(() {
@@ -81,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         print('⚠️ No hay usuario autenticado');
         // Intentar obtener desde datos de Google como fallback
-        final googleData = await authService.getGoogleUserData();
+        final googleData = await _authService.getGoogleUserData();
         if (googleData != null) {
           setState(() {
             _userName = googleData['name'] ?? 'Usuario';
@@ -129,16 +137,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-  // --- FIN NUEVO ---
 
   Future<void> _loadFavoritesCount() async {
     try {
-      final authService = AuthService();
-      final token = await authService.getToken();
+      final token = await _authService.getToken();
       if (token != null && token.isNotEmpty) {
-        authService.apiClient.setToken(token);
+        _authService.apiClient.setToken(token);
       }
-      final resp = await authService.apiClient.getProductFavorites(page: 1, limit: 100);
+      final resp = await _authService.apiClient.getProductFavorites(page: 1, limit: 100);
       if (mounted) {
         setState(() {
           _favoritesCount = resp.favorites.length;
@@ -151,14 +157,169 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Método para refrescar los datos del usuario (simplificado)
+  // Método para refrescar los datos del usuario
   Future<void> _refreshUserData() async {
     print('🔄 Refrescando datos del perfil...');
     setState(() {
-      _isLoading = true;
+      _isLoading = true; // Mantén este si quieres recargar todo el perfil
+      // O solo recarga secciones específicas:
+      // _isLoadingMyProducts = true;
+      // _isLoadingPurchases = true;
+      // _isLoadingSales = true;
     });
-    await _loadUserData();
-    await _loadMyProducts(); // Refrescar también los productos
+    // Llama a todas las cargas en paralelo
+    await Future.wait([
+      _loadUserData(),
+      _loadMyProducts(),
+      _loadFavoritesCount(), // Si quieres refrescar esto también
+      _loadMyPurchases(),    // ✅ AÑADIDO
+      _loadMySales(),        // ✅ AÑADIDO
+    ]);
+     if (mounted) {
+       setState(() => _isLoading = false); // Apaga el loading general si lo usaste
+     }
+  }
+
+  // --- ✅ NUEVO: Métodos para cargar Compras y Ventas ---
+  Future<void> _loadMyPurchases() async {
+    if (!mounted) return;
+    setState(() => _isLoadingPurchases = true);
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token); // Asegurar token en ApiClient
+
+      final response = await _apiClient.getMyPurchases();
+      if (mounted) {
+        setState(() {
+          _myPurchases = response.transactions;
+          _isLoadingPurchases = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error cargando mis compras: $e');
+      if (mounted) {
+        setState(() => _isLoadingPurchases = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar compras: ${e is ApiException ? e.message : e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadMySales() async {
+    if (!mounted) return;
+    setState(() => _isLoadingSales = true);
+    try {
+       final token = await _authService.getToken();
+      if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token); // Asegurar token en ApiClient
+
+      final response = await _apiClient.getMySales();
+       if (mounted) {
+        setState(() {
+          _mySales = response.transactions;
+          _isLoadingSales = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error cargando mis ventas: $e');
+      if (mounted) {
+        setState(() => _isLoadingSales = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error al cargar ventas: ${e is ApiException ? e.message : e.toString()}')),
+        );
+      }
+    }
+  }
+
+  // --- ✅ NUEVO: Métodos para Confirmar (ventas vendidas)---
+  Future<void> _confirmReceipt(int transactionId) async {
+    // Mostrar diálogo de confirmación (opcional pero recomendado)
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Recibo'),
+        content: const Text('¿Confirmas que has recibido este producto? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return; // Si cancela, no hacer nada
+
+    // Mostrar indicador de carga
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Confirmando recibo...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final token = await _authService.getToken();
+       if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token);
+
+      await _apiClient.confirmReceipt(transactionId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ ¡Recibo confirmado!'), backgroundColor: Colors.green),
+        );
+        // Recargar la lista de compras para ver el cambio de estado
+        await _loadMyPurchases();
+      }
+    } catch (e) {
+       print('❌ Error confirmando recibo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelivery(int transactionId) async {
+     final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Entrega'),
+        content: const Text('¿Confirmas que has entregado este producto al comprador? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Confirmando entrega...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+       final token = await _authService.getToken();
+       if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token);
+
+      await _apiClient.confirmDelivery(transactionId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ ¡Entrega confirmada!'), backgroundColor: Colors.green),
+        );
+        // Recargar la lista de ventas
+        await _loadMySales();
+      }
+    } catch (e) {
+      print('❌ Error confirmando entrega: $e');
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -213,11 +374,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 
                 const SizedBox(height: 16),
-
                 // --- NUEVO: Sección "Mis Productos" ---
                 _buildMyProductsSection(),
-                // --- FIN NUEVO ---
+                const SizedBox(height: 16),
 
+                // secciones de Compras y Ventas
+                _buildPurchasesSection(),
+                const SizedBox(height: 16),
+                _buildSalesSection(),
                 const SizedBox(height: 16),
 
                 const SizedBox(height: 16), // Opciones de cuenta
@@ -253,7 +417,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 30),
 
                 // Versión de la aplicación
@@ -440,7 +603,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
   
-  // --- NUEVO: Widget para construir la sección de "Mis Productos" ---
   Widget _buildMyProductsSection() {
     return _buildInfoSection(
       title: 'Mis Publicaciones',
@@ -508,7 +670,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
-  // --- FIN NUEVO ---
 
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Padding(
@@ -542,6 +703,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --- ✅ NUEVO: Widgets para construir las secciones de Compras y Ventas ---
+  Widget _buildPurchasesSection() {
+    return _buildInfoSection(
+      title: 'Mis Compras',
+      items: [
+        if (_isLoadingPurchases)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40.0),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_myPurchases.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: Text('No has realizado ninguna compra aún.')),
+          )
+        else
+          // Usamos ListView.separated para añadir divisores
+          ListView.separated(
+            shrinkWrap: true, // Importante dentro de otro ListView
+            physics: const NeverScrollableScrollPhysics(), // Evitar scroll anidado
+            itemCount: _myPurchases.length,
+            itemBuilder: (context, index) {
+              final purchase = _myPurchases[index];
+              return _buildTransactionTile(purchase, isPurchase: true);
+            },
+            separatorBuilder: (context, index) => const Divider(height: 1),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSalesSection() {
+     return _buildInfoSection(
+      title: 'Mis Ventas',
+      items: [
+        if (_isLoadingSales)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40.0),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_mySales.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: Text('No has realizado ninguna venta aún.')),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _mySales.length,
+            itemBuilder: (context, index) {
+              final sale = _mySales[index];
+              return _buildTransactionTile(sale, isPurchase: false);
+            },
+             separatorBuilder: (context, index) => const Divider(height: 1),
+          ),
+      ],
+    );
+  }
+
+  // Widget reutilizable para mostrar una compra o venta
+  Widget _buildTransactionTile(TransactionSummary transaction, {required bool isPurchase}) {
+    final user = isPurchase ? transaction.vendedor : transaction.comprador;
+    final canConfirm = transaction.estado == 'Pendiente'; // Solo se puede confirmar si está pendiente
+    final alreadyConfirmed = isPurchase ? transaction.confirmacionComprador : transaction.confirmacionVendedor;
+    final showConfirmButton = canConfirm && !alreadyConfirmed;
+
+    return ListTile(
+      // leading: CircleAvatar(child: Icon(Icons.shopping_bag)), // O imagen del producto
+      title: Text(transaction.producto.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+           Text('${DateFormat('dd/MM/yyyy HH:mm').format(transaction.fecha)} - ${_formatCLP(transaction.precioTotal)}'),
+          if (user != null) Text(isPurchase ? 'Vendedor: ${user.nombreCompleto}' : 'Comprador: ${user.nombreCompleto}'),
+          Row( // Mostrar estado y confirmaciones
+            children: [
+              Text('Estado: ${transaction.estado}'),
+              const SizedBox(width: 8),
+              if (transaction.confirmacionVendedor) const Icon(Icons.check_circle, color: Colors.blue, size: 16), // Vendedor OK
+              if (transaction.confirmacionComprador) const Icon(Icons.check_circle, color: Colors.green, size: 16), // Comprador OK
+            ],
+          )
+        ],
+      ),
+      trailing: showConfirmButton
+          ? ElevatedButton(
+              onPressed: () {
+                if (isPurchase) {
+                  _confirmReceipt(transaction.id);
+                } else {
+                  _confirmDelivery(transaction.id);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                 padding: const EdgeInsets.symmetric(horizontal: 8),
+                 minimumSize: const Size(0, 30), // Botón más pequeño
+                 backgroundColor: isPurchase ? Colors.green : Colors.blue,
+              ),
+              child: Text(isPurchase ? 'Recibido' : 'Entregado', style: const TextStyle(fontSize: 12)),
+            )
+          : null, // No mostrar botón si no se puede confirmar
+       isThreeLine: true, // Ajustar si el subtítulo tiene varias líneas
     );
   }
 
