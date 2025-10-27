@@ -322,4 +322,65 @@ router.put('/profile/fcm-token', authenticateToken, async (req, res, next) => {
   }
 });
 
+// ✅ NUEVA RUTA: GET /api/users/:id - Obtener perfil PÚBLICO de un usuario por ID
+router.get('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = parseInt(id);
+
+    if (isNaN(userId)) {
+      throw new AppError(
+        "ID de usuario inválido",
+        "INVALID_INPUT",
+        400,
+        { field: "id", value: id }
+      );
+    }
+
+    const user = await prisma.cuentas.findUnique({
+      where: { id: userId },
+      select: { // Selecciona solo los campos públicos que quieres mostrar
+        id: true,
+        nombre: true,
+        apellido: true,
+        usuario: true, // Puedes decidir si mostrar el nombre de usuario
+        campus: true,
+        reputacion: true,
+        fechaRegistro: true,
+        // NO incluyas correo o contraseña aquí por seguridad
+        // Puedes añadir un campo 'avatar' si lo tienes en tu schema
+      }
+    });
+
+    if (!user) {
+      throw new AppError(
+        "Usuario no encontrado",
+        "USER_NOT_FOUND",
+        404,
+        { field: "id", value: userId }
+      );
+    }
+
+    // Formatea la respuesta (opcional pero bueno)
+    res.json({
+      success: true,
+      data: {
+        id: user.id,
+        nombreCompleto: `${user.nombre || ''} ${user.apellido || ''}`.trim(),
+        usuario: user.usuario,
+        campus: user.campus,
+        reputacion: user.reputacion ? Number(user.reputacion) : 0.0,
+        miembroDesde: user.fechaRegistro,
+      }
+    });
+
+  } catch (error) {
+    // Asegúrate de que los errores 404 lleguen a la app
+    if (error instanceof AppError && error.statusCode === 404) {
+      return res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
+    }
+    next(error); // Otros errores van al errorHandler general
+  }
+});
+
 module.exports = router;

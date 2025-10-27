@@ -481,6 +481,45 @@ class ApiClient {
     }
   }
 
+  /// ✅ NUEVO: Inicia una transacción de compra
+  Future<Map<String, dynamic>> createTransaction({
+    required int productId,
+    required int quantity,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/transactions');
+      print('🛒 Creando transacción: POST $uri');
+      final response = await http.post(
+        uri,
+        headers: _headers, // Usa los headers con token
+        body: jsonEncode({
+          'productId': productId,
+          'quantity': quantity,
+        }),
+      );
+
+      print('   -> Respuesta: ${response.statusCode}');
+      // Usamos _handleResponse que ya maneja errores 4xx/5xx
+      return _handleResponse(response);
+
+    } catch (e) {
+      print('❌ Excepción en createTransaction: $e');
+      // Re-lanzar como ApiException si no lo es ya
+      if (e is ApiException) {
+        rethrow;
+      }
+      throw ApiException(message: 'Error de conexión al crear transacción: $e');
+    }
+  }
+
+  // --- AQUÍ AÑADIREMOS LOS MÉTODOS PARA CONFIRMAR ---
+  // Future<void> confirmDelivery(int transactionId) async { ... }
+  // Future<void> confirmReceipt(int transactionId) async { ... }
+  // Future<List<Transaction>> getMyPurchases() async { ... }
+  // Future<List<Transaction>> getMySales() async { ... }
+
+
+
   // ============================================================================
   // MÉTODOS ADICIONALES DE PRODUCTOS Y USUARIOS
   // ============================================================================
@@ -1196,6 +1235,10 @@ class FavoritedProduct {
     );
   }
 }
+
+// --- (Opcional pero recomendado) Añadir un modelo para la respuesta ---
+// class TransactionResponse { ... }
+// class Transaction { ... }
 
 // Excepción personalizada para errores de API
 class ApiException implements Exception {

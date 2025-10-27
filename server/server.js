@@ -19,6 +19,7 @@ const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
 const favoritesRoutes = require('./routes/favorites');
 const reportsRoutes = require('./routes/reports');
+const transactionRoutes = require('./routes/transactions');
 
 
 try {
@@ -149,6 +150,7 @@ app.use('/api/publications', publicationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api', uploadRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 const adminRoutes = require('./routes/admin');
 app.use('/api/admin', adminRoutes);

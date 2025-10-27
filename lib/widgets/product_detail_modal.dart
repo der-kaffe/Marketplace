@@ -10,7 +10,8 @@ import '../screens/chat_page.dart';
 import '../services/product_service.dart';
 import '../services/report_service.dart';
 import '../services/auth_service.dart';
-import '../services/rating_service.dart'; // Añadido
+import '../services/rating_service.dart'; 
+import '../services/api_client.dart';
 
 class ProductDetailModal extends StatefulWidget {
   final Product product;
@@ -25,11 +26,11 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
   int _userRating = 0;
   final AuthService _authService = AuthService();
   final RatingService _ratingService = RatingService();
-  final ProductService _productService =
-      ProductService(); // ✅ Instancia del servicio
+  final ProductService _productService = ProductService(); // ✅ Instancia del servicio
   double _sellerReputation = 0.0;
   bool _isLoadingReputation = true;
   int _cantidadAComprar = 1;
+  bool _isComprando = false;
 
   @override
   void initState() {
@@ -438,29 +439,73 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     }
   }
 
-  /// Placeholder para tu Tarea 1: Iniciar el proceso de compra.
-  void _comprarProducto() {
-    // Esta es la función que conectará con tu Tarea 1 y 2
+  // ✅ MODIFICADO: Ahora llama a la API para crear la transacción
+  Future<void> _comprarProducto() async { // 👈 Hacerla async
+    // Evitar doble click
+    if (_isComprando) return;
+
+    setState(() => _isComprando = true);
+
     print('🛒 Iniciando compra de ${widget.product.title}');
     print('   - Producto ID: ${widget.product.id}');
     print('   - Cantidad seleccionada: $_cantidadAComprar');
-    
-    // Aquí llamarías a un futuro servicio:
-    // await _transactionService.crearTransaccion(
-    //   productoId: widget.product.id,
-    //   cantidad: _cantidadAComprar,
-    // );
-    
-    // Mostramos un mensaje temporal
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Iniciando compra de $_cantidadAComprar unidad(es)... (Lógica pendiente)'),
-        backgroundColor: AppColors.azulPrimario,
-      ),
-    );
+
+    try {
+      // Necesitamos el ID como entero
+      final productIdInt = int.parse(widget.product.id);
+
+      // Llamamos al servicio (que llama al ApiClient)
+      // Asegúrate de tener una instancia de ApiClient o un servicio que lo use.
+      // Aquí usamos _productService como ejemplo, pero idealmente tendrías un TransactionService.
+      final apiClient = ApiClient(baseUrl: getDefaultBaseUrl()); // O usa tu instancia existente
+      final token = await _authService.getToken();
+      if (token == null) {
+         throw Exception("Debes iniciar sesión para comprar");
+      }
+      apiClient.setToken(token);
+
+      final result = await apiClient.createTransaction(
+        productId: productIdInt,
+        quantity: _cantidadAComprar,
+      );
+
+      // Éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? '¡Pedido realizado con éxito!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Podrías cerrar el modal o navegar a "Mis Compras"
+         Navigator.pop(context); // Cierra el modal después de comprar
+      }
+
+    } catch (e) {
+      // Error
+      print('❌ Error al comprar: $e');
+      String errorMessage = 'Ocurrió un error al realizar el pedido.';
+      if (e is ApiException) {
+        errorMessage = e.message; // Usa el mensaje de error de la API
+      } else {
+        errorMessage = e.toString();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMessage'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      // Asegurarse de quitar el estado de carga
+      if (mounted) {
+        setState(() => _isComprando = false);
+      }
+    }
   }
 
-  /// ✅ 2. AÑADE ESTE WIDGET BUILDER
   ///   Este método construye la UI para la sección de compra.
   Widget _buildBuySection() {
     // Asumimos que 'widget.product.cantidad' es el stock
@@ -536,14 +581,27 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _comprarProducto,
-                icon: const Icon(Icons.shopping_cart_checkout),
-                label: const Text('Comprar Ahora'),
+                // Deshabilitar botón si está cargando
+                onPressed: _isComprando ? null : _comprarProducto,
+                icon: _isComprando
+                    ? Container( // Indicador de carga pequeño
+                        width: 20,
+                        height: 20,
+                        padding: const EdgeInsets.all(2.0),
+                        child: const CircularProgressIndicator(
+                          color: AppColors.azulOscuro,
+                          strokeWidth: 3,
+                        ),
+                      )
+                    : const Icon(Icons.shopping_cart_checkout),
+                label: Text(_isComprando ? 'Procesando...' : 'Comprar Ahora'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.amarilloPrimario,
                   foregroundColor: AppColors.azulOscuro,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  // Cambia el estilo si está deshabilitado
+                  disabledBackgroundColor: Colors.grey.shade300,
                 ),
               ),
             ),

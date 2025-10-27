@@ -163,6 +163,12 @@ model Transacciones {
   fecha       DateTime @default(now())
   estadoId    Int      @map("estado_id")
 
+  cantidad              Int      // Cantidad de unidades compradas
+  precioUnitario        Decimal? @map("precio_unitario") @db.Decimal(10, 2) // Precio al momento de la compra
+  precioTotal           Decimal? @map("precio_total") @db.Decimal(10, 2) // Total = cantidad * precioUnitario
+  confirmacionVendedor  Boolean  @default(false) @map("confirmacion_vendedor") // Vendedor confirma entrega
+  confirmacionComprador Boolean  @default(false) @map("confirmacion_comprador") // Comprador confirma recibo
+
   // Relaciones
   producto       Productos          @relation(fields: [productoId], references: [id], onDelete: Cascade)
   comprador      Cuentas            @relation("CompradorTransacciones", fields: [compradorId], references: [id], onDelete: Cascade)
