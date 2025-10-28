@@ -172,6 +172,17 @@ class ProductCard extends StatelessWidget {
     });
   }
 
+  // Devuelve una URL absoluta válida para el emulador Android
+  String _getAbsoluteImageUrl(String url) {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    } else if (url.startsWith('/uploads/')) {
+      // Cambia aquí la IP si usas otro backend o emulador
+      return 'http://10.0.2.2:3001$url';
+    }
+    return url; // fallback
+  }
+
   // ✅ Método para construir la imagen con fallback a asset
   Widget _buildImage() {
     if (imageUrl == null || imageUrl!.isEmpty) {
@@ -192,9 +203,12 @@ class ProductCard extends StatelessWidget {
       );
     }
 
-    // Si hay URL, intentar cargar de la red con fallback a asset
+    // Si hay URL, asegurar que sea absoluta
+    final String displayUrl = _getAbsoluteImageUrl(imageUrl!);
+
+    // Cargar de la red con fallback a asset
     return Image.network(
-      imageUrl!,
+      displayUrl,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         // Si falla la carga de red, mostrar imagen por defecto

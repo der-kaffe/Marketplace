@@ -37,6 +37,26 @@ const upload = multer({
   }
 });
 
+// Configuración para imágenes de productos
+const storageProductos = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads/productos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'producto-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const uploadProductos = multer({
+  storage: storageProductos,
+  limits: upload.limits,
+  fileFilter: upload.fileFilter
+});
+
 // 📸 Subir imagen de chat
 router.post('/upload-image', authenticateToken, upload.single('image'), async (req, res) => {
   try {
@@ -63,6 +83,45 @@ router.post('/upload-image', authenticateToken, upload.single('image'), async (r
     console.error('Error subiendo imagen:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
+});
+
+// 📦 Subida de imagen para productos (sin autenticación, para compatibilidad Flutter)
+router.post('/', (req, res, next) => {
+  upload.single('image')(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      // Error de Multer
+      return res.status(400).json({ ok: false, error: err.message });
+    } else if (err) {
+      // Otro error (por ejemplo, filtro de tipo)
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'No se envió ninguna imagen.' });
+    }
+    // Construye la URL pública absoluta
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const imageUrl = `${protocol}://${host}/uploads/chat/${req.file.filename}`;
+    res.json({ ok: true, imageUrl });
+  });
+});
+
+// 📦 Subida de imagen para productos (carpeta productos)
+router.post('/producto', (req, res, next) => {
+  uploadProductos.single('image')(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ ok: false, error: err.message });
+    } else if (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'No se envió ninguna imagen.' });
+    }
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const imageUrl = `${protocol}://${host}/uploads/productos/${req.file.filename}`;
+    res.json({ ok: true, imageUrl });
+  });
 });
 
 // 📁 Servir archivos estáticos de uploads

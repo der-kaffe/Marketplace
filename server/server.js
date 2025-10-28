@@ -9,6 +9,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { testConnection, closeConnection } = require('./config/database');
 const admin = require('firebase-admin');
+const path = require('path'); // Asegúrate de tener esto arriba
 
 // Importar rutas
 const authRoutes = require('./routes/auth');
@@ -121,6 +122,9 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Servir archivos estáticos de uploads para acceso público
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Ruta de salud
 app.get('/api/health', async (req, res) => {
   try {
@@ -149,7 +153,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/publications', publicationsRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api', uploadRoutes);
+app.use('/api/upload', uploadRoutes);
 app.use('/api/transactions', transactionRoutes);
 
 const adminRoutes = require('./routes/admin');

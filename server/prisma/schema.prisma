@@ -50,7 +50,6 @@ model Cuentas {
   resumenUsuario          ResumenUsuario?
   siguiendo               Seguidores[]             @relation("UsuarioSigue")
   seguidores              Seguidores[]             @relation("UsuarioSeguido")
-
   // 👇 Nueva relación
   favoritos Favoritos[]
 
@@ -138,7 +137,7 @@ model Productos {
 model ImagenesProducto {
   id         Int    @id @default(autoincrement())
   productoId Int    @map("producto_id")
-  urlImagen  Bytes? @map("url_imagen")
+  urlImagen  String? @map("url_imagen") // Cambiado de Bytes? a String?
 
   // Relaciones
   producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)

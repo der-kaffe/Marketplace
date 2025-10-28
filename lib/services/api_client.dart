@@ -461,19 +461,24 @@ class ApiClient {
     required int categoriaId,
     double? precioAnterior,
     int? cantidad,
+    String? imageUrl, // 👈 Añadido
   }) async {
     try {
+      final body = <String, dynamic>{
+        'nombre': nombre,
+        'descripcion': descripcion,
+        'precioActual': precioActual,
+        'categoriaId': categoriaId,
+        'precioAnterior': precioAnterior,
+        'cantidad': cantidad ?? 1,
+      };
+      if (imageUrl != null) {
+        body['imageUrl'] = imageUrl;
+      }
       final response = await http.post(
         Uri.parse('$baseUrl/api/products'),
         headers: _headers,
-        body: json.encode({
-          'nombre': nombre,
-          'descripcion': descripcion,
-          'precioActual': precioActual,
-          'categoriaId': categoriaId,
-          'precioAnterior': precioAnterior,
-          'cantidad': cantidad ?? 1,
-        }),
+        body: json.encode(body),
       );
       return _handleResponse(response);
     } catch (e) {
@@ -1036,6 +1041,9 @@ class ProductFromDB {
         'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})'
     );
 
+    print('IMAGENES para producto $id:');
+    print(imagenes);
+    print('URL extraída por _getImageUrl(): ${_getImageUrl()}');
     return ProductModel.Product(
       id: id.toString(),
       title: nombre,
@@ -1056,7 +1064,13 @@ class ProductFromDB {
 
   String? _getImageUrl() {
     if (imagenes.isNotEmpty) {
-      return null; // Usará el placeholder por defecto
+      final img = imagenes.first;
+      if (img is Map && img['urlImagen'] != null && img['urlImagen'].toString().isNotEmpty) {
+        return img['urlImagen'];
+      }
+      if (img is String && img.isNotEmpty) {
+        return img;
+      }
     }
     return null;
   }

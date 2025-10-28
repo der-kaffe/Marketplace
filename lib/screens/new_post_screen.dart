@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../services/auth_service.dart';
+import '../services/network_config.dart';
 import '../theme/app_colors.dart';
 import '../services/product_service.dart';
 import '../models/product_model.dart' as ProductModel;
+import 'package:http_parser/http_parser.dart';
 
 class NewPostScreen extends StatefulWidget {
 
@@ -22,12 +29,15 @@ class _NewPostScreenState extends State<NewPostScreen> {
   final _quantityCtrl = TextEditingController(text: '1');
   final _imageUrlCtrl = TextEditingController();
   final ProductService _productService = ProductService();
+  final AuthService _authService = AuthService();
+  final ImagePicker _picker = ImagePicker();
 
   int? _selectedCategoryId;
-  String? _previewUrl;
   bool _isLoading = false;
   List<ProductModel.ApiCategory> _categories = [];
   bool _isLoadingCategories = true;
+  File? _selectedImageFile;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
@@ -62,15 +72,63 @@ class _NewPostScreenState extends State<NewPostScreen> {
     super.dispose();
   }
 
-  void _showComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Próximamente: $feature'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.azulPrimario,
-        duration: const Duration(seconds: 2),
-      ),
+  Future<void> _pickImage() async {
+    if(_isLoading || _isUploadingImage) return;
+    final XFile? pickedFile = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+      maxWidth: 1024,
+      maxHeight: 1024,
     );
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImageFile = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<String?> _uploadImage(File imageFile) async {
+    setState(() => _isUploadingImage = true);
+    String? imageUrl;
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception('Usuario no autenticado');
+      final uri = Uri.parse('${NetworkConfig.baseUrl.replaceAll('/api', '')}/api/upload/producto');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        imageFile.path,
+        filename: 'product_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        contentType: MediaType('image', 'jpeg'), // Fuerza el tipo MIME correcto
+      ));
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decodedBody = json.decode(responseBody);
+        if (decodedBody['ok'] == true && decodedBody['imageUrl'] != null) {
+          imageUrl = decodedBody['imageUrl'];
+        } else {
+          throw Exception(decodedBody['message'] ?? 'Error en la respuesta del servidor de imágenes');
+        }
+      } else {
+         throw Exception('Error al subir imagen (${response.statusCode}): $responseBody');
+      }
+    } catch (e) {
+      if(mounted){
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al subir imagen: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+      }
+    } finally {
+      if(mounted){
+          setState(() => _isUploadingImage = false);
+      }
+    }
+    return imageUrl;
   }
 
   Future<void> _createProduct() async {
@@ -83,36 +141,45 @@ class _NewPostScreenState extends State<NewPostScreen> {
       return;
     }
 
+    if (_selectedImageFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona una imagen para el producto')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
+    String? uploadedImageUrl;
     try {
+      uploadedImageUrl = await _uploadImage(_selectedImageFile!);
+      if (uploadedImageUrl == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final precio = double.parse(_priceCtrl.text.replaceAll(',', '.'));
       final cantidad = int.tryParse(_quantityCtrl.text) ?? 1;
 
-      final result = await _productService.createProduct(
+      await _productService.createProduct(
         nombre: _titleCtrl.text.trim(),
         descripcion: _descCtrl.text.trim(),
         precioActual: precio,
         categoriaId: _selectedCategoryId!,
         cantidad: cantidad,
+        imageUrl: uploadedImageUrl,
       );
 
       if (mounted) {
         setState(() => _isLoading = false);
-
-        final bool shouldGoHome = await _showSuccessSheet() ?? false;
-        
-        if (shouldGoHome && mounted) {
-          // Si el usuario presionó "Ir al inicio", cerramos NewPostScreen
-          Navigator.of(context).pop();
-        }
+        await _showSuccessSheet();
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error al crear producto: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -164,7 +231,6 @@ class _NewPostScreenState extends State<NewPostScreen> {
                           _imageUrlCtrl.clear();
                           setState(() {
                             _selectedCategoryId = null;
-                            _previewUrl = null;
                           });
                         },
                         child: const Text('Crear otro'),
@@ -214,26 +280,27 @@ class _NewPostScreenState extends State<NewPostScreen> {
                         color: Colors.grey.shade100,
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: _previewUrl == null || _previewUrl!.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.image_outlined,
-                                      size: 48, color: AppColors.grisPrimario),
-                                  const SizedBox(height: 12),
-                                  const Text('Imagen (próximamente)'),
-                                  const SizedBox(height: 12),
-                                  OutlinedButton.icon(
-                                    onPressed: () =>
-                                        _showComingSoon('Subir imagen'),
-                                    icon: const Icon(Icons.upload),
-                                    label: const Text('Subir imagen'),
-                                  ),
-                                ],
+                      child: InkWell(
+                        onTap: _pickImage,
+                        child: _selectedImageFile == null
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.add_a_photo_outlined,
+                                        size: 48, color: AppColors.grisPrimario),
+                                    const SizedBox(height: 12),
+                                    const Text('Añadir imagen *', style: TextStyle(color: AppColors.grisPrimario)),
+                                  ],
+                                ),
+                              )
+                            : Image.file(
+                                _selectedImageFile!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
                               ),
-                            )
-                          : Image.network(_previewUrl!, fit: BoxFit.cover),
+                      ),
                     ),
 
                     const SizedBox(height: 20),

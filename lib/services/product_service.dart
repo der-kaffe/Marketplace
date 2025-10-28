@@ -1,6 +1,5 @@
 // lib/services/product_service.dart
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
 import '../services/api_client.dart';
@@ -68,6 +67,7 @@ class ProductService {
     required int categoriaId,
     double? precioAnterior,
     int? cantidad,
+    String? imageUrl, // 👈 Añadido
   }) async {
     try {
       final token = await _auth_service_token_or_throw();
@@ -80,6 +80,7 @@ class ProductService {
         categoriaId: categoriaId,
         precioAnterior: precioAnterior,
         cantidad: cantidad,
+        imageUrl: imageUrl, // 👈 Añadido
       );
 
       return result;

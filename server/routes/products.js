@@ -295,7 +295,8 @@ router.post('/', authenticateToken, [
       precioAnterior, 
       precioActual,
       categoriaId,
-      cantidad
+      cantidad,
+      imageUrl // <-- Recibe imageUrl del body
     } = req.body;
 
     // ✅ PASO 1: Verificar que la categoría existe
@@ -376,6 +377,16 @@ router.post('/', authenticateToken, [
         estado: true
       }
     });
+
+    // Si viene imageUrl, crea la relación en ImagenesProducto
+    if (imageUrl) {
+      await prisma.imagenesProducto.create({
+        data: {
+          productoId: newProduct.id,
+          urlImagen: imageUrl
+        }
+      });
+    }
 
     // ✅ PASO 5: Respuesta exitosa
     res.status(201).json({
