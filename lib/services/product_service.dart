@@ -16,6 +16,7 @@ class ProductService {
     String? category,
     String? search,
   }) async {
+    print('🟢 ProductService.fetchProducts: page=[32m$page[0m, limit=[32m$limit[0m, category=[32m$category[0m, search=[32m$search[0m');
     try {
       // Obtener token y setear en api client si existe
       final token = await _authService.getToken();
@@ -34,7 +35,7 @@ class ProductService {
 
       // Convertir cada ProductFromDB a ProductModel.Product
       final list = response.products.map((p) => p.toProductModel()).toList();
-
+      print('🟢 ProductService.fetchProducts: productos recibidos = [32m${list.length}[0m');
       return list;
     } catch (e) {
       debugPrint('❌ Error cargando productos: $e');

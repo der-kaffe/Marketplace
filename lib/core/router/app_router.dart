@@ -32,8 +32,11 @@ class AppRouter {
   // ✅ 1. CREA LA GLOBAL KEY
   static final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey<HomeScreenState>();
 
+  static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
   static final GoRouter router = GoRouter(
     initialLocation: '/startup',
+    observers: [routeObserver], // 👈 Agrega el observer aquí
 
     // La lógica de redirección protege las rutas de la aplicación
     redirect: (BuildContext context, GoRouterState state) async {

@@ -9,6 +9,7 @@ import 'services/chat_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // El archivo que generaste
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'screens/home_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {

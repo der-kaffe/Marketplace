@@ -158,20 +158,13 @@ class _MainScreenState extends State<MainScreen> {
         // ✅ 9. IMPLEMENTA LA LÓGICA DE 'await' Y 'forceRefresh'
 
         onNewPost: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const NewPostScreen(),
-            ),
-          );
+          // Usar GoRouter para navegar y esperar el resultado
+          await context.push('/new_post');
 
-          // CUANDO VUELVA (después del 'await'):
-
-          // Llama a la función de recarga usando la Key
+          // Siempre refresca productos al volver, sin importar cómo se regrese
           widget.homeScreenKey.currentState?.forceRefreshProducts();
 
-          // Opcional: Si el usuario estaba en otra pestaña,
-          // llévalo a /home para que vea su nuevo post.
+          // Si el usuario estaba en otra pestaña, vuelve a Home
           if (_calculateCurrentIndex(context) != 0) {
             context.go('/home');
           }

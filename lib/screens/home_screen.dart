@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart (actualizado con solución de duplicados y búsqueda por rango de precio)
 
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import '../models/product_model.dart' as ProductModel;
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
@@ -12,6 +13,8 @@ import '../widgets/category_card.dart';
 import '../widgets/product_card.dart';
 import 'package:flutter/services.dart'; // Importante para TextInputFormatter
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,7 +22,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> with RouteAware {
   final ProductService _productService = ProductService();
   final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
@@ -72,6 +75,26 @@ class HomeScreenState extends State<HomeScreen> {
         _loadMoreProducts();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Registrar el observer
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Se llama cuando vuelves a Home desde otra pantalla
+    forceRefreshProducts();
   }
 
   Future<void> _loadCategories() async {
@@ -297,6 +320,9 @@ class HomeScreenState extends State<HomeScreen> {
           }
         }
         _page++;
+        print('📦 _loadMoreProducts: _filteredProducts.length = ${_filteredProducts.length}');
+        print('📦 _loadMoreProducts: _originalProducts.length = ${_originalProducts.length}');
+        print('📦 _loadMoreProducts: _allProducts.length = ${_allProducts.length}');
       });
 
       print(
@@ -320,27 +346,30 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> forceRefreshProducts() async {
     print('🔄 Forzando recarga de productos...');
 
-    // 1. Limpia las listas y filtros
+    // 1. Limpia las listas y filtros y REINICIA los flags de carga
     setState(() {
       _page = 1;
       _allProducts.clear();
       _originalProducts.clear();
       _filteredProducts.clear();
-
       _selectedCategoryName = null;
       _selectedCategoryId = null;
       _precioMinimo = null;
       _precioMaximo = null;
-
-      // ❌ 2. NO PONGAS _isLoadingProducts = true AQUÍ
-      //    Deja que _loadMoreProducts() lo haga.
-      // _isLoadingProducts = true;
+      _hasLoadedAllProducts = false; // <-- REINICIA para permitir recarga
+      _isLoadingProducts = false;    // <-- REINICIA para permitir recarga
     });
 
-    // 3. Llama a la función de carga.
-    //    Como _isLoadingProducts es 'false', el guardián de
-    //    _loadMoreProducts pasará sin problemas.
+    // 2. Llama a la función de carga y espera a que termine
     await _loadMoreProducts();
+
+    // 3. Fuerza que _filteredProducts muestre los productos originales
+    setState(() {
+      _filteredProducts = List.from(_originalProducts);
+      print('🔁 forceRefreshProducts: _filteredProducts.length = ${_filteredProducts.length}');
+      print('🔁 forceRefreshProducts: _originalProducts.length = ${_originalProducts.length}');
+      print('🔁 forceRefreshProducts: _allProducts.length = ${_allProducts.length}');
+    });
   }
 
   // ✅ PASO 2: (YA LO TIENES) Asegúrate de tener esta función del paso anterior
@@ -629,12 +658,6 @@ class HomeScreenState extends State<HomeScreen> {
   // --- FIN NUEVO ---
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (_isLoadingProducts && _originalProducts.isEmpty) {
       // Cambiado a _originalProducts
@@ -692,338 +715,347 @@ class HomeScreenState extends State<HomeScreen> {
         ],
       ),
       backgroundColor: AppColors.fondoClaro,
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.azulPrimario,
-                    AppColors.azulPrimario.withValues(alpha: 0.8)
+      body: RefreshIndicator(
+        onRefresh: forceRefreshProducts,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.azulPrimario,
+                      AppColors.azulPrimario.withOpacity(0.8)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.azulPrimario.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.azulPrimario.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '¡Bienvenido al MicroMarket!',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Descubre productos increíbles de la comunidad UCT',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-                  if (!_isLoadingCategories && _apiCategories.isNotEmpty) ...[
-                    Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: AppColors.azulPrimario,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Categorías',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.azulPrimario,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      height:
-                          150, // Aumentar altura para dar espacio a la sombra
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 5), // Padding vertical para la sombra
-                        itemCount: _apiCategories.length + 1, // +1 para "Todo"
-                        itemBuilder: (context, index) {
-                          // Primera tarjeta es "Todo"
-                          if (index == 0) {
-                            return Container(
-                              margin:
-                                  const EdgeInsets.only(left: 20, right: 12),
-                              child: CategoryCard(
-                                icon: _getIconForCategory('todo'),
-                                title: 'Todo',
-                                color: AppColors.azulPrimario,
-                                onTap: () {
-                                  _clearCategoryFilter();
-                                },
-                              ),
-                            );
-                          }
-
-                          // Resto de categorías
-                          final category = _apiCategories[index - 1];
-                          Color color = _getCategoryColor(index - 1);
-                          String title = category.nombre;
-                          IconData icon = _getIconForCategory(category.nombre);
-
-                          return Container(
-                            margin: EdgeInsets.only(
-                              right: index == _apiCategories.length ? 20 : 12,
-                            ),
-                            child: CategoryCard(
-                              icon: icon,
-                              title: title,
-                              color: color,
-                              onTap: () {
-                                _filterProductsByCategory(
-                                    category.id, category.nombre);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ] else if (_isLoadingCategories) ...[
-                    Row(
-                      children: [
-                        Container(
-                          width: 4,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: AppColors.azulPrimario,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Categorías',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.azulPrimario,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Center(child: CircularProgressIndicator()),
-                    const SizedBox(height: 16),
-                  ] else if (_errorCategories != null) ...[
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     const Text(
-                      'Categorías',
+                      '¡Bienvenido al MicroMarket!',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.azulPrimario,
+                        color: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Descubre productos increíbles de la comunidad UCT',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     const SizedBox(height: 16),
-                    Center(
-                      child: Column(
+                    if (!_isLoadingCategories && _apiCategories.isNotEmpty) ...[
+                      Row(
                         children: [
-                          Text('Error al cargar categorías: $_errorCategories'),
-                          ElevatedButton(
-                            onPressed: _loadCategories,
-                            child: const Text('Reintentar'),
+                          Container(
+                            width: 4,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: AppColors.azulPrimario,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Categorías',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.azulPrimario,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                  ] else if (_apiCategories.isEmpty) ...[
-                    const Text(
-                      'Categorías',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.azulPrimario,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Center(child: Text('No hay categorías disponibles.')),
-                    const SizedBox(height: 16),
-                  ],
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.amarilloPrimario
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.star,
-                                color: AppColors.amarilloPrimario,
-                                size: 24,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Productos',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.azulPrimario,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.75,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                          itemCount: _filteredProducts.length +
-                              (_isLoadingProducts &&
-                                      _selectedCategoryName == null
-                                  ? 1
-                                  : 0),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        height:
+                            150, // Aumentar altura para dar espacio a la sombra
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 5), // Padding vertical para la sombra
+                          itemCount: _apiCategories.length + 1, // +1 para "Todo"
                           itemBuilder: (context, index) {
-                            if (index >= _filteredProducts.length) {
-                              if (_isLoadingProducts &&
-                                  _selectedCategoryName == null) {
-                                return const Center(
-                                  child: SpinKitFadingCircle(
-                                    color: AppColors.azulPrimario,
-                                    size: 40.0,
-                                  ),
-                                );
-                              } else {
-                                return Container();
-                              }
+                            // Primera tarjeta es "Todo"
+                            if (index == 0) {
+                              return Container(
+                                margin:
+                                    const EdgeInsets.only(left: 20, right: 12),
+                                child: CategoryCard(
+                                  icon: _getIconForCategory('todo'),
+                                  title: 'Todo',
+                                  color: AppColors.azulPrimario,
+                                  onTap: () {
+                                    _clearCategoryFilter();
+                                  },
+                                ),
+                              );
                             }
 
-                            final product = _filteredProducts[index];
-                            final isFavorite =
-                                _favoriteProductIds.contains(product.id);
+                            // Resto de categorías
+                            final category = _apiCategories[index - 1];
+                            Color color = _getCategoryColor(index - 1);
+                            String title = category.nombre;
+                            IconData icon = _getIconForCategory(category.nombre);
 
-                            return ProductCard(
-                              title: product.title,
-                              description: product.description,
-                              price: product.price,
-                              imageUrl: product.imageUrl,
-                              isFavorite: isFavorite,
-                              isAvailable: product.isAvailable,
-                              // ✅ CAMBIAR: Usar el nuevo método conectado al backend
-                              onToggleVisibility: () =>
-                                  _toggleProductVisibility(product),
-                              onToggleFavorite: () => _toggleFavorite(product),
-
-                              // 👇 AQUÍ ESTÁ EL CAMBIO 👇
-                              onTap: () async {
-                                // 1. Marcar la función como 'async'
-                                print('🆔 ID del producto: ${product.id}');
-
-                                // 2. Usar 'await' y especificar que esperamos un <String>
-                                final deletedProductId =
-                                    await showModalBottomSheet<String>(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) =>
-                                      ProductDetailModal(product: product),
-                                );
-
-                                // 3. Comprobar si recibimos un ID de vuelta
-                                if (deletedProductId != null) {
-                                  // 4. Llamar a la función que actualiza la UI
-                                  _removeProductFromUI(deletedProductId);
-                                }
-                              },
-                              // 👆 FIN DEL CAMBIO 👆
+                            return Container(
+                              margin: EdgeInsets.only(
+                                right: index == _apiCategories.length ? 20 : 12,
+                              ),
+                              child: CategoryCard(
+                                icon: icon,
+                                title: title,
+                                color: color,
+                                onTap: () {
+                                  _filterProductsByCategory(
+                                      category.id, category.nombre);
+                                },
+                              ),
                             );
                           },
                         ),
-                        if (_selectedCategoryName != null &&
-                            _filteredProducts.isEmpty &&
-                            !_isLoadingProducts)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Text(
-                                  'No se encontraron productos en esta categoría.'),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (_isLoadingCategories) ...[
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: AppColors.azulPrimario,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                        // Mensaje si hay filtro de precio activo pero no hay productos
-                        if (_precioMinimo != null || _precioMaximo != null)
-                          if (_filteredProducts.isEmpty && !_isLoadingProducts)
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Categorías',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.azulPrimario,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Center(child: CircularProgressIndicator()),
+                      const SizedBox(height: 16),
+                    ] else if (_errorCategories != null) ...[
+                      const Text(
+                        'Categorías',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.azulPrimario,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Column(
+                          children: [
+                            Text('Error al cargar categorías: $_errorCategories'),
+                            ElevatedButton(
+                              onPressed: _loadCategories,
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (_apiCategories.isEmpty) ...[
+                      const Text(
+                        'Categorías',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.azulPrimario,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Center(child: Text('No hay categorías disponibles.')),
+                      const SizedBox(height: 16),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.amarilloPrimario
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.star,
+                                  color: AppColors.amarilloPrimario,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Productos',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.azulPrimario,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _filteredProducts.isEmpty && !_isLoadingProducts
+                              ? Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 40),
+                                    child: Text(
+                                      'No se encontraron productos.',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                  ),
+                                  itemCount: _filteredProducts.length +
+                                      (_isLoadingProducts &&
+                                              _selectedCategoryName == null
+                                          ? 1
+                                          : 0),
+                                  itemBuilder: (context, index) {
+                                    if (index >= _filteredProducts.length) {
+                                      if (_isLoadingProducts &&
+                                          _selectedCategoryName == null) {
+                                        return const Center(
+                                          child: SpinKitFadingCircle(
+                                            color: AppColors.azulPrimario,
+                                            size: 40.0,
+                                          ),
+                                        );
+                                      } else {
+                                        return Container();
+                                      }
+                                    }
+
+                                    final product = _filteredProducts[index];
+                                    final isFavorite =
+                                        _favoriteProductIds.contains(product.id);
+
+                                    return ProductCard(
+                                      title: product.title,
+                                      description: product.description,
+                                      price: product.price,
+                                      imageUrl: product.imageUrl,
+                                      isFavorite: isFavorite,
+                                      isAvailable: product.isAvailable,
+                                      onToggleVisibility: () =>
+                                          _toggleProductVisibility(product),
+                                      onToggleFavorite: () => _toggleFavorite(product),
+                                      onTap: () async {
+                                        print('🆔 ID del producto: \\${product.id}');
+                                        final deletedProductId =
+                                            await showModalBottomSheet<String>(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              backgroundColor: Colors.transparent,
+                                              builder: (_) =>
+                                                  ProductDetailModal(product: product),
+                                            );
+
+                                        if (deletedProductId != null) {
+                                          _removeProductFromUI(deletedProductId);
+                                        }
+                                      },
+                                    );
+                                  },
+                                ),
+                          if (_selectedCategoryName != null &&
+                              _filteredProducts.isEmpty &&
+                              !_isLoadingProducts)
                             const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(16.0),
                                 child: Text(
-                                    'No se encontraron productos en el rango de precio.'),
+                                    'No se encontraron productos en esta categoría.'),
                               ),
                             ),
-                      ],
+                          // Mensaje si hay filtro de precio activo pero no hay productos
+                          if (_precioMinimo != null || _precioMaximo != null)
+                            if (_filteredProducts.isEmpty && !_isLoadingProducts)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Text(
+                                      'No se encontraron productos en el rango de precio.'),
+                                ),
+                              ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
