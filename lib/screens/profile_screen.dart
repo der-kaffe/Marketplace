@@ -56,12 +56,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    _loadMyProducts();
-    _loadFavoritesCount();
-    _loadMyPurchases(); 
-    _loadMySales();  
-    // Si tienes endpoint de reseñas, llama aquí a _loadReviewsCount();
+    _initializeProfile();
+  }
+
+  Future<void> _initializeProfile() async {
+    setState(() => _isLoading = true);
+    try {
+      await Future.wait([
+        _loadUserData(),
+        _loadMyProducts(),
+        _loadFavoritesCount(),
+        _loadMyPurchases(),
+        _loadMySales(),
+      ]);
+    } catch (e) {
+      print('Error inicializando perfil: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -157,27 +169,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Método para refrescar los datos del usuario
+  // Reemplaza el método de refresco para usar la inicialización paralela
   Future<void> _refreshUserData() async {
-    print('🔄 Refrescando datos del perfil...');
-    setState(() {
-      _isLoading = true; // Mantén este si quieres recargar todo el perfil
-      // O solo recarga secciones específicas:
-      // _isLoadingMyProducts = true;
-      // _isLoadingPurchases = true;
-      // _isLoadingSales = true;
-    });
-    // Llama a todas las cargas en paralelo
-    await Future.wait([
-      _loadUserData(),
-      _loadMyProducts(),
-      _loadFavoritesCount(), // Si quieres refrescar esto también
-      _loadMyPurchases(),    // ✅ AÑADIDO
-      _loadMySales(),        // ✅ AÑADIDO
-    ]);
-     if (mounted) {
-       setState(() => _isLoading = false); // Apaga el loading general si lo usaste
-     }
+    await _initializeProfile();
   }
 
   // --- ✅ NUEVO: Métodos para cargar Compras y Ventas ---

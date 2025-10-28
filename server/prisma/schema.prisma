@@ -18,6 +18,8 @@ model Cuentas {
   apellido      String?  @db.VarChar(50)
   correo        String   @unique @db.VarChar(255)
   usuario       String   @unique @db.VarChar(255)
+  telefono      String?  @db.VarChar(20)
+  direccion     String?  @db.VarChar(255)
   contrasena    String   @db.VarChar(255)
   rolId         Int      @map("rol_id")
   estadoId      Int      @map("estado_id")
