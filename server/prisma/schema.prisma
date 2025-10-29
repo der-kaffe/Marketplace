@@ -117,6 +117,11 @@ model Productos {
   /// 👇 Nuevo campo agregado para control de visibilidad de publicaciones
   visible        Boolean  @default(true)
 
+  /// 👇 Nuevos campos: información técnica, estado del producto y tiempo de uso
+  informacionTecnica String? @map("informacion_tecnica") @db.Text
+  estadoProducto     String? @map("estado_producto") @db.VarChar(20) // 'nuevo' o 'usado'
+  tiempoUso          String? @map("tiempo_uso") @db.VarChar(100) // ej: "6 meses", "2 años"
+
   // Relaciones
   categoria     Categorias?        @relation(fields: [categoriaId], references: [id])
   vendedor      Cuentas            @relation("VendedorProductos", fields: [vendedorId], references: [id], onDelete: Cascade)
