@@ -172,7 +172,14 @@ class _NewPostScreenState extends State<NewPostScreen> {
 
       if (mounted) {
         setState(() => _isLoading = false);
-        await _showSuccessSheet();
+        final goHome = await _showSuccessSheet();
+        if (goHome == true) {
+          if (mounted) {
+            // Espera un frame para asegurar que el modal se cerró
+            await Future.delayed(const Duration(milliseconds: 100));
+            context.go('/home');
+          }
+        }
       }
     } catch (e) {
       setState(() => _isLoading = false);
