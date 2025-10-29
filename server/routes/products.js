@@ -6,6 +6,43 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// 📸 Ruta para servir imágenes desde la BD
+router.get('/images/:productoId/:imagenId', async (req, res) => {
+  try {
+    const { productoId, imagenId } = req.params;
+    
+    const imagen = await prisma.imagenesProducto.findFirst({
+      where: {
+        id: parseInt(imagenId),
+        productoId: parseInt(productoId)
+      }
+    });
+
+    if (!imagen) {
+      return res.status(404).json({ ok: false, message: 'Imagen no encontrada' });
+    }
+
+    // Si tiene imagenData en BD, servirla
+    if (imagen.imagenData) {
+      const mimeType = imagen.mimeType || 'image/jpeg';
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache 1 año
+      return res.send(Buffer.from(imagen.imagenData));
+    }
+
+    // Si solo tiene URL (compatibilidad), redirigir o servir archivo estático
+    if (imagen.urlImagen) {
+      // Retornar URL para que el cliente la use
+      return res.json({ ok: true, url: imagen.urlImagen });
+    }
+
+    return res.status(404).json({ ok: false, message: 'Imagen sin datos' });
+  } catch (error) {
+    console.error('Error sirviendo imagen:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/products - Listar productos
 router.get('/', async (req, res) => {
   try {
@@ -104,7 +141,14 @@ router.get('/', async (req, res) => {
       cantidad: product.cantidad,
       estado: product.estado.nombre,
       fechaAgregado: product.fechaAgregado,
-      imagenes: product.imagenes,
+      imagenes: product.imagenes.map(img => ({
+        id: img.id,
+        // Si tiene imagenData, crear URL absoluta para obtenerla desde BD
+        urlImagen: img.imagenData 
+          ? `${req.protocol}://${req.get('host')}/api/products/images/${product.id}/${img.id}`
+          : img.urlImagen,
+        tieneImagenData: !!img.imagenData
+      })),
       // 👇 Nuevos campos
       informacionTecnica: product.informacionTecnica,
       estadoProducto: product.estadoProducto,
@@ -186,7 +230,14 @@ router.get('/my-products', authenticateToken, async (req, res) => {
       estado: product.estado.nombre,
       visible: product.visible,
       fechaAgregado: product.fechaAgregado,
-      imagenes: product.imagenes,
+      imagenes: product.imagenes.map(img => ({
+        id: img.id,
+        // Si tiene imagenData, crear URL absoluta para obtenerla desde BD
+        urlImagen: img.imagenData 
+          ? `${req.protocol}://${req.get('host')}/api/products/images/${product.id}/${img.id}`
+          : img.urlImagen,
+        tieneImagenData: !!img.imagenData
+      })),
       // 👇 Nuevos campos
       informacionTecnica: product.informacionTecnica,
       estadoProducto: product.estadoProducto,
@@ -259,7 +310,14 @@ router.get('/:id', async (req, res) => {
       cantidad: product.cantidad,
       estado: product.estado.nombre,
       fechaAgregado: product.fechaAgregado,
-      imagenes: product.imagenes,
+      imagenes: product.imagenes.map(img => ({
+        id: img.id,
+        // Si tiene imagenData, crear URL absoluta para obtenerla desde BD
+        urlImagen: img.imagenData 
+          ? `${req.protocol}://${req.get('host')}/api/products/images/${product.id}/${img.id}`
+          : img.urlImagen,
+        tieneImagenData: !!img.imagenData
+      })),
       // 👇 Nuevos campos
       informacionTecnica: product.informacionTecnica,
       estadoProducto: product.estadoProducto,
@@ -399,16 +457,55 @@ router.post('/', authenticateToken, [
     });
 
     // Manejar imágenes: soporte para múltiples imágenes o imagen única
+    // Pueden venir como URLs (compatibilidad) o como base64 (nueva forma)
     const imagenesLista = imagenes && Array.isArray(imagenes) ? imagenes : (imageUrl ? [imageUrl] : []);
     
     if (imagenesLista.length > 0) {
-      // Crear todas las imágenes en la base de datos
-      await prisma.imagenesProducto.createMany({
-        data: imagenesLista.map(url => ({
-          productoId: newProduct.id,
-          urlImagen: url
-        }))
-      });
+      // Procesar cada imagen
+      for (const imagenItem of imagenesLista) {
+        if (typeof imagenItem === 'string') {
+          // Si es una URL o base64 string
+          if (imagenItem.startsWith('data:image')) {
+            // Es base64, extraer datos
+            const base64Match = imagenItem.match(/^data:([^;]+);base64,(.+)$/);
+            if (base64Match) {
+              const mimeType = base64Match[1];
+              const base64Data = base64Match[2];
+              const imageBuffer = Buffer.from(base64Data, 'base64');
+              
+              await prisma.imagenesProducto.create({
+                data: {
+                  productoId: newProduct.id,
+                  imagenData: imageBuffer,
+                  mimeType: mimeType,
+                  urlImagen: null // Ya no usamos URL
+                }
+              });
+            }
+          } else {
+            // Es una URL (compatibilidad hacia atrás)
+            await prisma.imagenesProducto.create({
+              data: {
+                productoId: newProduct.id,
+                urlImagen: imagenItem,
+                imagenData: null,
+                mimeType: null
+              }
+            });
+          }
+        } else if (imagenItem.imageData) {
+          // Objeto con imageData y mimeType
+          const imageBuffer = Buffer.from(imagenItem.imageData, 'base64');
+          await prisma.imagenesProducto.create({
+            data: {
+              productoId: newProduct.id,
+              imagenData: imageBuffer,
+              mimeType: imagenItem.mimeType || 'image/jpeg',
+              urlImagen: null
+            }
+          });
+        }
+      }
     }
 
     // ✅ PASO 5: Respuesta exitosa
