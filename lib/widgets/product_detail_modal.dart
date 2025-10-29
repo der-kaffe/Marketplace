@@ -788,10 +788,153 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                
+                // Descripción del producto
                 Text(
                   widget.product.description,
                   style: const TextStyle(fontSize: 16),
                 ),
+                
+                // 👇 Nueva sección: Información adicional del producto
+                if (widget.product.estadoProducto != null || 
+                    widget.product.tiempoUso != null || 
+                    widget.product.informacionTecnica != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Información del producto',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.azulPrimario,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Estado del producto y tiempo de uso en fila
+                  if (widget.product.estadoProducto != null || widget.product.tiempoUso != null)
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        if (widget.product.estadoProducto != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: widget.product.estadoProducto == 'nuevo' 
+                                  ? Colors.green.withOpacity(0.15)
+                                  : Colors.orange.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: widget.product.estadoProducto == 'nuevo' 
+                                    ? Colors.green
+                                    : Colors.orange,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  widget.product.estadoProducto == 'nuevo' 
+                                      ? Icons.check_circle
+                                      : Icons.sell,
+                                  size: 18,
+                                  color: widget.product.estadoProducto == 'nuevo' 
+                                      ? Colors.green.shade700
+                                      : Colors.orange.shade700,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  widget.product.estadoProducto == 'nuevo' ? 'Nuevo' : 'Usado',
+                                  style: TextStyle(
+                                    color: widget.product.estadoProducto == 'nuevo' 
+                                        ? Colors.green.shade700
+                                        : Colors.orange.shade700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (widget.product.tiempoUso != null && widget.product.tiempoUso!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.blue.shade300,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.access_time, size: 18, color: Colors.blue.shade700),
+                                const SizedBox(width: 6),
+                                Text(
+                                  widget.product.tiempoUso!,
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  
+                  // Información técnica
+                  if (widget.product.informacionTecnica != null && 
+                      widget.product.informacionTecnica!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, 
+                                size: 20, 
+                                color: AppColors.azulPrimario),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Información técnica',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.azulOscuro,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.product.informacionTecnica!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  const Divider(),
+                ],
+                
                 const SizedBox(height: 16),
 
                 // ✅ 3. AÑADE TU NUEVA SECCIÓN AQUÍ
