@@ -142,7 +142,9 @@ model Productos {
 model ImagenesProducto {
   id         Int    @id @default(autoincrement())
   productoId Int    @map("producto_id")
-  urlImagen  String? @map("url_imagen") // Cambiado de Bytes? a String?
+  urlImagen  String? @map("url_imagen") // URL para compatibilidad hacia atrás
+  imagenData Bytes? @map("imagen_data") @db.ByteA // Datos de imagen en bytes
+  mimeType   String? @map("mime_type") @db.VarChar(50) // Tipo MIME (image/jpeg, image/png, etc.)
 
   // Relaciones
   producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
