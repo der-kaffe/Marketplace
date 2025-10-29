@@ -1006,6 +1006,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                       imageUrl: product.imageUrl,
                                       isFavorite: isFavorite,
                                       isAvailable: product.isAvailable,
+                                      estadoProducto: product.estadoProducto,
+                                      tiempoUso: product.tiempoUso,
                                       onToggleVisibility: () =>
                                           _toggleProductVisibility(product),
                                       onToggleFavorite: () => _toggleFavorite(product),

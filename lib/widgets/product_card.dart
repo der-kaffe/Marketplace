@@ -12,6 +12,9 @@ class ProductCard extends StatelessWidget {
   final bool isAvailable;
   final VoidCallback? onToggleVisibility;
   final VoidCallback onToggleFavorite;
+  // 👇 Nuevos campos
+  final String? estadoProducto; // 'nuevo' o 'usado'
+  final String? tiempoUso;
 
   const ProductCard({
     super.key,
@@ -24,6 +27,8 @@ class ProductCard extends StatelessWidget {
     required this.isAvailable,
     required this.onToggleVisibility,
     required this.onToggleFavorite,
+    this.estadoProducto,
+    this.tiempoUso,
   });
 
   @override
@@ -148,6 +153,66 @@ class ProductCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      
+                      // 👇 Nuevos campos: Estado y tiempo de uso
+                      if (estadoProducto != null || tiempoUso != null) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            if (estadoProducto != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: estadoProducto == 'nuevo' 
+                                      ? Colors.green.withOpacity(0.2)
+                                      : Colors.orange.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: estadoProducto == 'nuevo' 
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  estadoProducto == 'nuevo' ? 'Nuevo' : 'Usado',
+                                  style: TextStyle(
+                                    color: estadoProducto == 'nuevo' 
+                                        ? Colors.green.shade700
+                                        : Colors.orange.shade700,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            if (tiempoUso != null && tiempoUso!.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.access_time, size: 10, color: Colors.blue.shade700),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      tiempoUso!,
+                                      style: TextStyle(
+                                        color: Colors.blue.shade700,
+                                        fontSize: 9,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
                       
                       // ✅ Espaciador flexible
                       const Spacer(),

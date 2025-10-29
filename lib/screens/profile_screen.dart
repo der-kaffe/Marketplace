@@ -641,6 +641,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     imageUrl: product.imageUrl,
                     isFavorite: product.isFavorite,
                     isAvailable: product.isAvailable,
+                    estadoProducto: product.estadoProducto,
+                    tiempoUso: product.tiempoUso,
                     onToggleFavorite: () {
                        _showFeatureMessage(context, 'Manejar favoritos desde el perfil');
                     },

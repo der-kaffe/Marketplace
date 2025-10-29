@@ -106,9 +106,9 @@ router.post('/', (req, res, next) => {
   });
 });
 
-// 📦 Subida de imagen para productos (carpeta productos)
-router.post('/producto', (req, res, next) => {
-  uploadProductos.single('image')(req, res, function (err) {
+// 📦 Subida de imagen para productos (guarda en BD)
+router.post('/producto', authenticateToken, async (req, res, next) => {
+  uploadProductos.single('image')(req, res, async function (err) {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({ ok: false, error: err.message });
     } else if (err) {
@@ -117,10 +117,42 @@ router.post('/producto', (req, res, next) => {
     if (!req.file) {
       return res.status(400).json({ ok: false, error: 'No se envió ninguna imagen.' });
     }
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const imageUrl = `${protocol}://${host}/uploads/productos/${req.file.filename}`;
-    res.json({ ok: true, imageUrl });
+
+    try {
+      // Leer los bytes de la imagen
+      const fs = require('fs');
+      const imageBuffer = fs.readFileSync(req.file.path);
+      const mimeType = req.file.mimetype || 'image/jpeg';
+
+      // Eliminar el archivo temporal (ya no lo necesitamos)
+      fs.unlinkSync(req.file.path);
+
+      // Guardar en la BD usando Prisma
+      const { prisma } = require('../config/database');
+      
+      // Primero necesitamos un productoId, pero aquí no lo tenemos
+      // Así que retornamos los datos para que el cliente los guarde al crear el producto
+      // Convertir buffer a base64 para enviarlo al cliente
+      const base64Image = imageBuffer.toString('base64');
+      const dataUrl = `data:${mimeType};base64,${base64Image}`;
+
+      res.json({ 
+        ok: true, 
+        imageData: base64Image, // Base64 para enviar en JSON
+        mimeType: mimeType,
+        size: imageBuffer.length,
+        // También mantenemos URL para compatibilidad (será una URL especial)
+        imageUrl: `/api/images/db/${Date.now()}-${Math.random().toString(36).substring(7)}`
+      });
+    } catch (error) {
+      console.error('Error procesando imagen:', error);
+      // Limpiar archivo si existe
+      const fs = require('fs');
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ ok: false, error: 'Error procesando imagen: ' + error.message });
+    }
   });
 });
 

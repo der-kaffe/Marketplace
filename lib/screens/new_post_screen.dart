@@ -28,11 +28,14 @@ class _NewPostScreenState extends State<NewPostScreen> {
   final _priceCtrl = TextEditingController();
   final _quantityCtrl = TextEditingController(text: '1');
   final _imageUrlCtrl = TextEditingController();
+  final _informacionTecnicaCtrl = TextEditingController();
+  final _tiempoUsoCtrl = TextEditingController();
   final ProductService _productService = ProductService();
   final AuthService _authService = AuthService();
   final ImagePicker _picker = ImagePicker();
 
   int? _selectedCategoryId;
+  String? _estadoProducto; // 'nuevo' o 'usado'
   bool _isLoading = false;
   List<ProductModel.ApiCategory> _categories = [];
   bool _isLoadingCategories = true;
@@ -69,6 +72,8 @@ class _NewPostScreenState extends State<NewPostScreen> {
     _priceCtrl.dispose();
     _quantityCtrl.dispose();
     _imageUrlCtrl.dispose();
+    _informacionTecnicaCtrl.dispose();
+    _tiempoUsoCtrl.dispose();
     super.dispose();
   }
 
@@ -89,36 +94,40 @@ class _NewPostScreenState extends State<NewPostScreen> {
 
   Future<String?> _uploadImage(File imageFile) async {
     setState(() => _isUploadingImage = true);
-    String? imageUrl;
+    String? imageDataBase64;
     try {
       final token = await _authService.getToken();
       if (token == null) throw Exception('Usuario no autenticado');
-      final uri = Uri.parse('${NetworkConfig.baseUrl.replaceAll('/api', '')}/api/upload/producto');
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer $token';
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-        filename: 'product_image_${DateTime.now().millisecondsSinceEpoch}.jpg',
-        contentType: MediaType('image', 'jpeg'), // Fuerza el tipo MIME correcto
-      ));
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final decodedBody = json.decode(responseBody);
-        if (decodedBody['ok'] == true && decodedBody['imageUrl'] != null) {
-          imageUrl = decodedBody['imageUrl'];
-        } else {
-          throw Exception(decodedBody['message'] ?? 'Error en la respuesta del servidor de imágenes');
-        }
-      } else {
-         throw Exception('Error al subir imagen (${response.statusCode}): $responseBody');
+      
+      // Leer archivo como bytes y convertir a base64
+      final bytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(bytes);
+      
+      // Determinar MIME type
+      String mimeType = 'image/jpeg';
+      final extension = imageFile.path.toLowerCase().split('.').last;
+      switch (extension) {
+        case 'png':
+          mimeType = 'image/png';
+          break;
+        case 'gif':
+          mimeType = 'image/gif';
+          break;
+        case 'webp':
+          mimeType = 'image/webp';
+          break;
+        default:
+          mimeType = 'image/jpeg';
       }
+      
+      // Crear data URL con base64
+      imageDataBase64 = 'data:$mimeType;base64,$base64Image';
+      
     } catch (e) {
       if(mounted){
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error al subir imagen: ${e.toString()}'),
+              content: Text('Error al procesar imagen: ${e.toString()}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -128,7 +137,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
           setState(() => _isUploadingImage = false);
       }
     }
-    return imageUrl;
+    return imageDataBase64;
   }
 
   Future<void> _createProduct() async {
@@ -150,10 +159,11 @@ class _NewPostScreenState extends State<NewPostScreen> {
 
     setState(() => _isLoading = true);
 
-    String? uploadedImageUrl;
+    String? imageDataBase64;
     try {
-      uploadedImageUrl = await _uploadImage(_selectedImageFile!);
-      if (uploadedImageUrl == null) {
+      // Convertir imagen a base64
+      imageDataBase64 = await _uploadImage(_selectedImageFile!);
+      if (imageDataBase64 == null) {
         setState(() => _isLoading = false);
         return;
       }
@@ -161,13 +171,21 @@ class _NewPostScreenState extends State<NewPostScreen> {
       final precio = double.parse(_priceCtrl.text.replaceAll(',', '.'));
       final cantidad = int.tryParse(_quantityCtrl.text) ?? 1;
 
+      // Enviar imagen como base64 para que se guarde en BD
       await _productService.createProduct(
         nombre: _titleCtrl.text.trim(),
         descripcion: _descCtrl.text.trim(),
         precioActual: precio,
         categoriaId: _selectedCategoryId!,
         cantidad: cantidad,
-        imageUrl: uploadedImageUrl,
+        imageUrl: imageDataBase64, // Ahora es base64, no URL
+        informacionTecnica: _informacionTecnicaCtrl.text.trim().isNotEmpty 
+            ? _informacionTecnicaCtrl.text.trim() 
+            : null,
+        estadoProducto: _estadoProducto,
+        tiempoUso: _tiempoUsoCtrl.text.trim().isNotEmpty 
+            ? _tiempoUsoCtrl.text.trim() 
+            : null,
       );
 
       if (mounted) {
@@ -236,8 +254,12 @@ class _NewPostScreenState extends State<NewPostScreen> {
                           _priceCtrl.clear();
                           _quantityCtrl.text = '1';
                           _imageUrlCtrl.clear();
+                          _informacionTecnicaCtrl.clear();
+                          _tiempoUsoCtrl.clear();
                           setState(() {
                             _selectedCategoryId = null;
+                            _estadoProducto = null;
+                            _selectedImageFile = null;
                           });
                         },
                         child: const Text('Crear otro'),
@@ -418,6 +440,56 @@ class _NewPostScreenState extends State<NewPostScreen> {
                                 ? 'Selecciona una categoría'
                                 : null,
                           ),
+
+                    const SizedBox(height: 16),
+
+                    // Estado del producto (nuevo/usado)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Estado del producto',
+                        border: OutlineInputBorder(),
+                        helperText: 'Selecciona si el producto es nuevo o usado',
+                      ),
+                      value: _estadoProducto,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'nuevo',
+                          child: Text('Nuevo'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'usado',
+                          child: Text('Usado'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _estadoProducto = value);
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Tiempo de uso
+                    TextFormField(
+                      controller: _tiempoUsoCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Tiempo de uso',
+                        border: OutlineInputBorder(),
+                        helperText: 'Ej: "6 meses", "2 años", "Poco usado"',
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Información técnica
+                    TextFormField(
+                      controller: _informacionTecnicaCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Información técnica',
+                        border: OutlineInputBorder(),
+                        helperText: 'Especificaciones técnicas del producto',
+                      ),
+                      maxLines: 4,
+                    ),
 
                     const SizedBox(height: 32),
 
