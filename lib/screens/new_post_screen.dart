@@ -28,11 +28,14 @@ class _NewPostScreenState extends State<NewPostScreen> {
   final _priceCtrl = TextEditingController();
   final _quantityCtrl = TextEditingController(text: '1');
   final _imageUrlCtrl = TextEditingController();
+  final _informacionTecnicaCtrl = TextEditingController();
+  final _tiempoUsoCtrl = TextEditingController();
   final ProductService _productService = ProductService();
   final AuthService _authService = AuthService();
   final ImagePicker _picker = ImagePicker();
 
   int? _selectedCategoryId;
+  String? _estadoProducto; // 'nuevo' o 'usado'
   bool _isLoading = false;
   List<ProductModel.ApiCategory> _categories = [];
   bool _isLoadingCategories = true;
@@ -69,6 +72,8 @@ class _NewPostScreenState extends State<NewPostScreen> {
     _priceCtrl.dispose();
     _quantityCtrl.dispose();
     _imageUrlCtrl.dispose();
+    _informacionTecnicaCtrl.dispose();
+    _tiempoUsoCtrl.dispose();
     super.dispose();
   }
 
@@ -168,6 +173,13 @@ class _NewPostScreenState extends State<NewPostScreen> {
         categoriaId: _selectedCategoryId!,
         cantidad: cantidad,
         imageUrl: uploadedImageUrl,
+        informacionTecnica: _informacionTecnicaCtrl.text.trim().isNotEmpty 
+            ? _informacionTecnicaCtrl.text.trim() 
+            : null,
+        estadoProducto: _estadoProducto,
+        tiempoUso: _tiempoUsoCtrl.text.trim().isNotEmpty 
+            ? _tiempoUsoCtrl.text.trim() 
+            : null,
       );
 
       if (mounted) {
@@ -229,8 +241,12 @@ class _NewPostScreenState extends State<NewPostScreen> {
                           _priceCtrl.clear();
                           _quantityCtrl.text = '1';
                           _imageUrlCtrl.clear();
+                          _informacionTecnicaCtrl.clear();
+                          _tiempoUsoCtrl.clear();
                           setState(() {
                             _selectedCategoryId = null;
+                            _estadoProducto = null;
+                            _selectedImageFile = null;
                           });
                         },
                         child: const Text('Crear otro'),
@@ -411,6 +427,56 @@ class _NewPostScreenState extends State<NewPostScreen> {
                                 ? 'Selecciona una categoría'
                                 : null,
                           ),
+
+                    const SizedBox(height: 16),
+
+                    // Estado del producto (nuevo/usado)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Estado del producto',
+                        border: OutlineInputBorder(),
+                        helperText: 'Selecciona si el producto es nuevo o usado',
+                      ),
+                      value: _estadoProducto,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'nuevo',
+                          child: Text('Nuevo'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'usado',
+                          child: Text('Usado'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _estadoProducto = value);
+                      },
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Tiempo de uso
+                    TextFormField(
+                      controller: _tiempoUsoCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Tiempo de uso',
+                        border: OutlineInputBorder(),
+                        helperText: 'Ej: "6 meses", "2 años", "Poco usado"',
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Información técnica
+                    TextFormField(
+                      controller: _informacionTecnicaCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Información técnica',
+                        border: OutlineInputBorder(),
+                        helperText: 'Especificaciones técnicas del producto',
+                      ),
+                      maxLines: 4,
+                    ),
 
                     const SizedBox(height: 32),
 

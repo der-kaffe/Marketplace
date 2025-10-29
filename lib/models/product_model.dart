@@ -20,6 +20,12 @@ class Product {
   final String? sellerAvatar;
   final String? sellerEmail;
 
+  // 👇 Nuevos campos
+  final String? informacionTecnica;
+  final String? estadoProducto; // 'nuevo' o 'usado'
+  final String? tiempoUso; // ej: "6 meses", "2 años"
+  final List<String>? imagenes; // Múltiples imágenes
+
   const Product({
     required this.id,
     required this.title,
@@ -36,6 +42,10 @@ class Product {
     this.sellerName,
     this.sellerAvatar,
     this.sellerEmail,
+    this.informacionTecnica,
+    this.estadoProducto,
+    this.tiempoUso,
+    this.imagenes,
   });
 
   /// Crea una copia del producto con algunos campos modificados
@@ -55,6 +65,10 @@ class Product {
     String? sellerName,
     String? sellerAvatar,
     String? sellerEmail,
+    String? informacionTecnica,
+    String? estadoProducto,
+    String? tiempoUso,
+    List<String>? imagenes,
   }) {
     return Product(
       id: id ?? this.id,
@@ -72,6 +86,10 @@ class Product {
       sellerName: sellerName ?? this.sellerName,
       sellerAvatar: sellerAvatar ?? this.sellerAvatar,
       sellerEmail: sellerEmail ?? this.sellerEmail,
+      informacionTecnica: informacionTecnica ?? this.informacionTecnica,
+      estadoProducto: estadoProducto ?? this.estadoProducto,
+      tiempoUso: tiempoUso ?? this.tiempoUso,
+      imagenes: imagenes ?? this.imagenes,
     );
   }
 
@@ -93,6 +111,10 @@ class Product {
       'sellerName': sellerName,
       'sellerAvatar': sellerAvatar,
       'sellerEmail': sellerEmail,
+      'informacionTecnica': informacionTecnica,
+      'estadoProducto': estadoProducto,
+      'tiempoUso': tiempoUso,
+      'imagenes': imagenes,
     };
   }
 
@@ -114,6 +136,12 @@ class Product {
       sellerName: json['sellerName'] as String?,
       sellerAvatar: json['sellerAvatar'] as String?,
       sellerEmail: json['sellerEmail'] as String?,
+      informacionTecnica: json['informacionTecnica'] as String?,
+      estadoProducto: json['estadoProducto'] as String?,
+      tiempoUso: json['tiempoUso'] as String?,
+      imagenes: json['imagenes'] != null 
+          ? List<String>.from(json['imagenes'] as List) 
+          : null,
     );
   }
 }

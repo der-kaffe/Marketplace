@@ -68,7 +68,11 @@ class ProductService {
     required int categoriaId,
     double? precioAnterior,
     int? cantidad,
-    String? imageUrl, // 👈 Añadido
+    String? imageUrl,
+    String? informacionTecnica,
+    String? estadoProducto,
+    String? tiempoUso,
+    List<String>? imagenes,
   }) async {
     try {
       final token = await _auth_service_token_or_throw();
@@ -81,7 +85,11 @@ class ProductService {
         categoriaId: categoriaId,
         precioAnterior: precioAnterior,
         cantidad: cantidad,
-        imageUrl: imageUrl, // 👈 Añadido
+        imageUrl: imageUrl,
+        informacionTecnica: informacionTecnica,
+        estadoProducto: estadoProducto,
+        tiempoUso: tiempoUso,
+        imagenes: imagenes,
       );
 
       return result;

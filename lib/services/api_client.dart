@@ -461,7 +461,11 @@ class ApiClient {
     required int categoriaId,
     double? precioAnterior,
     int? cantidad,
-    String? imageUrl, // 👈 Añadido
+    String? imageUrl,
+    String? informacionTecnica,
+    String? estadoProducto,
+    String? tiempoUso,
+    List<String>? imagenes, // Múltiples imágenes
   }) async {
     try {
       final body = <String, dynamic>{
@@ -472,9 +476,28 @@ class ApiClient {
         'precioAnterior': precioAnterior,
         'cantidad': cantidad ?? 1,
       };
+      
+      // Soporte para imagen única (compatibilidad)
       if (imageUrl != null) {
         body['imageUrl'] = imageUrl;
       }
+      
+      // Nuevos campos
+      if (informacionTecnica != null && informacionTecnica.isNotEmpty) {
+        body['informacionTecnica'] = informacionTecnica;
+      }
+      if (estadoProducto != null && estadoProducto.isNotEmpty) {
+        body['estadoProducto'] = estadoProducto;
+      }
+      if (tiempoUso != null && tiempoUso.isNotEmpty) {
+        body['tiempoUso'] = tiempoUso;
+      }
+      
+      // Múltiples imágenes
+      if (imagenes != null && imagenes.isNotEmpty) {
+        body['imagenes'] = imagenes;
+      }
+      
       final response = await http.post(
         Uri.parse('$baseUrl/api/products'),
         headers: _headers,
@@ -918,6 +941,11 @@ class ProductFromDB {
   final List<dynamic> imagenes; // Bytes de imágenes
   final VendedorFromDB vendedor;
   final bool? visible; // ✅ Añadido campo visible
+  
+  // 👇 Nuevos campos
+  final String? informacionTecnica;
+  final String? estadoProducto; // 'nuevo' o 'usado'
+  final String? tiempoUso; // ej: "6 meses", "2 años"
 
   ProductFromDB({
     required this.id,
@@ -934,6 +962,9 @@ class ProductFromDB {
     required this.imagenes,
     required this.vendedor,
     required this.visible, // ✅ Añadido al constructor
+    this.informacionTecnica,
+    this.estadoProducto,
+    this.tiempoUso,
   });
 
   factory ProductFromDB.fromJson(Map<String, dynamic> json) {
@@ -1020,6 +1051,11 @@ class ProductFromDB {
       imagenes: json['imagenes'] ?? [],
       vendedor: VendedorFromDB.fromJson(json['vendedor'] ?? {}),
       visible: safeToBool(json['visible'], defaultValue: true),
+      
+      // 👇 Nuevos campos
+      informacionTecnica: json['informacionTecnica']?.toString(),
+      estadoProducto: json['estadoProducto']?.toString(),
+      tiempoUso: json['tiempoUso']?.toString(),
     );
   }
 
@@ -1059,6 +1095,11 @@ class ProductFromDB {
       sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}'.trim(), // Trim para quitar espacios extra
       sellerAvatar: vendedor.avatarUrl, // ✅ Usar el avatar del vendedor si existe
       sellerEmail: vendedor.correo,
+      // 👇 Nuevos campos
+      informacionTecnica: informacionTecnica,
+      estadoProducto: estadoProducto,
+      tiempoUso: tiempoUso,
+      imagenes: _getAllImageUrls(),
     );
   }
 
@@ -1073,6 +1114,19 @@ class ProductFromDB {
       }
     }
     return null;
+  }
+
+  List<String> _getAllImageUrls() {
+    if (imagenes.isEmpty) return [];
+    final List<String> urls = [];
+    for (var img in imagenes) {
+      if (img is Map && img['urlImagen'] != null && img['urlImagen'].toString().isNotEmpty) {
+        urls.add(img['urlImagen']);
+      } else if (img is String && img.isNotEmpty) {
+        urls.add(img);
+      }
+    }
+    return urls;
   }
 }
 

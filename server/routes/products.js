@@ -105,6 +105,10 @@ router.get('/', async (req, res) => {
       estado: product.estado.nombre,
       fechaAgregado: product.fechaAgregado,
       imagenes: product.imagenes,
+      // 👇 Nuevos campos
+      informacionTecnica: product.informacionTecnica,
+      estadoProducto: product.estadoProducto,
+      tiempoUso: product.tiempoUso,
       vendedor: {
         id: product.vendedor.id,
         nombre: product.vendedor.nombre,
@@ -183,6 +187,10 @@ router.get('/my-products', authenticateToken, async (req, res) => {
       visible: product.visible,
       fechaAgregado: product.fechaAgregado,
       imagenes: product.imagenes,
+      // 👇 Nuevos campos
+      informacionTecnica: product.informacionTecnica,
+      estadoProducto: product.estadoProducto,
+      tiempoUso: product.tiempoUso,
       vendedor: product.vendedor
     }));
 
@@ -252,6 +260,10 @@ router.get('/:id', async (req, res) => {
       estado: product.estado.nombre,
       fechaAgregado: product.fechaAgregado,
       imagenes: product.imagenes,
+      // 👇 Nuevos campos
+      informacionTecnica: product.informacionTecnica,
+      estadoProducto: product.estadoProducto,
+      tiempoUso: product.tiempoUso,
       vendedor: {
         ...product.vendedor,
         reputacion: product.vendedor.reputacion ? Number(product.vendedor.reputacion) : 0
@@ -296,7 +308,11 @@ router.post('/', authenticateToken, [
       precioActual,
       categoriaId,
       cantidad,
-      imageUrl // <-- Recibe imageUrl del body
+      imageUrl, // <-- Recibe imageUrl del body (compatibilidad)
+      imagenes, // <-- Recibe múltiples imágenes
+      informacionTecnica,
+      estadoProducto, // 'nuevo' o 'usado'
+      tiempoUso
     } = req.body;
 
     // ✅ PASO 1: Verificar que la categoría existe
@@ -361,7 +377,11 @@ router.post('/', authenticateToken, [
         cantidad: cantidad ? parseInt(cantidad) : 1,
         estadoId: 1, // Estado "Disponible"
         visible: true, // Visible por defecto
-        calificacion: 0.0
+        calificacion: 0.0,
+        // 👇 Nuevos campos
+        informacionTecnica: informacionTecnica || null,
+        estadoProducto: estadoProducto || null, // 'nuevo' o 'usado'
+        tiempoUso: tiempoUso || null
       },
       include: {
         categoria: true,
@@ -378,13 +398,16 @@ router.post('/', authenticateToken, [
       }
     });
 
-    // Si viene imageUrl, crea la relación en ImagenesProducto
-    if (imageUrl) {
-      await prisma.imagenesProducto.create({
-        data: {
+    // Manejar imágenes: soporte para múltiples imágenes o imagen única
+    const imagenesLista = imagenes && Array.isArray(imagenes) ? imagenes : (imageUrl ? [imageUrl] : []);
+    
+    if (imagenesLista.length > 0) {
+      // Crear todas las imágenes en la base de datos
+      await prisma.imagenesProducto.createMany({
+        data: imagenesLista.map(url => ({
           productoId: newProduct.id,
-          urlImagen: imageUrl
-        }
+          urlImagen: url
+        }))
       });
     }
 
