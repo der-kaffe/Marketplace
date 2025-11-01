@@ -309,7 +309,13 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       });
       print('✅ Productos cargados: ${newProducts.length}');
     } catch (e) {
-      // ... (tu catch está bien)
+      print('❌ Error cargando productos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error cargando productos: $e')),
+        );
+      }
+
     } finally {
       if (mounted) {
         setState(() => _isLoadingProducts = false);
