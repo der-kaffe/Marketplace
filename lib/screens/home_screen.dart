@@ -264,13 +264,23 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       print(
           '✅ Visibilidad actualizada: $newVisibility para producto #$productId');
     } catch (e) {
-      // 7. Manejo de errores
+      // 7. MANEJO DE ERRORES MEJORADO
       print('❌ Error cambiando visibilidad: $e');
+      
+      String errorMessage = 'Error: ${e.toString()}'; // Mensaje por defecto
+      Color errorColor = Colors.red; // Color por defecto
+
+      // Comprobar si es un error de permiso
+      if (e.toString().contains('No tienes permiso')) {
+        errorMessage = 'No puedes ocultar una publicación que no te pertenece.';
+        errorColor = Colors.orange; // Usar un color de "advertencia"
+      }
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: errorColor, // Usar el color dinámico
             duration: const Duration(seconds: 3),
           ),
         );
