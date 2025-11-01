@@ -43,7 +43,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingMyProducts = true;
 
   int _favoritesCount = 0;
-  int _reviewsCount = 0; // Placeholder, actualizar si tienes endpoint
+  final Set<String> _favoriteProductIds = {};
+  int _reviewsCount = 0; // Placeholder
 
   // --- ✅ NUEVO: Estado para Transacciones ---
   final ApiClient _apiClient = ApiClient(baseUrl: getDefaultBaseUrl());
@@ -160,6 +161,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() {
           _favoritesCount = resp.favorites.length;
+          _favoriteProductIds.clear();
+          for (var fav in resp.favorites) {
+            _favoriteProductIds.add(fav.productoId.toString());
+          }
         });
       }
     } catch (e) {
@@ -311,6 +316,123 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // Método para alternar favoritos
+  Future<void> _toggleFavorite(Product product) async {
+    try {
+      final productId = int.parse(product.id);
+      final isFavorite = _favoriteProductIds.contains(product.id);
+
+      if (isFavorite) {
+        await _authService.apiClient.removeProductFavorite(productoId: productId);
+        setState(() {
+          _favoriteProductIds.remove(product.id);
+          _favoritesCount--; // Actualiza el contador
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Eliminado de favoritos')),
+          );
+        }
+      } else {
+        await _authService.apiClient.addProductFavorite(productoId: productId);
+        setState(() {
+          _favoriteProductIds.add(product.id);
+          _favoritesCount++; // Actualiza el contador
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Agregado a favoritos')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  // Método para alternar visibilidad del producto
+  Future<void> _toggleProductVisibility(Product product) async {
+    try {
+      final productId = int.tryParse(product.id);
+      if (productId == null) {
+        throw Exception('ID de producto inválido');
+      }
+
+      // 1. Tarea Futura: Lógica de "Vendido"
+      // Aquí es donde implementarás la lógica de "ocultar si está vendido"
+      // if (product.estadoProducto == 'vendido') {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text('No se puede cambiar la visibilidad de un producto vendido.')),
+      //   );
+      //   return; 
+      // }
+
+      final newVisibility = !product.isAvailable;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              ),
+              const SizedBox(width: 16),
+              Text(newVisibility ? 'Haciendo público...' : 'Ocultando...'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // 2. Llamar al backend
+      await _productService.toggleVisibility(
+        productId: productId,
+        visible: newVisibility,
+      );
+
+      // 3. Actualizar UI local (adaptado para _myProducts)
+      setState(() {
+        final productIndex = _myProducts.indexWhere((p) => p.id == product.id);
+        if (productIndex != -1) {
+          _myProducts[productIndex] = product.copyWith(isAvailable: newVisibility);
+        }
+      });
+
+      // 4. Mostrar confirmación
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newVisibility
+                  ? '✅ Producto visible para todos'
+                  : '🔒 Producto oculto',
+            ),
+            backgroundColor: newVisibility ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // 5. Manejo de errores
+      print('❌ Error cambiando visibilidad: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }
@@ -615,11 +737,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const Text('No has publicado ningún producto.'),
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: () => context.push('/new_post'), 
-                    child: const Text('Publicar mi primer producto')
-                  )
+                      onPressed: () => context.push('/new_post'),
+                      child: const Text('Publicar mi primer producto'))
                 ],
-              )
+              ),
             ),
           )
         else
@@ -631,6 +752,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               itemCount: _myProducts.length,
               itemBuilder: (context, index) {
                 final product = _myProducts[index];
+                
+                // ✅ ESTADO DE FAVORITO EN TIEMPO REAL
+                final isFavorite = _favoriteProductIds.contains(product.id);
+
                 return Container(
                   width: 180,
                   margin: const EdgeInsets.only(right: 12),
@@ -639,17 +764,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     description: product.description,
                     price: product.price,
                     imageUrl: product.imageUrl,
-                    isFavorite: product.isFavorite,
+                    
+                    // ✅ PASA EL VALOR CALCULADO
+                    isFavorite: isFavorite, 
+                    
                     isAvailable: product.isAvailable,
                     estadoProducto: product.estadoProducto,
                     tiempoUso: product.tiempoUso,
-                    onToggleFavorite: () {
-                       _showFeatureMessage(context, 'Manejar favoritos desde el perfil');
-                    },
-                    onToggleVisibility: () {
-                      // Lógica para cambiar visibilidad (opcional, requiere más estado)
-                       _showFeatureMessage(context, 'Manejar visibilidad desde el perfil');
-                    },
+
+                    // ✅ CONECTA LOS MÉTODOS REALES
+                    onToggleFavorite: () => _toggleFavorite(product),
+                    onToggleVisibility: () => _toggleProductVisibility(product),
+
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
