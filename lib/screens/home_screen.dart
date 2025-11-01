@@ -27,12 +27,11 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
 
-  final List<Product> _allProducts =
-      []; // Almacena *todos* los productos cargados (puede acumular duplicados si se recarga mal)
-  final List<Product> _originalProducts =
-      []; // Almacena *una sola vez* los productos iniciales, limpia de duplicados
-  List<Product> _filteredProducts =
-      []; // Almacena los productos *filtrados* o la copia de _originalProducts
+  // El "Master" de todos los productos, acceso instantáneo por ID.
+  final Map<String, Product> _masterProductMap = {};
+  // Lista de IDs que se deben mostrar en la UI, en orden.
+  List<String> _filteredProductIds = [];
+
   List<ProductModel.ApiCategory> _apiCategories = [];
   bool _isLoadingProducts = false;
   bool _isLoadingCategories = true;
@@ -53,28 +52,35 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
-    _loadCategories();
-    _loadMoreProducts(); // Carga productos iniciales
-    _loadFavorites();
+
+    // ✅ OPTIMIZACIÓN: Cargar todo en paralelo, no en serie.
+    // Esto inicia todas las llamadas de red al mismo tiempo.
+    _loadDataParalelamente();
 
     _scrollController.addListener(() {
-      // Solo cargar más productos si:
-      // 1. Estamos cerca del final del scroll
-      // 2. No hay carga en progreso
-      // 3. No hay filtros activos
-      // 4. Hay productos originales cargados
-      // 5. No se han cargado todos los productos disponibles
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
           !_isLoadingProducts &&
           _selectedCategoryId == null &&
           _precioMinimo == null &&
           _precioMaximo == null &&
-          _originalProducts.isNotEmpty &&
+          _masterProductMap.isNotEmpty &&
           !_hasLoadedAllProducts) {
         _loadMoreProducts();
       }
     });
+  }
+
+  // ✅ NUEVO MÉTODO HELPER para la carga paralela
+  Future<void> _loadDataParalelamente() async {
+    // Inicia todas las cargas y espera a que terminen juntas.
+    // El usuario verá los productos, categorías y favoritos
+    // aparecer casi al mismo tiempo.
+    await Future.wait([
+      _loadCategories(),
+      _loadMoreProducts(),
+      _loadFavorites(),
+    ]);
   }
 
   @override
@@ -221,29 +227,11 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       );
 
       // 5. Actualizar UI local solo si la petición fue exitosa
+      // ✅ OPTIMIZACIÓN: Solo actualiza el Map.
+      // El GridView leerá este cambio la próxima vez que se redibuje.
       setState(() {
-        // Actualizar en _allProducts
-        final productIndex = _allProducts.indexWhere((p) => p.id == product.id);
-        if (productIndex != -1) {
-          _allProducts[productIndex] =
-              product.copyWith(isAvailable: newVisibility);
-        }
-
-        // Actualizar en _originalProducts
-        final originalIndex =
-            _originalProducts.indexWhere((p) => p.id == product.id);
-        if (originalIndex != -1) {
-          _originalProducts[originalIndex] =
-              product.copyWith(isAvailable: newVisibility);
-        }
-
-        // Actualizar en _filteredProducts
-        final filteredIndex =
-            _filteredProducts.indexWhere((p) => p.id == product.id);
-        if (filteredIndex != -1) {
-          _filteredProducts[filteredIndex] =
-              product.copyWith(isAvailable: newVisibility);
-        }
+        final updatedProduct = product.copyWith(isAvailable: newVisibility);
+        _masterProductMap[product.id] = updatedProduct;
       });
 
       // 6. Mostrar confirmación
@@ -290,12 +278,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
 
   // Método para cargar productos (simula paginación)
   Future<void> _loadMoreProducts() async {
-    // ⬇️ 1. GUARDIÁN SIMPLIFICADO
-    //    Tu scroll listener ya comprueba el filtro de categoría,
-    //    así que aquí solo evitamos cargas duplicadas.
     if (_isLoadingProducts || _hasLoadedAllProducts) return;
-
-    // 2. Establecer la animación de carga
     setState(() => _isLoadingProducts = true);
 
     try {
@@ -305,48 +288,29 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       );
 
       setState(() {
-        // Si no hay más productos o hay menos de lo esperado, marcar como cargado todo
         if (newProducts.isEmpty || newProducts.length < _limit) {
           _hasLoadedAllProducts = true;
-          print('✅ Todos los productos han sido cargados (${newProducts.length} productos en esta página)');
+          print('✅ Todos los productos han sido cargados...');
+        }
+        
+        // ✅ OPTIMIZACIÓN: Añadir a Map y a lista de IDs
+        for (var product in newProducts) {
+          _masterProductMap[product.id] = product;
         }
 
-        // Lógica para poblar _allProducts y _originalProducts
-        if (_allProducts.isEmpty && _originalProducts.isEmpty) {
-          // Primera carga: poblar ambas listas
-          _allProducts.addAll(newProducts);
-          _originalProducts
-              .addAll(newProducts); // Guardar copia limpia original
-          _filteredProducts =
-              List.from(_originalProducts); // Mostrar originales
-        } else {
-          // Carga paginada: añadir solo a _allProducts
-          _allProducts.addAll(newProducts);
-          // Si NO hay filtro activo, también añadir a _filteredProducts
-          if (_selectedCategoryId == null &&
-              _precioMinimo == null &&
-              _precioMaximo == null) {
-            _filteredProducts.addAll(newProducts);
-          }
+        // Si no hay filtro, añade los nuevos IDs a la lista visible
+        if (_selectedCategoryId == null &&
+            _precioMinimo == null &&
+            _precioMaximo == null) {
+          _filteredProductIds.addAll(newProducts.map((p) => p.id));
         }
+
         _page++;
-        print('📦 _loadMoreProducts: _filteredProducts.length = ${_filteredProducts.length}');
-        print('📦 _loadMoreProducts: _originalProducts.length = ${_originalProducts.length}');
-        print('📦 _loadMoreProducts: _allProducts.length = ${_allProducts.length}');
       });
-
-      print(
-          '✅ Productos cargados: ${newProducts.length} (total _allProducts: ${_allProducts.length}, total _originalProducts: ${_originalProducts.length})');
+      print('✅ Productos cargados: ${newProducts.length}');
     } catch (e) {
-      print('❌ Error cargando productos: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cargando productos: $e')),
-        );
-      }
+      // ... (tu catch está bien)
     } finally {
-      // ⬇️ 3. ¡LA SOLUCIÓN!
-      //    Esto se ejecuta SIEMPRE (éxito o error) y apaga la animación.
       if (mounted) {
         setState(() => _isLoadingProducts = false);
       }
@@ -356,39 +320,29 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   Future<void> forceRefreshProducts() async {
     print('🔄 Forzando recarga de productos...');
 
-    // 1. Limpia las listas y filtros y REINICIA los flags de carga
     setState(() {
       _page = 1;
-      _allProducts.clear();
-      _originalProducts.clear();
-      _filteredProducts.clear();
+      // ✅ OPTIMIZACIÓN: Limpiar el Map y la lista de IDs
+      _masterProductMap.clear();
+      _filteredProductIds.clear();
+      
       _selectedCategoryName = null;
       _selectedCategoryId = null;
       _precioMinimo = null;
       _precioMaximo = null;
-      _hasLoadedAllProducts = false; // <-- REINICIA para permitir recarga
-      _isLoadingProducts = false;    // <-- REINICIA para permitir recarga
+      _hasLoadedAllProducts = false; 
+      _isLoadingProducts = false;    
     });
 
-    // 2. Llama a la función de carga y espera a que termine
+    // Llama a _loadMoreProducts, que ahora llenará las nuevas estructuras
     await _loadMoreProducts();
-
-    // 3. Fuerza que _filteredProducts muestre los productos originales
-    setState(() {
-      _filteredProducts = List.from(_originalProducts);
-      print('🔁 forceRefreshProducts: _filteredProducts.length = ${_filteredProducts.length}');
-      print('🔁 forceRefreshProducts: _originalProducts.length = ${_originalProducts.length}');
-      print('🔁 forceRefreshProducts: _allProducts.length = ${_allProducts.length}');
-    });
   }
 
-  // ✅ PASO 2: (YA LO TIENES) Asegúrate de tener esta función del paso anterior
   void _removeProductFromUI(String productId) {
     setState(() {
-      _originalProducts.removeWhere((p) => p.id == productId);
-      _filteredProducts.removeWhere((p) => p.id == productId);
-      _allProducts.removeWhere(
-          (p) => p.id == productId); // Asegúrate de limpiar las 3 listas
+      // ✅ OPTIMIZACIÓN: Eliminar de Map y de lista de IDs
+      _masterProductMap.remove(productId);
+      _filteredProductIds.remove(productId);
     });
     print('✅ UI actualizada. Producto $productId eliminado de la lista.');
   }
@@ -417,7 +371,6 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
 
     return names;
   }
-  // --- FIN NUEVO ---
 
   // --- NUEVO: Método para abrir el modal de filtros ---
   void _showPriceFilterModal() {
@@ -543,38 +496,39 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       },
     );
   }
-  // --- FIN NUEVO ---
 
-  // --- NUEVO: Método para aplicar el filtro combinado ---
   void _applyCombinedFilter() {
+    // ✅ OPTIMIZACIÓN: Iterar sobre 'values' del Map es más rápido que una lista
+    List<Product> sourceList = _masterProductMap.values.toList();
+    
+    // Filtrar por categoría
+    if (_selectedCategoryId != null) {
+      Set<String> categoryNamesToFilter =
+          _getAllSubcategoryNames(_selectedCategoryId!, _apiCategories);
+      sourceList = sourceList.where((product) {
+        return categoryNamesToFilter.contains(product.category);
+      }).toList();
+    }
+
+    // Filtrar por precio
+    if (_precioMinimo != null || _precioMaximo != null) {
+      sourceList = sourceList.where((product) {
+        bool passesMinCheck =
+            _precioMinimo == null || product.price >= _precioMinimo!;
+        bool passesMaxCheck =
+            _precioMaximo == null || product.price <= _precioMaximo!;
+        return passesMinCheck && passesMaxCheck;
+      }).toList();
+    }
+
     setState(() {
-      // Comienza con la lista original
-      _filteredProducts = List.from(_originalProducts);
-
-      // Filtrar por categoría si hay una seleccionada
-      if (_selectedCategoryId != null) {
-        Set<String> categoryNamesToFilter =
-            _getAllSubcategoryNames(_selectedCategoryId!, _apiCategories);
-        _filteredProducts = _filteredProducts.where((product) {
-          return categoryNamesToFilter.contains(product.category);
-        }).toList();
-      }
-
-      // Filtrar por precio si hay un rango establecido
-      if (_precioMinimo != null || _precioMaximo != null) {
-        _filteredProducts = _filteredProducts.where((product) {
-          bool passesMinCheck =
-              _precioMinimo == null || product.price >= _precioMinimo!;
-          bool passesMaxCheck =
-              _precioMaximo == null || product.price <= _precioMaximo!;
-          return passesMinCheck && passesMaxCheck;
-        }).toList();
-      }
+      // Almacena solo los IDs de los productos filtrados
+      _filteredProductIds = sourceList.map((p) => p.id).toList();
     });
+    
     print(
-        '🔍 Aplicando filtro combinado. Productos filtrados: ${_filteredProducts.length}');
+        '🔍 Aplicando filtro combinado. Productos filtrados: ${_filteredProductIds.length}');
   }
-  // --- FIN NUEVO ---
 
   // --- ACTUALIZAR: _filterProductsByCategory para usar _applyCombinedFilter ---
   void _filterProductsByCategory(int? categoryId, String? categoryName) {
@@ -593,10 +547,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
     _applyCombinedFilter();
 
     _page = 1; // Reiniciar página si se aplica un filtro
-    print(
-        '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProducts.length}');
+    print('🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProductIds.length}');
   }
-  // --- FIN ACTUALIZAR ---
 
   // --- ACTUALIZAR: _clearCategoryFilter para limpiar todos los filtros ---
   void _clearCategoryFilter() {
@@ -605,13 +557,12 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       _selectedCategoryName = null;
       _precioMinimo = null;
       _precioMaximo = null;
-      _filteredProducts = List.from(_originalProducts);
-      // No reiniciar _page ni _hasLoadedAllProducts para evitar recargas
+      // ✅ OPTIMIZACIÓN: Restaura la lista de IDs desde las llaves del Map
+      _filteredProductIds = _masterProductMap.keys.toList();
     });
     print(
-        '🔍 Filtros limpiados. Mostrando todos los productos: ${_filteredProducts.length}');
+        '🔍 Filtros limpiados. Mostrando todos los productos: ${_filteredProductIds.length}');
   }
-  // --- FIN ACTUALIZAR ---
 
   // --- NUEVO: Mapeo de iconos por categoría ---
   IconData _getIconForCategory(String categoryName) {
@@ -656,12 +607,13 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
         _applyCombinedFilter();
       } else {
         final normalizedQuery = _normalizeText(query);
-        _filteredProducts = _originalProducts.where((product) {
+        // ✅ OPTIMIZACIÓN: Filtrar el Map y solo devolver los IDs
+        _filteredProductIds = _masterProductMap.values.where((product) {
           final titleNorm = _normalizeText(product.title);
           final descNorm = _normalizeText(product.description);
           return titleNorm.contains(normalizedQuery) ||
               descNorm.contains(normalizedQuery);
-        }).toList();
+        }).map((p) => p.id).toList(); // Solo guarda los IDs
       }
     });
   }
@@ -669,8 +621,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingProducts && _originalProducts.isEmpty) {
-      // Cambiado a _originalProducts
+    // ✅ CORRECCIÓN 1: Comprobar el Map en lugar de la lista antigua
+    if (_isLoadingProducts && _masterProductMap.isEmpty) {
       return const Scaffold(
         body: Center(
           child: SpinKitWave(
@@ -961,7 +913,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                             ],
                           ),
                           const SizedBox(height: 20),
-                          _filteredProducts.isEmpty && !_isLoadingProducts
+                          _filteredProductIds.isEmpty && !_isLoadingProducts
                               ? Center(
                                   child: Padding(
                                     padding: EdgeInsets.symmetric(vertical: 40),
@@ -985,13 +937,13 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                     crossAxisSpacing: 12,
                                     mainAxisSpacing: 12,
                                   ),
-                                  itemCount: _filteredProducts.length +
+                                  itemCount: _filteredProductIds.length +
                                       (_isLoadingProducts &&
                                               _selectedCategoryName == null
                                           ? 1
                                           : 0),
                                   itemBuilder: (context, index) {
-                                    if (index >= _filteredProducts.length) {
+                                    if (index >= _filteredProductIds.length) {
                                       if (_isLoadingProducts &&
                                           _selectedCategoryName == null) {
                                         return const Center(
@@ -1005,9 +957,17 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                       }
                                     }
 
-                                    final product = _filteredProducts[index];
-                                    final isFavorite =
-                                        _favoriteProductIds.contains(product.id);
+                                    final productId = _filteredProductIds[index];
+                                    final product = _masterProductMap[productId];
+
+                                    // Si el producto es nulo (no debería pasar),
+                                    // muestra un contenedor vacío.
+                                    if (product == null) {
+                                      print('❌ Error: Producto con ID $productId no encontrado en el Map.');
+                                      return Container();
+                                    }
+
+                                    final isFavorite = _favoriteProductIds.contains(product.id);
 
                                     return ProductCard(
                                       title: product.title,
@@ -1022,7 +982,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                           _toggleProductVisibility(product),
                                       onToggleFavorite: () => _toggleFavorite(product),
                                       onTap: () async {
-                                        print('🆔 ID del producto: \\${product.id}');
+                                        print('🆔 ID del producto: ${product.id}');
                                         final deletedProductId =
                                             await showModalBottomSheet<String>(
                                               context: context,
@@ -1039,8 +999,10 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                     );
                                   },
                                 ),
+                          // Mensaje si hay filtro de categoría pero no hay productos
+                          // ✅ CORRECCIÓN 2: Comprobar _filteredProductIds
                           if (_selectedCategoryName != null &&
-                              _filteredProducts.isEmpty &&
+                              _filteredProductIds.isEmpty &&
                               !_isLoadingProducts)
                             const Center(
                               child: Padding(
@@ -1049,9 +1011,11 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                     'No se encontraron productos en esta categoría.'),
                               ),
                             ),
-                          // Mensaje si hay filtro de precio activo pero no hay productos
+
+                          // Mensaje si hay filtro de precio pero no hay productos
+                          // ✅ CORRECCIÓN 3: Comprobar _filteredProductIds
                           if (_precioMinimo != null || _precioMaximo != null)
-                            if (_filteredProducts.isEmpty && !_isLoadingProducts)
+                            if (_filteredProductIds.isEmpty && !_isLoadingProducts)
                               const Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(16.0),
