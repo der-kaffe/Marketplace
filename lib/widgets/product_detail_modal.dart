@@ -26,7 +26,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
   int _userRating = 0;
   final AuthService _authService = AuthService();
   final RatingService _ratingService = RatingService();
-  final ProductService _productService = ProductService(); // ✅ Instancia del servicio
+  final ProductService _productService = ProductService();
   double _sellerReputation = 0.0;
   bool _isLoadingReputation = true;
   int _cantidadAComprar = 1;
@@ -256,13 +256,14 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
 
       Navigator.pop(context);
 
+      final String avatarUrlOrPath = widget.product.sellerAvatar ?? '../../assets/usuario_sin_foto.jpg';
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ChatPage(
             userName: widget.product.sellerName ?? 'Vendedor',
-            avatar: widget.product.sellerAvatar ??
-                'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg',
+            avatar: avatarUrlOrPath,
             destinatarioId: sellerId,
           ),
         ),
@@ -1063,10 +1064,20 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     ),
                     icon: CircleAvatar(
                       radius: 20,
-                      backgroundImage: NetworkImage(
-                        widget.product.sellerAvatar ??
-                            "https://via.placeholder.com/150",
-                      ),
+                      // Lógica para decidir qué tipo de imagen mostrar
+                      backgroundImage: (widget.product.sellerAvatar != null && widget.product.sellerAvatar!.startsWith('http'))
+                          // Si el avatar es una URL, usa NetworkImage
+                          ? NetworkImage(widget.product.sellerAvatar!)
+                          // Si no, usa el Asset local
+                          : const AssetImage('assets/usuario_sin_foto.jpg') as ImageProvider,
+                      // Fallback por si la carga de NetworkImage falla (opcional pero recomendado)
+                      onBackgroundImageError: (_, __) {
+                        // Puedes dejar esto vacío o loggear un error
+                      },
+                      child: (widget.product.sellerAvatar != null && widget.product.sellerAvatar!.startsWith('http'))
+                          ? null // Si es NetworkImage, no necesita child
+                          // Si es AssetImage, el child se muestra si onBackgroundImageError falla
+                          : const Icon(Icons.person, size: 20), // Fallback de Icono
                     ),
                     label: Text(
                       "Ver perfil del vendedor: ${widget.product.sellerName ?? 'Desconocido'}",
