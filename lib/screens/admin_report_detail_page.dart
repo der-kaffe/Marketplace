@@ -118,17 +118,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
               const SizedBox(height: 24),
               _buildStatusToggle(context),
               const SizedBox(height: 24),
-              _buildActionButtons(),
-              const SizedBox(height: 24),
-
-              TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Notas internas',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
             ],
           ),
         ),
@@ -200,44 +189,4 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     );
   }
 
-  Widget _buildActionButtons() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Publicación eliminada (simulado)')),
-            );
-
-            // Aquí podrías implementar la lógica real de eliminación de producto
-          },
-          icon: const Icon(Icons.delete),
-          label: const Text('Eliminar publicación'),
-        ),
-        const SizedBox(height: 12),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orangeAccent,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Usuario suspendido (simulado)')),
-            );
-
-            // Aquí podrías implementar la lógica real de suspensión de usuario
-          },
-          icon: const Icon(Icons.block),
-          label: const Text('Suspender usuario'),
-        ),
-      ],
-    );
-  }
 }
