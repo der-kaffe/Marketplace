@@ -1,5 +1,3 @@
-// lib/screens/admin_menu_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,36 +11,34 @@ class AdminMenuPage extends StatelessWidget {
         title: const Text('Panel de Administrador'),
         backgroundColor: Colors.redAccent,
         centerTitle: true,
-        elevation: 4,
-
+        elevation: 6,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
             if (context.canPop()) {
-              context.pop(); 
+              context.pop();
             } else {
-              context.go('/home/profile'); 
+              context.go('/home/profile');
             }
           },
         ),
-
       ),
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.white, Color(0xFFF8F8F8)],
+            colors: [Colors.white, Color(0xFFF0F0F0)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
         ),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
+            constraints: const BoxConstraints(maxWidth: 450),
             child: Card(
-              elevation: 6,
+              elevation: 8,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
               ),
               margin: const EdgeInsets.all(24),
               child: Padding(
@@ -50,20 +46,36 @@ class AdminMenuPage extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.admin_panel_settings,
+                        size: 48,
+                        color: Colors.redAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'Acciones Administrativas',
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     _buildMenuButton(
                       context,
                       icon: Icons.people,
                       label: 'Administrar Usuarios',
-                      color: Colors.blueAccent,
+                      gradient: const LinearGradient(
+                        colors: [Colors.blueAccent, Colors.lightBlue],
+                      ),
                       onTap: () => context.push('/admin/users'),
                     ),
                     const SizedBox(height: 16),
@@ -71,7 +83,9 @@ class AdminMenuPage extends StatelessWidget {
                       context,
                       icon: Icons.report,
                       label: 'Ver Reportes',
-                      color: Colors.deepOrange,
+                      gradient: const LinearGradient(
+                        colors: [Colors.deepOrange, Colors.orangeAccent],
+                      ),
                       onTap: () => context.push('/admin/reports'),
                     ),
                     const SizedBox(height: 16),
@@ -79,10 +93,11 @@ class AdminMenuPage extends StatelessWidget {
                       context,
                       icon: Icons.analytics,
                       label: 'Ver Métricas',
-                      color: Colors.green,
+                      gradient: const LinearGradient(
+                        colors: [Colors.green, Colors.lightGreen],
+                      ),
                       onTap: () => context.push('/admin/metrics'),
                     ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
@@ -97,28 +112,42 @@ class AdminMenuPage extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String label,
-    required Color color,
+    required LinearGradient gradient,
     required VoidCallback onTap,
   }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        icon: Icon(icon, size: 24),
-        label: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: gradient.colors.last.withOpacity(0.4),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 24, color: Colors.white),
+              const SizedBox(width: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        onPressed: onTap,
       ),
     );
   }
