@@ -231,4 +231,37 @@ router.post('/users', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
+// Actualizar un usuario (solo admin)
+router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, apellido, correo, usuario, rolId, campus, estadoId } = req.body;
+
+    // Validar que el usuario exista
+    const existingUser = await prisma.cuentas.findUnique({ where: { id: parseInt(id) } });
+    if (!existingUser) {
+      return res.status(404).json({ ok: false, message: 'Usuario no encontrado' });
+    }
+
+    const updatedUser = await prisma.cuentas.update({
+      where: { id: parseInt(id) },
+      data: {
+        nombre,
+        apellido,
+        correo,
+        usuario,
+        rolId: rolId || existingUser.rolId,
+        campus: campus ?? existingUser.campus,
+        estadoId: estadoId ?? existingUser.estadoId,
+      },
+      include: { rol: true, estado: true },
+    });
+
+    res.json({ ok: true, message: 'Usuario actualizado correctamente', user: updatedUser });
+  } catch (error) {
+    console.error('❌ Error al actualizar usuario:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;
