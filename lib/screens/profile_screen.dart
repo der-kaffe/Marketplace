@@ -517,7 +517,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () =>
                           _showFeatureMessage(context, 'Notificaciones'),
                     ),
-
+                    _buildActionItem(
+                      icon: Icons.history,
+                      title: 'Historial de Transacciones',
+                      color: Colors.indigo,
+                      onTap: () => context.push('/transactions'),
+                    ),
                     if (AuthService().isAdmin)
                       _buildActionItem(
                         icon: Icons.admin_panel_settings,

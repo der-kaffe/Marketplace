@@ -14,6 +14,7 @@ import '../../screens/new_post_screen.dart';
 import '../../screens/startup.dart';
 import '../../screens/notifications_screen.dart';
 import '../../screens/edit_product_screen.dart';
+import 'package:marketplace/screens/transactions_page.dart';
 
 // Admin
 import '../../screens/admin_menu_page.dart';
@@ -104,7 +105,10 @@ class AppRouter {
           return EditProductScreen(productId: id);
         },
       ),
-
+      GoRoute(
+      path: '/transactions',
+      builder: (context, state) => const TransactionsPage(),
+    ),
 
       // Rutas principales de la aplicación dentro de un ShellRoute para la barra de navegación
       ShellRoute(
