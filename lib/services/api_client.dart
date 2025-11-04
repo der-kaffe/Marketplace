@@ -606,6 +606,28 @@ class ApiClient {
     }
   }
 
+  // Subir foto de perfil
+  Future<Map<String, dynamic>> uploadProfilePhoto(String imagePath) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/upload/profile-photo');
+      final request = http.MultipartRequest('POST', uri);
+      
+      // Agregar headers de autorización
+      if (_token != null) {
+        request.headers['Authorization'] = 'Bearer $_token';
+      }
+      
+      // Agregar la imagen
+      request.files.add(await http.MultipartFile.fromPath('photo', imagePath));
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException(message: 'Error subiendo foto de perfil: $e');
+    }
+  }
 
   // ============================================================================
   // MÉTODOS ADICIONALES DE PRODUCTOS Y USUARIOS
@@ -812,9 +834,9 @@ class User {
   final String? role;
   final String? apellido;
   final String? usuario;
-  final String? campus;
-  final String? telefono;
+  final String? campus;  final String? telefono;
   final String? direccion;
+  final String? fotoPerfilUrl;
 
   User({
     required this.id,
@@ -827,6 +849,7 @@ class User {
     this.campus,
     this.telefono,
     this.direccion,
+    this.fotoPerfilUrl,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -837,10 +860,10 @@ class User {
       rolId: json['rolId'] ?? json['rol_id'],
       role: json['rol']?['nombre'] ?? json['role'], // ✅ soporta backend Prisma
       apellido: json['apellido'],
-      usuario: json['usuario'],
-      campus: json['campus'],
+      usuario: json['usuario'],      campus: json['campus'],
       telefono: json['telefono'],
       direccion: json['direccion'],
+      fotoPerfilUrl: json['fotoPerfilUrl'],
     );
   }
 
@@ -855,6 +878,7 @@ class User {
         'campus': campus,
         'telefono': telefono,
         'direccion': direccion,
+        'fotoPerfilUrl': fotoPerfilUrl,
       };
 
   bool get isAdmin =>

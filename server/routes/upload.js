@@ -57,6 +57,67 @@ const uploadProductos = multer({
   fileFilter: upload.fileFilter
 });
 
+// Configuración para fotos de perfil
+const storageProfile = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads/profile');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadProfile = multer({
+  storage: storageProfile,
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB límite para fotos de perfil
+  },
+  fileFilter: function (req, file, cb) {
+    console.log('🔍 Archivo recibido para perfil:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname,
+      size: file.size
+    });
+
+    // Tipos MIME permitidos para imágenes
+    const allowedMimes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ];
+
+    // Verificar por tipo MIME
+    if (file.mimetype && allowedMimes.includes(file.mimetype.toLowerCase())) {
+      console.log('✅ Tipo MIME aceptado:', file.mimetype);
+      cb(null, true);
+    } 
+    // Verificar por extensión como fallback
+    else if (file.originalname) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      
+      if (allowedExts.includes(ext)) {
+        console.log('✅ Extensión aceptada:', ext);
+        cb(null, true);
+      } else {
+        console.log('❌ Archivo rechazado - extensión no válida:', ext);
+        cb(new Error(`Tipo de archivo no permitido. Solo se permiten: ${allowedExts.join(', ')}`), false);
+      }
+    } else {
+      console.log('❌ Archivo rechazado - tipo MIME no válido:', file.mimetype);
+      cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten imágenes.`), false);
+    }
+  }
+});
+
 // 📸 Subir imagen de chat
 router.post('/upload-image', authenticateToken, upload.single('image'), async (req, res) => {
   try {
@@ -152,6 +213,77 @@ router.post('/producto', authenticateToken, async (req, res, next) => {
         fs.unlinkSync(req.file.path);
       }
       res.status(500).json({ ok: false, error: 'Error procesando imagen: ' + error.message });
+    }
+  });
+});
+
+// 👤 Subir foto de perfil
+router.post('/profile-photo', authenticateToken, (req, res) => {
+  uploadProfile.single('photo')(req, res, async function (err) {
+    if (err instanceof multer.MulterError) {
+      console.error('Error de Multer:', err);
+      return res.status(400).json({ 
+        ok: false, 
+        message: 'Error de archivo',
+        error: err.message 
+      });
+    } else if (err) {
+      console.error('Error de filtro:', err);
+      return res.status(400).json({ 
+        ok: false, 
+        message: err.message || 'Error de validación de archivo'
+      });
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ ok: false, message: 'No se proporcionó imagen' });
+      }
+
+      console.log('📁 Archivo procesado exitosamente:', {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        path: req.file.path
+      });
+
+      // Crear URL pública para la imagen
+      const photoUrl = `/uploads/profile/${req.file.filename}`;
+      
+      // Actualizar la foto de perfil en la base de datos
+      const { prisma } = require('../config/database');
+      
+      await prisma.cuentas.update({
+        where: { id: req.user.userId },
+        data: { 
+          fotoPerfilUrl: photoUrl 
+        }
+      });
+
+      console.log('👤 Foto de perfil actualizada en BD:', {
+        userId: req.user.userId,
+        filename: req.file.filename,
+        url: photoUrl
+      });
+
+      res.json({ 
+        ok: true, 
+        message: 'Foto de perfil actualizada correctamente',
+        photoUrl: photoUrl,
+        filename: req.file.filename 
+      });
+    } catch (error) {
+      console.error('❌ Error procesando foto de perfil:', error);
+      // Limpiar archivo si existe
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ 
+        ok: false, 
+        message: 'Error interno del servidor',
+        error: error.message 
+      });
     }
   });
 });

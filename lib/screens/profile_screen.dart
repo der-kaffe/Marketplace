@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
@@ -54,6 +55,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoadingPurchases = true;
   bool _isLoadingSales = true;
 
+  bool _isUploadingPhoto = false; // Para mostrar indicador de carga
+
   @override
   void initState() {
     super.initState();
@@ -76,16 +79,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
   Future<void> _loadUserData() async {
     try {
       print('🔍 Cargando datos del perfil desde backend...');
 
+      // ✅ NUEVO: Primero intentar obtener datos frescos del backend
+      try {
+        final token = await _authService.getToken();
+        if (token != null && token.isNotEmpty) {
+          _authService.apiClient.setToken(token);
+          final profileResponse = await _authService.apiClient.getUserProfile();
+          
+          if (profileResponse['success'] == true) {
+            final userData = profileResponse['data'];
+            final updatedUser = User.fromJson(userData);
+            await _authService.saveUserData(updatedUser);
+            print('🔄 Datos del perfil actualizados desde el backend');
+          }
+        }
+      } catch (e) {
+        print('⚠️ No se pudo obtener datos frescos del backend: $e');
+      }
+
       // Obtener datos del usuario actual desde AuthService
       final currentUser = _authService.currentUser;
       if (currentUser != null) {
-        print('👤 Usuario actual del AuthService: ${currentUser.name}');
-        setState(() {
+        print('👤 Usuario actual del AuthService: ${currentUser.name}');        setState(() {
           _userName = currentUser.name;
           _userEmail = currentUser.email;
           // ✅ CORREGIR: Manejar valores nullable con ?? ''
@@ -94,6 +113,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _campus = currentUser.campus ?? 'Campus Temuco';
           _telefono = currentUser.telefono;
           _direccion = currentUser.direccion;
+          // ✅ USAR foto de perfil del usuario o como fallback la de Google
+          if (currentUser.fotoPerfilUrl != null) {
+            _userPhotoUrl = currentUser.fotoPerfilUrl!.startsWith('http') 
+                ? currentUser.fotoPerfilUrl 
+                : '${_apiClient.baseUrl}${currentUser.fotoPerfilUrl}';
+          }
         });
         print('🧠 Rol del usuario: ${currentUser.role}');
         print('🔑 rolId: ${currentUser.rolId}');
@@ -438,6 +463,138 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Método para cambiar foto de perfil
+  Future<void> _changeProfilePhoto() async {
+    try {
+      // Mostrar opciones de selección
+      final ImageSource? source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('Tomar foto'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Elegir de galería'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cancel),
+                  title: const Text('Cancelar'),
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (source == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      // Mostrar indicador de carga
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Subiendo foto de perfil...'),
+            ],
+          ),
+          duration: Duration(seconds: 10),
+        ),
+      );
+
+      // Seleccionar imagen
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) {
+        setState(() => _isUploadingPhoto = false);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        return;
+      }
+
+      // Subir imagen al servidor
+      final response = await _apiClient.uploadProfilePhoto(image.path);      if (response['ok'] == true) {
+        // Actualizar la URL de la foto localmente
+        final newPhotoUrl = response['photoUrl'];
+        final fullUrl = '${_apiClient.baseUrl}$newPhotoUrl';
+        
+        setState(() {
+          _userPhotoUrl = fullUrl;
+          _isUploadingPhoto = false;
+        });
+
+        // ✅ NUEVO: Actualizar también el usuario en AuthService para persistir la foto
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {
+          final updatedUser = User(
+            id: currentUser.id,
+            email: currentUser.email,
+            name: currentUser.name,
+            rolId: currentUser.rolId,
+            role: currentUser.role,
+            apellido: currentUser.apellido,
+            usuario: currentUser.usuario,
+            campus: currentUser.campus,
+            telefono: currentUser.telefono,
+            direccion: currentUser.direccion,
+            fotoPerfilUrl: newPhotoUrl, // ✅ Actualizar con la nueva URL relativa
+          );
+          await _authService.saveUserData(updatedUser);
+          print('📸 Foto de perfil actualizada en AuthService: $newPhotoUrl');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Foto de perfil actualizada correctamente'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Error desconocido');
+      }
+    } catch (e) {
+      print('❌ Error cambiando foto de perfil: $e');
+      setState(() => _isUploadingPhoto = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return _isLoading
@@ -572,44 +729,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       child: Column(
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.blanco,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.blanco, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha((0.2 * 255).toInt()),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+        children: [          GestureDetector(
+            onTap: _changeProfilePhoto,
+            child: Stack(
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.blanco,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.blanco, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha((0.2 * 255).toInt()),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: _isUploadingPhoto
+                      ? const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.azulPrimario),
+                        )
+                      : _userPhotoUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(50),
+                              child: Image.network(
+                                _userPhotoUrl!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: AppColors.azulPrimario,
+                                  );
+                                },
+                              ),
+                            )
+                          : const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: AppColors.azulPrimario,
+                            ),
+                ),
+                // Icono de cámara para indicar que es clickeable
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: AppColors.amarilloPrimario,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.blanco, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha((0.3 * 255).toInt()),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      size: 16,
+                      color: AppColors.textoOscuro,
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: _userPhotoUrl != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child: Image.network(
-                      _userPhotoUrl!,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.person,
-                          size: 60,
-                          color: AppColors.azulPrimario,
-                        );
-                      },
-                    ),
-                  )
-                : const Icon(
-                    Icons.person,
-                    size: 60,
-                    color: AppColors.azulPrimario,
-                  ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -950,75 +1143,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .trim();
   }
 
-  Widget _buildOrderItem({
-    required String orderNumber,
-    required String date,
-    required String status,
-    required double amount,
-    required Color statusColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppColors.azulPrimario.withAlpha((0.1 * 255).toInt()),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child:
-                const Icon(Icons.shopping_bag, color: AppColors.azulPrimario),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(orderNumber,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textoOscuro)),
-                    Text(_formatCLP(amount),
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.azulOscuro)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(date,
-                        style: const TextStyle(
-                            fontSize: 14, color: AppColors.textoSecundario)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: statusColor.withAlpha((0.1 * 255).toInt()),
-                          borderRadius: BorderRadius.circular(4)),
-                      child: Text(status,
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildActionItem({
     required IconData icon,

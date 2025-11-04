@@ -26,9 +26,7 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
         404,
         { field: "id" }
       );
-    }
-
-    res.json({
+    }    res.json({
       success: true,
       data: {
         id: user.id,
@@ -41,6 +39,7 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
         campus: user.campus,
         reputacion: user.reputacion,
         fechaRegistro: user.fechaRegistro,
+        fotoPerfilUrl: user.fotoPerfilUrl,
         resumen: user.resumenUsuario
       }
     });

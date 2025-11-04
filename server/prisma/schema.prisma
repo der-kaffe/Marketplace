@@ -17,8 +17,7 @@ model Cuentas {
   nombre        String   @db.VarChar(50)
   apellido      String?  @db.VarChar(50)
   correo        String   @unique @db.VarChar(255)
-  usuario       String   @unique @db.VarChar(255)
-  telefono      String?  @db.VarChar(20)
+  usuario       String   @unique @db.VarChar(255)  telefono      String?  @db.VarChar(20)
   direccion     String?  @db.VarChar(255)
   contrasena    String   @db.VarChar(255)
   rolId         Int      @map("rol_id")
@@ -27,6 +26,7 @@ model Cuentas {
   campus        String?  @db.VarChar(100)
   reputacion    Decimal  @default(0.00) @db.Decimal(5, 2)
   fcm_token    String? @db.Text
+  fotoPerfilUrl String? @db.VarChar(500) @map("foto_perfil_url")
 
   // Relaciones
   rol                     Roles                    @relation(fields: [rolId], references: [id])
