@@ -17,6 +17,8 @@ class ChatService {
   Stream<Map<String, dynamic>> get messageStream => _wsService.messageStream;
   Stream<Map<String, dynamic>> get typingStream => _wsService.typingStream;
   Stream<bool> get connectionStream => _wsService.connectionStream;
+  Stream<Map<String, dynamic>> get groupMessageStream =>
+      _wsService.groupMessageStream;
 
   bool get isConnected => _wsService.isConnected;
 
@@ -127,6 +129,27 @@ class ChatService {
     }
   }
 
+  // Comunidad UCT: obtener historial
+  Future<List<Map<String, dynamic>>> getCommunityMessages({int limit = 50}) async {
+    try {
+      final headers = await _getAuthHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/chat/community/messages?limit=$limit'),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['ok'] == true) {
+          return List<Map<String, dynamic>>.from(data['mensajes']);
+        }
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
   // Enviar mensaje (usando WebSocket para tiempo real con fallback a REST)
   Future<void> sendMessage({
     required int destinatarioId,
@@ -217,6 +240,20 @@ class ChatService {
 
   void stopTyping(int destinatarioId) {
     _wsService.stopTyping(destinatarioId);
+  }
+
+  // Comunidad UCT: enviar mensaje
+  Future<void> sendGroupMessage({
+    required String contenido,
+    String tipo = 'texto',
+  }) async {
+    if (!_wsService.isConnected) {
+      await initialize();
+      if (!_wsService.isConnected) {
+        throw Exception('Sin conexión para enviar a la comunidad');
+      }
+    }
+    _wsService.sendGroupMessage(contenido: contenido, tipo: tipo);
   }
 
   // Formatear mensaje para la UI

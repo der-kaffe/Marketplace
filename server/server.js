@@ -195,6 +195,10 @@ io.on('connection', (socket) => {
   // Unir al usuario a una sala personal
   socket.join(`user_${socket.userId}`);
 
+  // Unir al usuario al canal público de comunidad
+  const COMMUNITY_ROOM = 'room_comunidad_uct';
+  socket.join(COMMUNITY_ROOM);
+
   // Notificar a otros usuarios que este usuario está online
   socket.broadcast.emit('user_online', {
     userId: socket.userId,
@@ -280,6 +284,53 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('❌ Error enviando mensaje:', error);
       socket.emit('message_error', { error: 'Error enviando mensaje' });
+    }
+  });
+
+  // Manejar envío de mensajes al chat de la comunidad
+  socket.on('send_group_message', async (data) => {
+    try {
+      const { contenido, tipo = 'texto' } = data || {};
+
+      if (!contenido) {
+        socket.emit('group_message_error', { error: 'Contenido requerido' });
+        return;
+      }
+
+      // Persistir en BD y construir payload con usuario
+      const registro = await prisma.ComunidadMensajes.create({
+        data: {
+          usuarioId: socket.userId,
+          contenido,
+          tipo: tipo || 'texto'
+        },
+        include: {
+          usuario: { select: { id: true, nombre: true, usuario: true } }
+        }
+      });
+
+      const mensaje = {
+        id: registro.id,
+        contenido: registro.contenido,
+        tipo: registro.tipo,
+        remitenteId: registro.usuarioId,
+        remitente: {
+          id: registro.usuario.id,
+          nombre: registro.usuario.nombre,
+          usuario: registro.usuario.usuario
+        },
+        fechaEnvio: registro.fechaEnvio,
+        room: COMMUNITY_ROOM
+      };
+
+      // Emitir a todos en la sala de comunidad
+      io.to(COMMUNITY_ROOM).emit('group_new_message', mensaje);
+
+      // Confirmación al remitente
+      socket.emit('group_message_sent', mensaje);
+    } catch (error) {
+      console.error('❌ Error enviando mensaje de comunidad:', error);
+      socket.emit('group_message_error', { error: 'Error enviando mensaje de comunidad' });
     }
   });
 

@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
 import '../services/auth_service.dart';
 import 'chat_page.dart';
+import '../widgets/community_chat_view.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key});
@@ -171,11 +172,41 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   ),
                 )
               : ListView.separated(
-                  itemCount: conversations.length,
+                  itemCount: conversations.length + 1,
                   separatorBuilder: (_, __) =>
                       Divider(color: AppColors.grisClaro, height: 1),
                   itemBuilder: (context, index) {
-                    final chat = conversations[index];
+                    if (index == 0) {
+                      // Entrada fija de Comunidad UCT
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.azulPrimario,
+                          child: const Icon(Icons.groups, color: Colors.white),
+                        ),
+                        title: const Text(
+                          'Comunidad UCT',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text('Chat público de la comunidad'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                appBar: AppBar(
+                                  backgroundColor: AppColors.azulPrimario,
+                                  title: const Text('Comunidad UCT', style: TextStyle(color: Colors.white)),
+                                  iconTheme: const IconThemeData(color: Colors.white),
+                                ),
+                                body: const CommunityChatView(),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }
+
+                    final chat = conversations[index - 1];
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundImage: NetworkImage(chat["avatar"]),
@@ -251,7 +282,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                             ),
                         ],
                       ),
-                      onTap: () => _openChat(index),
+                      onTap: () => _openChat(index - 1),
                     );
                   },
                 ),

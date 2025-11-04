@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'network_config.dart';
@@ -19,11 +18,15 @@ class WebSocketService {
       StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<bool> _connectionController =
       StreamController<bool>.broadcast();
+  final StreamController<Map<String, dynamic>> _groupMessageController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   // Getters para los streams
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
   Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
+  Stream<Map<String, dynamic>> get groupMessageStream =>
+      _groupMessageController.stream;
 
   bool get isConnected => _socket?.connected ?? false;
 
@@ -125,6 +128,19 @@ class WebSocketService {
 
     _socket?.on('user_offline', (data) {
     });
+
+    // Mensajes de la comunidad
+    _socket?.on('group_new_message', (data) {
+      _groupMessageController.add(Map<String, dynamic>.from(data));
+    });
+
+    _socket?.on('group_message_sent', (data) {
+      _groupMessageController.add(Map<String, dynamic>.from(data));
+    });
+
+    _socket?.on('group_message_error', (data) {
+      // Podríamos emitir a otro stream de errores si fuera necesario
+    });
   }
 
   void sendMessage({
@@ -163,6 +179,23 @@ class WebSocketService {
     });
   }
 
+  void sendGroupMessage({
+    required String contenido,
+    String tipo = 'texto',
+  }) {
+    if (_socket?.connected != true) {
+      connect();
+      return;
+    }
+
+    final messageData = {
+      'contenido': contenido,
+      'tipo': tipo,
+    };
+
+    _socket?.emit('send_group_message', messageData);
+  }
+
   void disconnect() {
     _socket?.disconnect();
     _socket?.dispose();
@@ -174,5 +207,6 @@ class WebSocketService {
     _messageController.close();
     _typingController.close();
     _connectionController.close();
+    _groupMessageController.close();
   }
 }
