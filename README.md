@@ -10,10 +10,11 @@ Una aplicación Flutter completa de marketplace con backend Node.js y PostgreSQL
 - **Autenticación**: JWT + Google Auth
 - **Funcionalidades**: 
   - Sistema de usuarios (Admin, Vendedor, Cliente)
-  - CRUD de productos
+  - CRUD de productos con **múltiples imágenes** (hasta 5 por producto)
   - Chat entre usuarios
   - Sistema de calificaciones
   - Panel de administración
+  - **Galería de imágenes** con carousel interactivo
   - **Gestión de perfil de usuario**
   - **Sistema de favoritos**
 
@@ -33,10 +34,11 @@ lib/
 ├── screens/         # Pantallas de la app
 │   ├── profile_screen.dart      # 👤 Gestión completa de perfil
 │   ├── favorites_screen.dart    # ❤️ Lista de productos favoritos
-│   └── home_screen.dart         # 🏠 Con funcionalidad de favoritos
+│   ├── home_screen.dart         # 🏠 Con funcionalidad de favoritos
+│   └── new_post_screen.dart     # 📝 Crear productos con múltiples imágenes
 ├── services/        # Servicios (API, Auth)
 ├── widgets/         # Widgets reutilizables
-│   └── product_card.dart        # 📦 Con botón de favorito
+│   └── product_card.dart        # 📦 Con carousel de múltiples imágenes
 └── core/           # Configuración y tema
 ```
 

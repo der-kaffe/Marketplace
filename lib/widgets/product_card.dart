@@ -5,8 +5,8 @@ import '../theme/app_colors.dart';
 class ProductCard extends StatelessWidget {
   final String title;
   final String description;
-  final double price;
-  final String? imageUrl;
+  final double price;  final String? imageUrl;
+  final List<String>? imagenes; // 🖼️ Múltiples imágenes
   final VoidCallback onTap;
   final bool isFavorite;
   final bool isAvailable;
@@ -15,13 +15,13 @@ class ProductCard extends StatelessWidget {
   // 👇 Nuevos campos
   final String? estadoProducto; // 'nuevo' o 'usado'
   final String? tiempoUso;
-
   const ProductCard({
     super.key,
     required this.title,
     required this.description,
     required this.price,
     this.imageUrl,
+    this.imagenes, // 🖼️ Lista de múltiples imágenes
     required this.onTap,
     this.isFavorite = false,
     required this.isAvailable,
@@ -247,51 +247,33 @@ class ProductCard extends StatelessWidget {
     }
     return url; // fallback
   }
-
-  // ✅ Método para construir la imagen con fallback a asset
+  // 🖼️ Método para construir imágenes (una o múltiples)
   Widget _buildImage() {
-    if (imageUrl == null || imageUrl!.isEmpty) {
-      // Si no hay URL, mostrar imagen por defecto desde assets
-      return Image.asset(
-        'assets/producto_sin_foto.jpg',
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey.shade200,
-            child: const Icon(
-              Icons.image,
-              size: 35,
-              color: Colors.grey,
-            ),
-          );
-        },
-      );
+    // Usar múltiples imágenes si están disponibles, sino usar imageUrl individual
+    final List<String> imageUrls = imagenes?.where((url) => url.isNotEmpty).toList() ?? 
+        (imageUrl != null && imageUrl!.isNotEmpty ? [imageUrl!] : []);
+
+    if (imageUrls.isEmpty) {
+      return _buildFallbackImage();
     }
 
-    // Si hay URL, asegurar que sea absoluta
-    final String displayUrl = _getAbsoluteImageUrl(imageUrl!);
+    if (imageUrls.length == 1) {
+      // Una sola imagen
+      return _buildSingleImage(imageUrls.first);
+    }
 
-    // Cargar de la red con fallback a asset
+    // Múltiples imágenes - mostrar con carousel
+    return _buildImageCarousel(imageUrls);
+  }
+
+  // 📷 Imagen única
+  Widget _buildSingleImage(String imageUrl) {
+    final String displayUrl = _getAbsoluteImageUrl(imageUrl);
+
     return Image.network(
       displayUrl,
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        // Si falla la carga de red, mostrar imagen por defecto
-        return Image.asset(
-          'assets/producto_sin_foto.jpg',
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey.shade200,
-              child: const Icon(
-                Icons.image,
-                size: 35,
-                color: Colors.grey,
-              ),
-            );
-          },
-        );
-      },
+      errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return Container(
@@ -304,6 +286,75 @@ class ProductCard extends StatelessWidget {
                       loadingProgress.expectedTotalBytes!
                   : null,
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 🎠 Carousel de múltiples imágenes
+  Widget _buildImageCarousel(List<String> imageUrls) {
+    return Stack(
+      children: [
+        PageView.builder(
+          itemCount: imageUrls.length,
+          itemBuilder: (context, index) {
+            final String displayUrl = _getAbsoluteImageUrl(imageUrls[index]);
+            return Image.network(
+              displayUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
+            );
+          },
+        ),
+        // Indicador de múltiples imágenes
+        if (imageUrls.length > 1)
+          Positioned(
+            bottom: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.photo_library,
+                    color: Colors.white,
+                    size: 12,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${imageUrls.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // 🖼️ Imagen por defecto cuando no hay imágenes
+  Widget _buildFallbackImage() {
+    return Image.asset(
+      'assets/producto_sin_foto.jpg',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey.shade200,
+          child: const Icon(
+            Icons.image,
+            size: 35,
+            color: Colors.grey,
           ),
         );
       },

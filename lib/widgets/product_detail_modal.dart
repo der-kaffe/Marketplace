@@ -13,6 +13,198 @@ import '../services/auth_service.dart';
 import '../services/rating_service.dart'; 
 import '../services/api_client.dart';
 
+// 🖼️ Widget de visor de imágenes en pantalla completa
+class FullScreenImageViewer extends StatefulWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const FullScreenImageViewer({
+    super.key,
+    required this.imageUrls,
+    this.initialIndex = 0,
+  });
+
+  @override
+  State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+  final TransformationController _transformationController = TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withOpacity(0.7),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          '${_currentIndex + 1} / ${widget.imageUrls.length}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.zoom_out_map, color: Colors.white),
+            onPressed: _resetZoom,
+            tooltip: 'Resetear zoom',
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.imageUrls.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _resetZoom(); // Reset zoom al cambiar de imagen
+        },
+        itemBuilder: (context, index) {
+          return Center(
+            child: InteractiveViewer(
+              transformationController: _transformationController,
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                widget.imageUrls[index],
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.grey.shade900,
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          size: 80,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Error al cargar imagen',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.grey.shade900,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: widget.imageUrls.length > 1 
+          ? Container(
+              height: 80,
+              color: Colors.black.withOpacity(0.7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: _currentIndex > 0 ? Colors.white : Colors.grey,
+                      size: 32,
+                    ),
+                    onPressed: _currentIndex > 0 
+                        ? () {
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                  ),
+                  // Indicadores de página
+                  Row(
+                    children: List.generate(
+                      widget.imageUrls.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentIndex == index ? 12 : 8,
+                        height: _currentIndex == index ? 12 : 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentIndex == index 
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.chevron_right,
+                      color: _currentIndex < widget.imageUrls.length - 1 
+                          ? Colors.white 
+                          : Colors.grey,
+                      size: 32,
+                    ),
+                    onPressed: _currentIndex < widget.imageUrls.length - 1 
+                        ? () {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                  ),
+                ],
+              ),
+            )
+          : null,
+    );
+  }
+}
+
 class ProductDetailModal extends StatefulWidget {
   final Product product;
 
@@ -693,17 +885,96 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     }
   }
 
-
+  // 🖼️ Galería de imágenes mejorada para el modal
   Widget _buildModalImage() {
-    if (widget.product.imageUrl == null || widget.product.imageUrl!.isEmpty) {
-      return Image.asset(
+    // Usar múltiples imágenes si están disponibles, sino usar imageUrl individual
+    final List<String> imageUrls = widget.product.imagenes?.where((url) => url.isNotEmpty).toList() ?? 
+        (widget.product.imageUrl != null && widget.product.imageUrl!.isNotEmpty ? [widget.product.imageUrl!] : []);
+
+    if (imageUrls.isEmpty) {
+      return _buildFallbackImage();
+    }
+
+    if (imageUrls.length == 1) {
+      // Una sola imagen
+      return _buildSingleModalImage(imageUrls.first);
+    }
+
+    // Múltiples imágenes - carousel con indicadores
+    return _buildImageCarousel(imageUrls);
+  }
+  // 📷 Imagen única en modal
+  Widget _buildSingleModalImage(String imageUrl) {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade100,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),        child: GestureDetector(
+          onTap: () => _openFullScreenViewer([imageUrl], 0),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: Colors.grey.shade100,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🎠 Carousel de imágenes con indicadores de página
+  Widget _buildImageCarousel(List<String> imageUrls) {
+    return _ImageCarouselWidget(
+      imageUrls: imageUrls,
+      onImageTap: (index) => _openFullScreenViewer(imageUrls, index),
+    );
+  }
+
+  // 📱 Abrir visor de pantalla completa
+  void _openFullScreenViewer(List<String> imageUrls, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  // 🖼️ Imagen por defecto cuando no hay imágenes
+  Widget _buildFallbackImage() {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+      child: Image.asset(
         'assets/producto_sin_foto.jpg',
-        height: 200,
-        width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: 200,
             color: Colors.grey.shade200,
             child: const Icon(
               Icons.image,
@@ -712,38 +983,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             ),
           );
         },
-      );
-    }
-
-    return Image.network(
-      widget.product.imageUrl!,
-      height: 200,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/producto_sin_foto.jpg',
-          height: 200,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        );
-      },
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Container(
-          height: 200,
-          color: Colors.grey.shade100,
-          child: Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-            ),
-          ),
-        );
-      },
+      ),
     );
   }
 
@@ -1235,6 +1475,241 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
           ),
         );
       },
+    );
+  }
+}
+
+// 🎠 Widget separado para el carousel de imágenes con estado propio
+class _ImageCarouselWidget extends StatefulWidget {
+  final List<String> imageUrls;
+  final Function(int)? onImageTap;
+
+  const _ImageCarouselWidget({
+    required this.imageUrls,
+    this.onImageTap,
+  });
+
+  @override
+  State<_ImageCarouselWidget> createState() => _ImageCarouselWidgetState();
+}
+
+class _ImageCarouselWidgetState extends State<_ImageCarouselWidget> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+      child: Image.asset(
+        'assets/producto_sin_foto.jpg',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Icon(
+              Icons.image,
+              size: 60,
+              color: Colors.grey,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade100,
+      ),
+      child: Stack(
+        children: [
+          // Carousel de imágenes
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.imageUrls.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    if (widget.onImageTap != null) {
+                      widget.onImageTap!(index);
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(
+                            imageUrls: widget.imageUrls,
+                            initialIndex: index,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: Image.network(
+                    widget.imageUrls[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          
+          // Indicadores de página (dots)
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.imageUrls.length,
+                (index) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentIndex == index ? 12 : 8,
+                  height: _currentIndex == index ? 12 : 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentIndex == index 
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Contador de imágenes
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '${_currentIndex + 1}/${widget.imageUrls.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          
+          // Botones de navegación (opcional, para mejor UX)
+          if (widget.imageUrls.length > 1) ...[
+            // Botón anterior
+            Positioned(
+              left: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    if (_currentIndex > 0) {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.chevron_left,
+                      color: _currentIndex > 0 ? Colors.white : Colors.white54,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Botón siguiente
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    if (_currentIndex < widget.imageUrls.length - 1) {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: _currentIndex < widget.imageUrls.length - 1 ? Colors.white : Colors.white54,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

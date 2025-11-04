@@ -99,6 +99,34 @@ class ProductService {
     }
   }
 
+  /// 🖼️ Crear producto con múltiples imágenes (nueva función específica)
+  Future<Map<String, dynamic>> createProductWithMultipleImages({
+    required String nombre,
+    required String descripcion,
+    required double precioActual,
+    required int categoriaId,
+    required List<String> imagenes, // Lista de imágenes base64
+    double? precioAnterior,
+    int? cantidad,
+    String? informacionTecnica,
+    String? estadoProducto,
+    String? tiempoUso,
+  }) async {
+    return await createProduct(
+      nombre: nombre,
+      descripcion: descripcion,
+      precioActual: precioActual,
+      categoriaId: categoriaId,
+      precioAnterior: precioAnterior,
+      cantidad: cantidad,
+      imageUrl: null, // No usar imageUrl individual
+      imagenes: imagenes, // Usar lista de imágenes
+      informacionTecnica: informacionTecnica,
+      estadoProducto: estadoProducto,
+      tiempoUso: tiempoUso,
+    );
+  }
+
   /// 🗑️ Eliminar producto
   Future<void> deleteProduct(int productId) async {
     try {

@@ -454,56 +454,75 @@ router.post('/', authenticateToken, [
         },
         estado: true
       }
-    });
-
-    // Manejar imágenes: soporte para múltiples imágenes o imagen única
-    // Pueden venir como URLs (compatibilidad) o como base64 (nueva forma)
+    });    // 🖼️ PASO 5: Manejar múltiples imágenes
     const imagenesLista = imagenes && Array.isArray(imagenes) ? imagenes : (imageUrl ? [imageUrl] : []);
     
     if (imagenesLista.length > 0) {
-      // Procesar cada imagen
-      for (const imagenItem of imagenesLista) {
-        if (typeof imagenItem === 'string') {
-          // Si es una URL o base64 string
-          if (imagenItem.startsWith('data:image')) {
-            // Es base64, extraer datos
-            const base64Match = imagenItem.match(/^data:([^;]+);base64,(.+)$/);
-            if (base64Match) {
-              const mimeType = base64Match[1];
-              const base64Data = base64Match[2];
-              const imageBuffer = Buffer.from(base64Data, 'base64');
-              
+      console.log(`📷 Procesando ${imagenesLista.length} imagen(es) para producto ${newProduct.id}`);
+      
+      for (let i = 0; i < imagenesLista.length; i++) {
+        const imagenItem = imagenesLista[i];
+        
+        try {
+          if (typeof imagenItem === 'string') {
+            if (imagenItem.startsWith('data:image')) {
+              // 📸 Procesar imagen base64
+              const base64Match = imagenItem.match(/^data:([^;]+);base64,(.+)$/);
+              if (base64Match) {
+                const mimeType = base64Match[1];
+                const base64Data = base64Match[2];
+                const imageBuffer = Buffer.from(base64Data, 'base64');
+                
+                // Validar tamaño de imagen (máx 10MB)
+                if (imageBuffer.length > 10 * 1024 * 1024) {
+                  console.warn(`⚠️ Imagen ${i+1} muy grande: ${imageBuffer.length} bytes`);
+                  continue;
+                }
+                
+                await prisma.imagenesProducto.create({
+                  data: {
+                    productoId: newProduct.id,
+                    imagenData: imageBuffer,
+                    mimeType: mimeType,
+                    urlImagen: null
+                  }
+                });
+                
+                console.log(`✅ Imagen ${i+1} guardada: ${mimeType}, ${imageBuffer.length} bytes`);
+              }
+            } else {
+              // 🔗 URL (compatibilidad hacia atrás)
               await prisma.imagenesProducto.create({
                 data: {
                   productoId: newProduct.id,
-                  imagenData: imageBuffer,
-                  mimeType: mimeType,
-                  urlImagen: null // Ya no usamos URL
+                  urlImagen: imagenItem,
+                  imagenData: null,
+                  mimeType: null
                 }
               });
+              console.log(`✅ Imagen ${i+1} URL guardada: ${imagenItem}`);
             }
-          } else {
-            // Es una URL (compatibilidad hacia atrás)
-            await prisma.imagenesProducto.create({
+          } else if (imagenItem && imagenItem.imageData) {
+            // 📦 Objeto con imageData y mimeType
+            const imageBuffer = Buffer.from(imagenItem.imageData, 'base64');
+            
+            if (imageBuffer.length > 10 * 1024 * 1024) {
+              console.warn(`⚠️ Imagen objeto ${i+1} muy grande: ${imageBuffer.length} bytes`);
+              continue;
+            }
+              await prisma.imagenesProducto.create({
               data: {
                 productoId: newProduct.id,
-                urlImagen: imagenItem,
-                imagenData: null,
-                mimeType: null
+                imagenData: imageBuffer,
+                mimeType: imagenItem.mimeType || 'image/jpeg',
+                urlImagen: null
               }
             });
+            
+            console.log(`✅ Imagen objeto ${i+1} guardada: ${imagenItem.mimeType}, ${imageBuffer.length} bytes`);
           }
-        } else if (imagenItem.imageData) {
-          // Objeto con imageData y mimeType
-          const imageBuffer = Buffer.from(imagenItem.imageData, 'base64');
-          await prisma.imagenesProducto.create({
-            data: {
-              productoId: newProduct.id,
-              imagenData: imageBuffer,
-              mimeType: imagenItem.mimeType || 'image/jpeg',
-              urlImagen: null
-            }
-          });
+        } catch (imgError) {
+          console.error(`❌ Error procesando imagen ${i+1}:`, imgError);
         }
       }
     }

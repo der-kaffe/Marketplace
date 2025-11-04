@@ -956,12 +956,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 return Container(
                   width: 180,
-                  margin: const EdgeInsets.only(right: 12),
-                  child: ProductCard(
+                  margin: const EdgeInsets.only(right: 12),                  child: ProductCard(
                     title: product.title,
                     description: product.description,
                     price: product.price,
                     imageUrl: product.imageUrl,
+                    imagenes: product.imagenes, // 🖼️ Múltiples imágenes
                     
                     // ✅ PASA EL VALOR CALCULADO
                     isFavorite: isFavorite, 

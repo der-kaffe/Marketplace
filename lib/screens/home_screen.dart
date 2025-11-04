@@ -973,13 +973,12 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                       return Container();
                                     }
 
-                                    final isFavorite = _favoriteProductIds.contains(product.id);
-
-                                    return ProductCard(
+                                    final isFavorite = _favoriteProductIds.contains(product.id);                                    return ProductCard(
                                       title: product.title,
                                       description: product.description,
                                       price: product.price,
                                       imageUrl: product.imageUrl,
+                                      imagenes: product.imagenes, // 🖼️ Múltiples imágenes
                                       isFavorite: isFavorite,
                                       isAvailable: product.isAvailable,
                                       estadoProducto: product.estadoProducto,
