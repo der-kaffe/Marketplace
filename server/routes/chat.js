@@ -173,4 +173,39 @@ router.post('/conversacion/:usuarioId/mark-read', authenticateToken, async (req,
   }
 });
 
+// 🧩 Comunidad UCT: historial de mensajes
+router.get('/community/messages', authenticateToken, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '50'), 200);
+
+    const rows = await prisma.ComunidadMensajes.findMany({
+      take: limit,
+      orderBy: { fechaEnvio: 'desc' },
+      include: {
+        usuario: { select: { id: true, nombre: true, usuario: true } }
+      }
+    });
+
+    // Devolver en orden ascendente para renderizado natural
+    const mensajes = rows.reverse().map((r) => ({
+      id: r.id,
+      contenido: r.contenido,
+      tipo: r.tipo,
+      remitenteId: r.usuarioId,
+      remitente: {
+        id: r.usuario.id,
+        nombre: r.usuario.nombre,
+        usuario: r.usuario.usuario,
+      },
+      fechaEnvio: r.fechaEnvio,
+      room: 'room_comunidad_uct',
+    }));
+
+    res.json({ ok: true, mensajes });
+  } catch (error) {
+    console.error('Error obteniendo historial de comunidad:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;
