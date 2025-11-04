@@ -136,6 +136,37 @@ curl -X POST http://localhost:3001/api/auth/login \
 curl http://localhost:3001/api/products
 ```
 
+## 🔒 Características de Seguridad
+
+### Autenticación y Autorización
+- **JWT con Refresh Tokens**: Tokens de acceso de corta duración (15 min) con refresh tokens de 7 días
+- **Rate Limiting**: Protección contra ataques de fuerza bruta y spam
+- **Validación robusta**: Entrada sanitizada y validada en todos los endpoints
+- **Logging seguro**: Sin exposición de datos sensibles en logs
+
+### Endpoints de Seguridad
+- `POST /api/auth/refresh` - Renovar tokens de acceso
+- `GET /api/health` - Estado del servidor con información básica
+
+### Configuración de Seguridad
+```env
+# Secrets seguros (generar en producción)
+JWT_SECRET=<64-character-hex-string>
+JWT_REFRESH_SECRET=<64-character-hex-string>
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+
+# Rate Limiting
+RATE_LIMIT_MAX=50
+RATE_LIMIT_WINDOW_MS=900000
+```
+
+### Headers de Seguridad
+- Helmet para headers HTTP seguros
+- CORS configurado específicamente
+- Rate limiting por endpoint
+- Protección XSS y NoSQL injection
+
 ## 🔍 Panel de Administración de Base de Datos
 
 ### Prisma Studio (Recomendado)

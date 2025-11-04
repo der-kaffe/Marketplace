@@ -21,6 +21,8 @@ const uploadRoutes = require('./routes/upload');
 const favoritesRoutes = require('./routes/favorites');
 const reportsRoutes = require('./routes/reports');
 const transactionRoutes = require('./routes/transactions');
+const { apiLimiter, uploadLimiter } = require('./middleware/rateLimiters');
+const { secureLog, auditMiddleware } = require('./middleware/secureLogger');
 
 
 try {
@@ -69,13 +71,8 @@ const PORT = process.env.PORT || 3001;
 // Middleware de seguridad
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // límite de 100 requests por ventana
-  message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde.'
-});
-app.use(limiter);
+// Rate limiting - Aplicar limiter general para todas las rutas API
+app.use('/api', apiLimiter);
 
 // CORS - Configuración más permisiva para desarrollo
 const corsOptions = {
@@ -121,6 +118,9 @@ app.use(cors(corsOptions));
 // Middleware para parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 🔒 Middleware de auditoría (antes de las rutas)
+app.use(auditMiddleware);
 
 // Servir archivos estáticos de uploads para acceso público
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -10,10 +10,11 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",    "db:reset": "prisma migrate reset",
     "verify": "node verify-setup.js",
-    "setup": "node setup-postgresql.js"
+    "setup": "node setup-postgresql.js",
+    "security:generate-secrets": "node scripts/generate-jwt-secrets.js",
+    "security:audit": "npm audit && npm audit fix"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

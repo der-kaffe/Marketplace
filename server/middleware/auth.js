@@ -13,7 +13,6 @@ const authenticateToken = (req, res, next) => {
       401
     ));
   }
-
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       return next(new AppError(
@@ -23,7 +22,10 @@ const authenticateToken = (req, res, next) => {
       ));
     }
 
-    console.log('Token decodificado:', user);
+    // ⚠️ NUNCA logear tokens o datos sensibles en producción
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Usuario autenticado:', { userId: user.userId, role: user.role });
+    }
     req.user = user;
     next();
   });

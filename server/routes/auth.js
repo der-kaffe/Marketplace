@@ -5,6 +5,9 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
 const { authenticateToken, requireAdmin, requireVendor } = require('../middleware/auth');
+const { loginLimiter, registerLimiter } = require('../middleware/rateLimiters');
+const { generateTokenPair, verifyRefreshToken } = require('../utils/tokenUtils');
+const { secureLog } = require('../middleware/secureLogger');
 
 const router = express.Router();
 
@@ -22,11 +25,14 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 // ------------------- LOGIN -------------------
-router.post('/login', [
-  body('email').isEmail().normalizeEmail().withMessage('Email debe ser valido'),
-  body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
-  handleValidationErrors
-], async (req, res) => {
+router.post('/login', 
+  loginLimiter, // 🔒 Rate limiting para login
+  [
+    body('email').isEmail().normalizeEmail().withMessage('Email debe ser valido'),
+    body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
+    handleValidationErrors
+  ], 
+  async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -42,18 +48,26 @@ router.post('/login', [
     const passwordMatch = await bcrypt.compare(password, user.contrasena);
     if (!passwordMatch) {
       return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
-    }
+    }    // 🔒 Generar par de tokens (access + refresh)
+    const tokenPayload = { 
+      userId: user.id, 
+      email: user.correo, 
+      role: user.rol.nombre.toUpperCase() 
+    };
+    const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
 
-    const token = jwt.sign(
-      { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase() },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    secureLog.info('Usuario logueado exitosamente', {
+      userId: user.id,
+      email: user.correo,
+      role: user.rol.nombre
+    });
 
     res.json({
       ok: true,
       message: 'Login exitoso',
-      token,
+      token: accessToken, // Mantener compatibilidad
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.correo,
@@ -71,19 +85,32 @@ router.post('/login', [
 });
 
 // ------------------- REGISTER -------------------
-router.post('/register', [
-  body('email')
-    .isEmail().normalizeEmail().withMessage('Email debe ser valido')
-    .custom(async (email) => {
-      if (!email.endsWith('@uct.cl') && !email.endsWith('@alu.uct.cl')) {
-        throw new Error('Solo se permiten correos de @uct.cl o @alu.uct.cl');
-      }
-    }),
-  body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
-  body('nombre').isLength({ min: 2 }).withMessage('Nombre debe tener al menos 2 caracteres'),
-  body('usuario').isLength({ min: 3 }).withMessage('Usuario debe tener al menos 3 caracteres'),
-  handleValidationErrors
-], async (req, res) => {
+router.post('/register',
+  registerLimiter, // 🔒 Rate limiting para registro
+  [
+    body('email')
+      .isEmail().normalizeEmail().withMessage('Email debe ser valido')
+      .isLength({ max: 100 }).withMessage('Email muy largo')
+      .custom(async (email) => {
+        if (!email.endsWith('@uct.cl') && !email.endsWith('@alu.uct.cl')) {
+          throw new Error('Solo se permiten correos de @uct.cl o @alu.uct.cl');
+        }
+      }),
+    body('password')
+      .isLength({ min: 8, max: 128 }).withMessage('Password debe tener entre 8 y 128 caracteres')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
+      .withMessage('Password debe tener mayúscula, minúscula, número y símbolo especial'),
+    body('nombre')
+      .trim()
+      .isLength({ min: 2, max: 50 }).withMessage('Nombre debe tener entre 2 y 50 caracteres')
+      .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('Nombre solo debe contener letras'),
+    body('usuario')
+      .trim()
+      .isLength({ min: 3, max: 30 }).withMessage('Usuario debe tener entre 3 y 30 caracteres')
+      .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Usuario solo debe contener letras, números, _ y -'),
+    handleValidationErrors
+  ], 
+  async (req, res) => {
   try {
     const { email, password, nombre, usuario } = req.body;
 
@@ -301,6 +328,66 @@ router.get('/me', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error en /me:', error);
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
+// ------------------- REFRESH TOKEN -------------------
+router.post('/refresh', [
+  body('refreshToken').notEmpty().withMessage('Refresh token requerido'),
+  handleValidationErrors
+], async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    // Verificar refresh token
+    const payload = verifyRefreshToken(refreshToken);
+    
+    // Verificar que el usuario aún existe y está activo
+    const user = await prisma.cuentas.findFirst({
+      where: { 
+        id: payload.userId, 
+        estadoId: 1 
+      },
+      include: { rol: true }
+    });
+    
+    if (!user) {
+      secureLog.warn('Intento de refresh con usuario inválido', { 
+        userId: payload.userId 
+      });
+      return res.status(401).json({ 
+        ok: false, 
+        message: 'Usuario no encontrado o inactivo' 
+      });
+    }
+    
+    // Generar nuevos tokens
+    const newTokenPayload = {
+      userId: user.id,
+      email: user.correo,
+      role: user.rol.nombre.toUpperCase()
+    };
+    const { accessToken, refreshToken: newRefreshToken } = generateTokenPair(newTokenPayload);
+    
+    secureLog.info('Tokens renovados exitosamente', {
+      userId: user.id,
+      email: user.correo
+    });
+    
+    res.json({
+      ok: true,
+      message: 'Tokens renovados exitosamente',
+      accessToken,
+      refreshToken: newRefreshToken,
+      token: accessToken // Mantener compatibilidad
+    });
+    
+  } catch (error) {
+    secureLog.error('Error en refresh token', error);
+    res.status(403).json({ 
+      ok: false, 
+      message: 'Refresh token inválido o expirado' 
+    });
   }
 });
 
