@@ -17,7 +17,8 @@ model Cuentas {
   nombre        String   @db.VarChar(50)
   apellido      String?  @db.VarChar(50)
   correo        String   @unique @db.VarChar(255)
-  usuario       String   @unique @db.VarChar(255)  telefono      String?  @db.VarChar(20)
+  usuario       String   @unique @db.VarChar(255)
+  telefono      String?  @db.VarChar(20)
   direccion     String?  @db.VarChar(255)
   contrasena    String   @db.VarChar(255)
   rolId         Int      @map("rol_id")
@@ -52,6 +53,9 @@ model Cuentas {
   seguidores              Seguidores[]             @relation("UsuarioSeguido")
   // 👇 Nueva relación
   favoritos Favoritos[]
+
+  // Relación inversa para mensajes de comunidad
+  comunidadMensajes ComunidadMensajes[]
 
   @@index([rolId])
   @@index([estadoId])
@@ -245,6 +249,21 @@ model Mensajes {
   @@index([remitenteId])
   @@index([destinatarioId])
   @@map("mensajes")
+}
+
+// Mensajes de la comunidad pública "Comunidad UCT"
+model ComunidadMensajes {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int      @map("usuario_id")
+  contenido  String?  @db.Text
+  tipo       String   @default("texto") @db.VarChar(50)
+  fechaEnvio DateTime @default(now()) @map("fecha_envio")
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("comunidad_mensajes")
 }
 
 // Estados de reportes
