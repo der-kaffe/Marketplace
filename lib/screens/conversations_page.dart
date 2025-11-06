@@ -47,9 +47,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
     });
 
     try {
-
       final conversationsList = await _chatService.getConversations();
-
 
       setState(() {
         conversations = conversationsList
@@ -58,7 +56,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
             .toList();
         _isLoading = false;
       });
-
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -79,7 +76,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
     // ⭐️ Lógica para marcar como leído
     if (chat["unread"] > 0) {
-
       // 1. Actualiza la UI inmediatamente
       setState(() {
         conversations[index]["unread"] = 0;
@@ -126,10 +122,22 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: SpinKitWave(
-                color: AppColors.azulPrimario,
-                size: 40.0,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: Image.asset('assets/logoMarket.png',
+                        fit: BoxFit.contain),
+                  ),
+                  const SizedBox(height: 16),
+                  const SpinKitWave(
+                    color: AppColors.azulPrimario,
+                    size: 40.0,
+                  ),
+                ],
               ),
             )
           : conversations.isEmpty
@@ -195,8 +203,10 @@ class _ConversationsPageState extends State<ConversationsPage> {
                               builder: (_) => Scaffold(
                                 appBar: AppBar(
                                   backgroundColor: AppColors.azulPrimario,
-                                  title: const Text('Comunidad UCT', style: TextStyle(color: Colors.white)),
-                                  iconTheme: const IconThemeData(color: Colors.white),
+                                  title: const Text('Comunidad UCT',
+                                      style: TextStyle(color: Colors.white)),
+                                  iconTheme:
+                                      const IconThemeData(color: Colors.white),
                                 ),
                                 body: const CommunityChatView(),
                               ),

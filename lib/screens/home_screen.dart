@@ -254,7 +254,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
     } catch (e) {
       // 7. MANEJO DE ERRORES MEJORADO
       print('❌ Error cambiando visibilidad: $e');
-      
+
       String errorMessage = 'Error: ${e.toString()}'; // Mensaje por defecto
       Color errorColor = Colors.red; // Color por defecto
 
@@ -263,7 +263,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
         errorMessage = 'No puedes ocultar una publicación que no te pertenece.';
         errorColor = Colors.orange; // Usar un color de "advertencia"
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -292,7 +292,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
           _hasLoadedAllProducts = true;
           print('✅ Todos los productos han sido cargados...');
         }
-        
+
         // ✅ OPTIMIZACIÓN: Añadir a Map y a lista de IDs
         for (var product in newProducts) {
           _masterProductMap[product.id] = product;
@@ -315,7 +315,6 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
           SnackBar(content: Text('Error cargando productos: $e')),
         );
       }
-
     } finally {
       if (mounted) {
         setState(() => _isLoadingProducts = false);
@@ -331,13 +330,13 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       // ✅ OPTIMIZACIÓN: Limpiar el Map y la lista de IDs
       _masterProductMap.clear();
       _filteredProductIds.clear();
-      
+
       _selectedCategoryName = null;
       _selectedCategoryId = null;
       _precioMinimo = null;
       _precioMaximo = null;
-      _hasLoadedAllProducts = false; 
-      _isLoadingProducts = false;    
+      _hasLoadedAllProducts = false;
+      _isLoadingProducts = false;
     });
 
     // Llama a _loadMoreProducts, que ahora llenará las nuevas estructuras
@@ -506,7 +505,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   void _applyCombinedFilter() {
     // ✅ OPTIMIZACIÓN: Iterar sobre 'values' del Map es más rápido que una lista
     List<Product> sourceList = _masterProductMap.values.toList();
-    
+
     // Filtrar por categoría
     if (_selectedCategoryId != null) {
       Set<String> categoryNamesToFilter =
@@ -531,7 +530,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       // Almacena solo los IDs de los productos filtrados
       _filteredProductIds = sourceList.map((p) => p.id).toList();
     });
-    
+
     print(
         '🔍 Aplicando filtro combinado. Productos filtrados: ${_filteredProductIds.length}');
   }
@@ -553,7 +552,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
     _applyCombinedFilter();
 
     _page = 1; // Reiniciar página si se aplica un filtro
-    print('🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProductIds.length}');
+    print(
+        '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProductIds.length}');
   }
 
   // --- ACTUALIZAR: _clearCategoryFilter para limpiar todos los filtros ---
@@ -760,12 +760,15 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       } else {
         final normalizedQuery = _normalizeText(query);
         // ✅ OPTIMIZACIÓN: Filtrar el Map y solo devolver los IDs
-        _filteredProductIds = _masterProductMap.values.where((product) {
-          final titleNorm = _normalizeText(product.title);
-          final descNorm = _normalizeText(product.description);
-          return titleNorm.contains(normalizedQuery) ||
-              descNorm.contains(normalizedQuery);
-        }).map((p) => p.id).toList(); // Solo guarda los IDs
+        _filteredProductIds = _masterProductMap.values
+            .where((product) {
+              final titleNorm = _normalizeText(product.title);
+              final descNorm = _normalizeText(product.description);
+              return titleNorm.contains(normalizedQuery) ||
+                  descNorm.contains(normalizedQuery);
+            })
+            .map((p) => p.id)
+            .toList(); // Solo guarda los IDs
       }
     });
   }
@@ -859,24 +862,38 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                     ),
                   ],
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
-                      '¡Bienvenido al MicroMarket!',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            '¡Bienvenido al MicroMarket!',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Descubre productos increíbles de la comunidad UCT',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Descubre productos increíbles de la comunidad UCT',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      height: 100,
+                      width: 100,
+                      child: Image.asset('assets/logoMarket.png',
+                          fit: BoxFit.contain),
                     ),
                   ],
                 ),
@@ -919,7 +936,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.symmetric(
                               vertical: 5), // Padding vertical para la sombra
-                          itemCount: _apiCategories.length + 1, // +1 para "Todo"
+                          itemCount:
+                              _apiCategories.length + 1, // +1 para "Todo"
                           itemBuilder: (context, index) {
                             // Primera tarjeta es "Todo"
                             if (index == 0) {
@@ -941,7 +959,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                             final category = _apiCategories[index - 1];
                             Color color = _getCategoryColor(index - 1);
                             String title = category.nombre;
-                            IconData icon = _getIconForCategory(category.nombre);
+                            IconData icon =
+                                _getIconForCategory(category.nombre);
 
                             return Container(
                               margin: EdgeInsets.only(
@@ -1000,7 +1019,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                       Center(
                         child: Column(
                           children: [
-                            Text('Error al cargar categorías: $_errorCategories'),
+                            Text(
+                                'Error al cargar categorías: $_errorCategories'),
                             ElevatedButton(
                               onPressed: _loadCategories,
                               child: const Text('Reintentar'),
@@ -1019,7 +1039,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      const Center(child: Text('No hay categorías disponibles.')),
+                      const Center(
+                          child: Text('No hay categorías disponibles.')),
                       const SizedBox(height: 16),
                     ],
                     Container(
@@ -1109,42 +1130,51 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                       }
                                     }
 
-                                    final productId = _filteredProductIds[index];
-                                    final product = _masterProductMap[productId];
+                                    final productId =
+                                        _filteredProductIds[index];
+                                    final product =
+                                        _masterProductMap[productId];
 
                                     // Si el producto es nulo (no debería pasar),
                                     // muestra un contenedor vacío.
                                     if (product == null) {
-                                      print('❌ Error: Producto con ID $productId no encontrado en el Map.');
+                                      print(
+                                          '❌ Error: Producto con ID $productId no encontrado en el Map.');
                                       return Container();
                                     }
 
-                                    final isFavorite = _favoriteProductIds.contains(product.id);                                    return ProductCard(
+                                    final isFavorite = _favoriteProductIds
+                                        .contains(product.id);
+                                    return ProductCard(
                                       title: product.title,
                                       description: product.description,
                                       price: product.price,
                                       imageUrl: product.imageUrl,
-                                      imagenes: product.imagenes, // 🖼️ Múltiples imágenes
+                                      imagenes: product
+                                          .imagenes, // 🖼️ Múltiples imágenes
                                       isFavorite: isFavorite,
                                       isAvailable: product.isAvailable,
                                       estadoProducto: product.estadoProducto,
                                       tiempoUso: product.tiempoUso,
                                       onToggleVisibility: () =>
                                           _toggleProductVisibility(product),
-                                      onToggleFavorite: () => _toggleFavorite(product),
+                                      onToggleFavorite: () =>
+                                          _toggleFavorite(product),
                                       onTap: () async {
-                                        print('🆔 ID del producto: ${product.id}');
+                                        print(
+                                            '🆔 ID del producto: ${product.id}');
                                         final deletedProductId =
                                             await showModalBottomSheet<String>(
-                                              context: context,
-                                              isScrollControlled: true,
-                                              backgroundColor: Colors.transparent,
-                                              builder: (_) =>
-                                                  ProductDetailModal(product: product),
-                                            );
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) => ProductDetailModal(
+                                              product: product),
+                                        );
 
                                         if (deletedProductId != null) {
-                                          _removeProductFromUI(deletedProductId);
+                                          _removeProductFromUI(
+                                              deletedProductId);
                                         }
                                       },
                                     );
@@ -1166,7 +1196,8 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                           // Mensaje si hay filtro de precio pero no hay productos
                           // ✅ CORRECCIÓN 3: Comprobar _filteredProductIds
                           if (_precioMinimo != null || _precioMaximo != null)
-                            if (_filteredProductIds.isEmpty && !_isLoadingProducts)
+                            if (_filteredProductIds.isEmpty &&
+                                !_isLoadingProducts)
                               const Center(
                                 child: Padding(
                                   padding: EdgeInsets.all(16.0),

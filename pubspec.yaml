@@ -80,6 +80,7 @@ flutter:
     - assets/producto_sin_foto.jpg
     - assets/icons/svg/
     - assets/usuario_sin_foto.jpg
+    - assets/logoMarket.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -122,7 +122,6 @@ class _ChatViewState extends State<ChatView> {
     _messageSubscription = _chatService.messageStream.listen((message) {
       if (!mounted) return; // Verificar que el widget aún esté montado
 
-
       // Solo agregar mensajes de esta conversación específica
       final remitenteId = message['remitenteId'];
       final destinatarioId = message['destinatarioId'];
@@ -132,12 +131,10 @@ class _ChatViewState extends State<ChatView> {
           (remitenteId == widget.destinatarioId &&
               destinatarioId == _currentUserId);
 
-
       if (isFromThisConversation) {
         // Verificar si el mensaje ya existe para evitar duplicados
         final messageId = message['id'];
         final exists = messages.any((msg) => msg['id'] == messageId);
-
 
         if (!exists) {
           final formattedMessage =
@@ -243,7 +240,6 @@ class _ChatViewState extends State<ChatView> {
 
       // El WebSocket reemplazará el mensaje temporal con el real
     } catch (e) {
-
       // Remover mensaje temporal si falla el envío
       setState(() {
         messages.removeWhere((msg) => msg['id'] == tempMessage['id']);
@@ -366,7 +362,6 @@ class _ChatViewState extends State<ChatView> {
   // Función mejorada para manejar imágenes base64
   Widget _buildBase64Image(String base64Content) {
     try {
-
       // Validar y limpiar el contenido base64
       final cleanedContent = _validateAndCleanBase64(base64Content);
       if (cleanedContent == null) {
@@ -421,7 +416,6 @@ class _ChatViewState extends State<ChatView> {
 
       final mimeType = parts[0];
       final base64Data = parts[1];
-
 
       // Validar que sea una imagen
       if (!mimeType.contains('image/')) {
@@ -577,28 +571,9 @@ class _ChatViewState extends State<ChatView> {
             child: Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.azulPrimario,
-                    AppColors.azulPrimario.withOpacity(0.7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.azulPrimario.withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.school, // Icono de universidad
-                color: Colors.white,
-                size: 30,
+              child: Image.asset(
+                'assets/logoMarket.png',
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -681,7 +656,6 @@ class _ChatViewState extends State<ChatView> {
                                 imageUrl = 'http://localhost:3001$imageContent';
                               }
                             }
-
 
                             content = ClipRRect(
                               borderRadius: BorderRadius.circular(14),

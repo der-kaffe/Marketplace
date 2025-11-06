@@ -137,7 +137,8 @@ class _CommunityChatViewState extends State<CommunityChatView> {
         _messages.removeWhere((m) => m['id'] == temp['id']);
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error enviando: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error enviando: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -171,8 +172,7 @@ class _CommunityChatViewState extends State<CommunityChatView> {
                         margin: const EdgeInsets.symmetric(vertical: 6),
                         padding: const EdgeInsets.all(12),
                         constraints: BoxConstraints(
-                          maxWidth:
-                              MediaQuery.of(context).size.width * 0.8,
+                          maxWidth: MediaQuery.of(context).size.width * 0.8,
                         ),
                         decoration: BoxDecoration(
                           color: isMe
@@ -307,28 +307,9 @@ class _CommunityChatViewState extends State<CommunityChatView> {
             child: Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.azulPrimario,
-                    AppColors.azulPrimario.withOpacity(0.7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.azulPrimario.withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.school,
-                color: Colors.white,
-                size: 30,
+              child: Image.asset(
+                'assets/logoMarket.png',
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -353,8 +334,7 @@ class _CommunityChatViewState extends State<CommunityChatView> {
               width: 6,
               height: 6,
               decoration: BoxDecoration(
-                color: AppColors.azulPrimario
-                    .withOpacity(0.3 + (0.7 * value)),
+                color: AppColors.azulPrimario.withOpacity(0.3 + (0.7 * value)),
                 shape: BoxShape.circle,
               ),
             );
@@ -367,5 +347,3 @@ class _CommunityChatViewState extends State<CommunityChatView> {
     );
   }
 }
-
-
