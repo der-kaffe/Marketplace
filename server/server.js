@@ -186,7 +186,20 @@ io.on('connection', (socket) => {
   console.log(`🔌 Usuario conectado: ${socket.userName} (ID: ${socket.userId})`);
   console.log(`🔌 Socket ID: ${socket.id}`);
 
-  // Guardar la conexión del usuario
+  // Verificar si ya existe una conexión para este usuario
+  const existingSocketId = connectedUsers.get(socket.userId);
+  if (existingSocketId && existingSocketId !== socket.id) {
+    console.log(`⚠️ Usuario ${socket.userId} ya tiene una conexión activa (${existingSocketId}). Desconectando socket anterior...`);
+    // Desconectar el socket anterior si existe y es diferente
+    const existingSocket = io.sockets.sockets.get(existingSocketId);
+    if (existingSocket) {
+      existingSocket.disconnect(true);
+    }
+    // Limpiar la entrada anterior
+    connectedUsers.delete(socket.userId);
+  }
+
+  // Guardar la nueva conexión del usuario
   connectedUsers.set(socket.userId, socket.id);
 
   console.log(`👥 Usuarios conectados ahora:`, Array.from(connectedUsers.keys()));
@@ -219,6 +232,14 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Validar que el usuario no se envíe mensajes a sí mismo
+      const destinatarioIdInt = parseInt(destinatarioId);
+      if (destinatarioIdInt === socket.userId) {
+        console.log('❌ Intento de enviar mensaje a sí mismo:', socket.userId);
+        socket.emit('message_error', { error: 'No puedes enviarte mensajes a ti mismo' });
+        return;
+      }
+
       // Guardar mensaje en la base de datos
       const mensaje = await prisma.Mensajes.create({
         data: {
@@ -236,17 +257,28 @@ io.on('connection', (socket) => {
       console.log('💾 Mensaje guardado en BD:', mensaje.id);
 
       // Enviar mensaje al destinatario si está conectado
-      const destinatarioIdInt = parseInt(destinatarioId);
       const destinatarioSocketId = connectedUsers.get(destinatarioIdInt);
+      let destinatarioConectado = false;
 
       if (destinatarioSocketId) {
-        // --- EL USUARIO ESTÁ CONECTADO ---
-        console.log(`✅ Enviando mensaje a destinatario conectado: ${destinatarioSocketId}`);
-        io.to(destinatarioSocketId).emit('new_message', mensaje);
+        // Verificar que el socket del destinatario aún esté conectado
+        const destinatarioSocket = io.sockets.sockets.get(destinatarioSocketId);
+        if (destinatarioSocket && destinatarioSocket.connected) {
+          // --- EL USUARIO ESTÁ CONECTADO ---
+          console.log(`✅ Enviando mensaje a destinatario conectado: ${destinatarioSocketId}`);
+          io.to(destinatarioSocketId).emit('new_message', mensaje);
+          destinatarioConectado = true;
+        } else {
+          // El socket está en el mapa pero no está conectado, limpiar
+          console.log(`⚠️ Socket ${destinatarioSocketId} está en el mapa pero no está conectado. Limpiando...`);
+          connectedUsers.delete(destinatarioIdInt);
+        }
+      }
 
-      } else {
+      // Si el destinatario no está conectado, enviar notificación push
+      if (!destinatarioConectado) {
         // --- EL USUARIO ESTÁ DESCONECTADO (ENVIAR PUSH) ---
-        console.log(`⚠️ Destinatario ${destinatarioId} no está conectado. Enviando Push Notification.`);
+        console.log(`⚠️ Destinatario ${destinatarioIdInt} no está conectado. Enviando Push Notification.`);
 
         // ⭐️ INICIO: Enviar Notificación Push de CHAT ⭐️
         try {
@@ -360,9 +392,20 @@ io.on('connection', (socket) => {
   });
 
   // Manejar desconexión
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
     console.log(`🔌 Usuario desconectado: ${socket.userName} (ID: ${socket.userId})`);
-    connectedUsers.delete(socket.userId);
+    console.log(`🔌 Razón de desconexión: ${reason}`);
+    
+    // Solo eliminar del mapa si el socket desconectado es el que está registrado
+    const currentSocketId = connectedUsers.get(socket.userId);
+    if (currentSocketId === socket.id) {
+      connectedUsers.delete(socket.userId);
+      console.log(`✅ Socket ${socket.id} eliminado del mapa de conexiones`);
+    } else {
+      console.log(`⚠️ Socket ${socket.id} no estaba en el mapa (actual: ${currentSocketId})`);
+    }
+
+    console.log(`👥 Usuarios conectados después de desconexión:`, Array.from(connectedUsers.keys()));
 
     // Notificar a otros usuarios que este usuario está offline
     socket.broadcast.emit('user_offline', {

@@ -50,14 +50,25 @@ class WebSocketService {
       final token = await _storage.read(key: 'session_token');
 
       if (token == null) {
+        // Si no hay token, desconectar cualquier socket existente
+        if (_socket != null) {
+          _socket!.disconnect();
+          _socket!.dispose();
+          _socket = null;
+        }
         return;
       }
 
 
-      // Desconectar socket anterior si existe
+      // Desconectar socket anterior si existe y limpiar listeners
       if (_socket != null) {
+        // Remover todos los listeners antes de desconectar
+        _socket!.clearListeners();
         _socket!.disconnect();
         _socket!.dispose();
+        _socket = null;
+        // Esperar un momento para asegurar que la desconexión se complete
+        await Future.delayed(const Duration(milliseconds: 300));
       }
 
       _socket = IO.io(
@@ -79,6 +90,12 @@ class WebSocketService {
       // Forzar conexión manual si autoConnect no funciona
       _socket!.connect();
     } catch (e) {
+      // En caso de error, asegurarse de limpiar el socket
+      if (_socket != null) {
+        _socket!.disconnect();
+        _socket!.dispose();
+        _socket = null;
+      }
     }
   }
 
@@ -197,9 +214,13 @@ class WebSocketService {
   }
 
   void disconnect() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
+    if (_socket != null) {
+      // Remover todos los listeners antes de desconectar
+      _socket!.clearListeners();
+      _socket!.disconnect();
+      _socket!.dispose();
+      _socket = null;
+    }
   }
 
   void dispose() {

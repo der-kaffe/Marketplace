@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/product_service.dart';
 import '../services/api_client.dart';
+import '../services/websocket_service.dart';
 import '../models/product_model.dart';
 import '../widgets/product_card.dart';
 import '../widgets/product_detail_modal.dart';
@@ -1211,6 +1212,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pop(context);
 
                 try {
+                  // 🔹 Desconectar el socket antes de cerrar sesión
+                  final wsService = WebSocketService();
+                  wsService.disconnect();
+
                   // 🔹 Cerrar sesión en Google
                   await _googleSignIn.signOut();
 
