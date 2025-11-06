@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
+    "db:seed:categories": "node prisma/seed_categories.js",
     "db:studio": "prisma studio",    "db:reset": "prisma migrate reset",
     "verify": "node verify-setup.js",
     "setup": "node setup-postgresql.js",

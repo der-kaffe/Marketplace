@@ -572,21 +572,167 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
 
   // --- NUEVO: Mapeo de iconos por categoría ---
   IconData _getIconForCategory(String categoryName) {
-    switch (categoryName.toLowerCase()) {
+    final name = categoryName.toLowerCase();
+    switch (name) {
+      // Principales
+      case 'vehículos':
+      case 'vehiculos':
+        return Icons.directions_car;
+      case 'propiedades':
+        return Icons.home_filled;
       case 'electrónicos':
       case 'electronicos':
         return Icons.devices;
-      case 'libros':
-        return Icons.menu_book;
+      case 'hogar y jardín':
+      case 'hogar y jardin':
+        return Icons.yard;
+      case 'ropa y accesorios':
+        return Icons.checkroom;
+      case 'familia':
+        return Icons.family_restroom;
+      case 'ocio y entretenimiento':
+        return Icons.local_activity;
+      case 'mascotas':
+        return Icons.pets;
       case 'deportes':
         return Icons.sports_soccer;
+      case 'juguetes y juegos':
+        return Icons.toys;
+      case 'servicios':
+        return Icons.handyman;
+      case 'empleos':
+        return Icons.work;
+      case 'gratis':
+        return Icons.card_giftcard;
+      case 'clasificados':
+        return Icons.campaign;
+      case 'libros':
+        return Icons.menu_book;
+
+      // Subcategorías comunes
+      case 'autos':
+        return Icons.directions_car_filled;
+      case 'motos':
+        return Icons.two_wheeler;
+      case 'camionetas y suv':
+        return Icons.directions_car;
+      case 'repuestos y accesorios':
+        return Icons.build;
+      case 'bicicletas':
+        return Icons.pedal_bike;
+
+      case 'arriendo':
+        return Icons.apartment;
+      case 'venta':
+        return Icons.house_siding;
+      case 'habitaciones':
+        return Icons.bed;
+
       case 'computadoras':
         return Icons.computer;
+      case 'laptops':
+        return Icons.laptop_mac;
       case 'smartphones':
         return Icons.phone_android;
+      case 'tablets':
+        return Icons.tablet_mac;
+      case 'audio y parlantes':
+        return Icons.speaker;
+      case 'consolas y videojuegos':
+        return Icons.sports_esports;
+      case 'accesorios':
+        return Icons.memory;
+
+      case 'muebles':
+        return Icons.chair_alt;
+      case 'electrodomésticos':
+      case 'electrodomesticos':
+        return Icons.kitchen;
+      case 'decoración':
+      case 'decoracion':
+        return Icons.emoji_objects;
+      case 'herramientas':
+        return Icons.handyman;
+      case 'jardinería':
+      case 'jardineria':
+        return Icons.yard;
+
+      case 'hombre':
+        return Icons.male;
+      case 'mujer':
+        return Icons.female;
+      case 'niños':
+      case 'ninos':
+        return Icons.child_friendly;
+      case 'calzado':
+        return Icons.hiking;
+      case 'bolsos y accesorios':
+        return Icons.shopping_bag;
+
+      case 'bebés':
+      case 'bebes':
+        return Icons.baby_changing_station;
+      case 'cuidado infantil':
+        return Icons.stroller;
+
+      case 'libros y revistas':
+        return Icons.menu_book;
+      case 'música e instrumentos':
+      case 'musica e instrumentos':
+        return Icons.music_note;
+      case 'coleccionables':
+        return Icons.auto_awesome;
+
+      case 'alimentos y accesorios':
+        return Icons.pets;
+      case 'adopciones':
+        return Icons.volunteer_activism;
+
+      case 'fitness':
+        return Icons.fitness_center;
+      case 'ciclismo':
+        return Icons.pedal_bike;
+      case 'fútbol':
+      case 'futbol':
+        return Icons.sports_soccer;
+
+      case 'juegos de mesa':
+        return Icons.table_rows;
+      case 'juguetes educativos':
+        return Icons.extension;
+
+      case 'clases particulares':
+        return Icons.menu_book;
+      case 'reparaciones':
+        return Icons.build_circle;
+      case 'limpieza':
+        return Icons.cleaning_services;
+
+      case 'tiempo completo':
+        return Icons.work;
+      case 'medio tiempo':
+        return Icons.work_outline;
+      case 'freelance':
+        return Icons.laptop_mac;
+
+      case 'anuncios':
+        return Icons.campaign;
+      case 'intercambios':
+        return Icons.swap_horiz;
+
+      case 'regalos':
+        return Icons.card_giftcard;
+
       case 'académicos':
       case 'academicos':
         return Icons.school;
+      case 'ficción':
+      case 'ficcion':
+        return Icons.menu_book_outlined;
+      case 'no ficción':
+      case 'no ficcion':
+        return Icons.menu_book_rounded;
+
       case 'todo':
         return Icons.apps;
       default:
