@@ -274,11 +274,32 @@ class AuthService {
       throw Exception('Error conectando al servidor: $e');
     }
   }
-
   // Verificar si el usuario está autenticado
   Future<bool> isAuthenticated() async {
     final token = await getToken();
     return token != null && token.isNotEmpty;
+  }
+
+  // ✅ NUEVO: Guardar estado de "mantener sesión activa"
+  Future<void> setKeepSessionActive(bool keepActive) async {
+    try {
+      await _storage.write(key: 'keep_session_active', value: keepActive.toString());
+      print('💾 Estado de sesión guardado: $keepActive');
+    } catch (e) {
+      print('❌ Error guardando estado de sesión: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ NUEVO: Obtener estado de "mantener sesión activa"
+  Future<bool?> getKeepSessionActive() async {
+    try {
+      final value = await _storage.read(key: 'keep_session_active');
+      return value != null ? value == 'true' : null;
+    } catch (e) {
+      print('❌ Error obteniendo estado de sesión: $e');
+      return null;
+    }
   }
 
   // Obtener el cliente API

@@ -53,8 +53,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<TransactionSummary> _mySales = [];
   bool _isLoadingPurchases = true;
   bool _isLoadingSales = true;
-
   bool _isUploadingPhoto = false; // Para mostrar indicador de carga
+  bool _keepSessionActive = false; // Para mantener sesión iniciada
 
   @override
   void initState() {
@@ -71,6 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _loadFavoritesCount(),
         _loadMyPurchases(),
         _loadMySales(),
+        _loadKeepSessionState(), // ✅ NUEVO: Cargar estado de sesión
       ]);
     } catch (e) {
       print('Error inicializando perfil: $e');
@@ -78,6 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
   Future<void> _loadUserData() async {
     try {
       print('🔍 Cargando datos del perfil desde backend...');
@@ -197,12 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Reemplaza el método de refresco para usar la inicialización paralela
-  Future<void> _refreshUserData() async {
-    await _initializeProfile();
-  }
-
-  // --- ✅ NUEVO: Métodos para cargar Compras y Ventas ---
+  // Reemplaza el método de refresco para usar la inicialización paralela  // --- ✅ NUEVO: Métodos para cargar Compras y Ventas ---
   Future<void> _loadMyPurchases() async {
     if (!mounted) return;
     setState(() => _isLoadingPurchases = true);
@@ -249,7 +246,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         setState(() => _isLoadingSales = false);
         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text('Error al cargar ventas: ${e is ApiException ? e.message : e.toString()}')),
+           SnackBar(content: Text('Error al cargar ventas: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
         );
       }
     }
@@ -339,6 +336,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // ✅ NUEVO: Cargar estado de "Mantener sesión iniciada"
+  Future<void> _loadKeepSessionState() async {
+    try {
+      final keepSession = await _authService.getKeepSessionActive() ?? false;
+      if (mounted) {
+        setState(() {
+          _keepSessionActive = keepSession;
+        });
+      }
+    } catch (e) {
+      print('Error cargando estado de sesión: $e');
+    }
+  }
+
+  // ✅ NUEVO: Alternar estado de "Mantener sesión iniciada"
+  Future<void> _toggleKeepSession(bool value) async {
+    try {
+      await _authService.setKeepSessionActive(value);
+      if (mounted) {
+        setState(() {
+          _keepSessionActive = value;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value 
+                ? '✅ Sesión se mantendrá iniciada' 
+                : '🔒 Sesión se cerrará automáticamente'
+            ),
+            backgroundColor: value ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error actualizando estado de sesión: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error al actualizar configuración de sesión'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -617,14 +662,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 20),
                 // Información personal
                 _buildInfoSection(
-                  title: 'Información Personal',
-                  items: [
+                  title: 'Información Personal',                  items: [
                     _buildInfoItem(Icons.person, 'Nombre completo', _userName),
                     _buildInfoItem(Icons.email, 'Email', _userEmail),
-                    _buildActionItem(
-                      icon: Icons.refresh,
-                      title: 'Actualizar datos de perfil',
-                      color: AppColors.azulPrimario,                    onTap: _refreshUserData,
+                    _buildSwitchItem(
+                      icon: Icons.lock_clock,
+                      title: 'Mantener sesión iniciada',
+                      subtitle: 'La sesión no se cerrará automáticamente',
+                      value: _keepSessionActive,
+                      onChanged: _toggleKeepSession,
                     ),
                     _buildEditableInfoItem(Icons.account_circle, 'Usuario',
                         _usuario, () => _editField('usuario')),
@@ -965,6 +1011,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     estadoProducto: product.estadoProducto,
                     tiempoUso: product.tiempoUso,
 
+                    // 👤 Información del vendedor
+                    sellerId: product.sellerId,
+                    sellerName: product.sellerName,
+                    sellerAvatar: product.sellerAvatar,
+
                     // ✅ CONECTA LOS MÉTODOS REALES
                     onToggleFavorite: () => _toggleFavorite(product),
                     onToggleVisibility: () => _toggleProductVisibility(product),
@@ -1015,6 +1066,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: AppColors.textoOscuro),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NUEVO: Widget para item con switch
+  Widget _buildSwitchItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.azulPrimario.withAlpha((0.1 * 255).toInt()),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 20, color: AppColors.azulPrimario),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textoOscuro,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textoSecundario,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.azulPrimario,
+            activeTrackColor: AppColors.azulPrimario.withOpacity(0.3),
           ),
         ],
       ),
