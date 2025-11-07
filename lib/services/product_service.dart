@@ -246,69 +246,90 @@ class ProductService {
 
   /// ✅ Obtener info del vendedor. Intenta endpoint /api/users/:id, si no funciona devuelve fallback
   Future<Map<String, dynamic>> getSellerInfo(String sellerId) async {
-    try {
-      if (sellerId.isEmpty) {
+    try {      if (sellerId.isEmpty) {
         return {
           'name': 'Vendedor desconocido',
-          'avatar': 'https://via.placeholder.com/150',
+          'avatar': null, // Usar null para mejor manejo en UI
           'campus': 'Desconocido',
           'reputacion': 0.0,
           'id': null,
+          // ✅ Agregar estadísticas en fallback de sellerId vacío
+          'totalPublicaciones': 0,
+          'publicacionesActivas': 0,
+          'totalVentas': 0,
         };
       }
 
-      final idInt = int.tryParse(sellerId);
-      if (idInt == null) {
-        // no es numérico -> devolver fallback
+      final idInt = int.tryParse(sellerId);      if (idInt == null) {        // no es numérico -> devolver fallback
         return {
           'name': sellerId,
-          'avatar': 'https://via.placeholder.com/150',
+          'avatar': null, // Usar null para mejor manejo en UI
           'campus': 'Desconocido',
           'reputacion': 0.0,
           'id': null,
+          // ✅ Agregar estadísticas en fallback de ID no numérico
+          'totalPublicaciones': 0,
+          'publicacionesActivas': 0,
+          'totalVentas': 0,
         };
-      }
-
-      // Intenta obtener del endpoint
-      try {
-        final userJson = await _apiClient.getUserById(idInt);
-        // Normalizar campos posibles
-        final name = (userJson['nombre'] != null)
-            ? '${userJson['nombre']}${userJson['apellido'] != null ? ' ${userJson['apellido']}' : ''}'
-            : (userJson['name'] ?? 'Vendedor');
-        final avatar = userJson['avatar'] ??
-            userJson['imagen'] ??
-            'https://via.placeholder.com/150';
+      }// Intenta obtener del endpoint
+      try {        final userJson = await _apiClient.getUserById(idInt);
+        print('🔍 Datos del vendedor desde backend: $userJson');
+        print('🔍 fotoPerfilUrl específica: ${userJson['fotoPerfilUrl']}');
+        // Normalizar campos posibles - usar nombreCompleto si está disponible
+        final name = userJson['nombreCompleto'] ?? 
+            ((userJson['nombre'] != null)
+                ? '${userJson['nombre']}${userJson['apellido'] != null ? ' ${userJson['apellido']}' : ''}'
+                : (userJson['name'] ?? 'Vendedor'));        final avatar = userJson['fotoPerfilUrl']; // Usar directamente fotoPerfilUrl del backend
         final campus = userJson['campus'] ?? 'Desconocido';
+        print('✅ Procesando avatar: $avatar');
+        print('✅ Nombre procesado: $name');
         final reputacion = (userJson['reputacion'] != null)
             ? double.tryParse(userJson['reputacion'].toString()) ?? 0.0
             : 0.0;
+          // ✅ NUEVO: Extraer estadísticas del vendedor
+        final estadisticas = userJson['estadisticas'] ?? {};
+        final totalPublicaciones = estadisticas['totalPublicaciones'] ?? 0;
+        final publicacionesActivas = estadisticas['publicacionesActivas'] ?? 0;
+        final totalVentas = estadisticas['totalVentas'] ?? 0;
+        
+        print('🔍 Estadísticas extraídas: totalPub=$totalPublicaciones, activas=$publicacionesActivas, ventas=$totalVentas');
+        
         return {
           'name': name,
           'avatar': avatar,
           'campus': campus,
           'reputacion': reputacion,
           'id': idInt,
-        };
-      } catch (e) {
-        // Si falla la request (endpoint puede no existir), devolvemos fallback razonable
+          // ✅ NUEVO: Agregar estadísticas
+          'totalPublicaciones': totalPublicaciones,
+          'publicacionesActivas': publicacionesActivas,
+          'totalVentas': totalVentas,
+        };      } catch (e) {        // Si falla la request (endpoint puede no existir), devolvemos fallback razonable
         debugPrint('⚠️ getUserById falló, usando fallback: $e');
         return {
           'name': 'Vendedor #$sellerId',
-          'avatar': 'https://via.placeholder.com/150',
+          'avatar': null, // Usar null para mejor manejo en UI
           'campus': 'Desconocido',
           'reputacion': 0.0,
           'id': idInt,
+          // ✅ Agregar estadísticas en fallback
+          'totalPublicaciones': 0,
+          'publicacionesActivas': 0,
+          'totalVentas': 0,
         };
-      }
-    } catch (e) {
+      }    } catch (e) {
       debugPrint('❌ Error en getSellerInfo: $e');
       return {
         'name': 'Vendedor desconocido',
-        'avatar': 'https://via.placeholder.com/150',
+        'avatar': null, // Usar null para mejor manejo en UI
         'campus': 'Desconocido',
         'reputacion': 0.0,
         'id': null,
+        // ✅ Agregar estadísticas en fallback de error
+        'totalPublicaciones': 0,
+        'publicacionesActivas': 0,
+        'totalVentas': 0,
       };
     }
   }

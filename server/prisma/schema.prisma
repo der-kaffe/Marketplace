@@ -15,7 +15,6 @@ datasource db {
 model Cuentas {
   id            Int      @id @default(autoincrement())
   nombre        String   @db.VarChar(50)
-  apellido      String?  @db.VarChar(50)
   correo        String   @unique @db.VarChar(255)
   usuario       String   @unique @db.VarChar(255)
   telefono      String?  @db.VarChar(20)

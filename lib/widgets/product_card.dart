@@ -12,9 +12,14 @@ class ProductCard extends StatelessWidget {
   final bool isAvailable;
   final VoidCallback? onToggleVisibility;
   final VoidCallback onToggleFavorite;
-  // 👇 Nuevos campos
+  // 👇 Campos del producto
   final String? estadoProducto; // 'nuevo' o 'usado'
   final String? tiempoUso;
+  // 👤 Información del vendedor
+  final String? sellerName;
+  final String? sellerAvatar;
+  final String sellerId;
+  
   const ProductCard({
     super.key,
     required this.title,
@@ -29,6 +34,10 @@ class ProductCard extends StatelessWidget {
     required this.onToggleFavorite,
     this.estadoProducto,
     this.tiempoUso,
+    // 👤 Parámetros del vendedor
+    this.sellerName,
+    this.sellerAvatar,
+    required this.sellerId,
   });
 
   @override

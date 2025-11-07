@@ -1354,29 +1354,28 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                                         'Error cargando perfil: ${snapshot.error}'),
                                   ),
                                 );
-                              }
-
-                              // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
+                              }                              // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
                               final sellerData = snapshot.data!;
+                              print('🔍 Datos del vendedor recibidos: $sellerData'); // Debug
+                              
                               final sellerObject = Seller(
                                 id: sellerData['id']?.toString() ??
-                                    widget.product.sellerId, // ✅ AGREGADO
-                                name: sellerData['nombre'] ??
-                                    sellerData['name'] ??
-                                    'Vendedor',
-                                email: sellerData['correo'] ??
-                                    sellerData['email'] ??
-                                    '',
+                                    widget.product.sellerId,
+                                name: sellerData['name'] ?? 'Vendedor',
+                                email: sellerData['correo'] ?? sellerData['email'],
                                 avatar: sellerData['avatar'],
                                 location: sellerData['campus'] ?? 'Desconocido',
-                                reputation:
-                                    sellerData['reputacion']?.toDouble() ?? 0.0,
-                                totalSales: 0, // ✅ Por ahora, valor por defecto
-                                activeListings:
-                                    0, // ✅ Por ahora, valor por defecto
-                                soldListings:
-                                    0, // ✅ Por ahora, valor por defecto
+                                reputation: sellerData['reputacion']?.toDouble() ?? 0.0,
+                                // ✅ USAR ESTADÍSTICAS REALES del backend con conversión segura
+                                totalSales: (sellerData['totalVentas'] as num?)?.toInt() ?? 0,
+                                activeListings: (sellerData['publicacionesActivas'] as num?)?.toInt() ?? 0,
+                                soldListings: (sellerData['totalVentas'] as num?)?.toInt() ?? 0, // Ventas = productos vendidos
+                                memberSince: sellerData['miembroDesde'] != null 
+                                    ? DateTime.tryParse(sellerData['miembroDesde'].toString()) 
+                                    : null,
                               );
+                              
+                              print('✅ Objeto Seller creado - Activas: ${sellerObject.activeListings}, Ventas: ${sellerObject.totalSales}'); // Debug
 
                               return SellerProfilePage(seller: sellerObject);
                             },

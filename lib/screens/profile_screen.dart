@@ -32,9 +32,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = 'Usuario';
   String _userEmail = 'usuario@ejemplo.com';
   String? _userPhotoUrl;
-
   // Campos editables
-  String _apellido = '';
   String _usuario = '';
   String _campus = 'Campus Temuco';
   String? _telefono;
@@ -109,7 +107,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _userName = currentUser.name;
           _userEmail = currentUser.email;
           // ✅ CORREGIR: Manejar valores nullable con ?? ''
-          _apellido = currentUser.apellido ?? '';
           _usuario = currentUser.usuario ?? '';
           _campus = currentUser.campus ?? 'Campus Temuco';
           _telefono = currentUser.telefono;
@@ -533,10 +530,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isUploadingPhoto = false);
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         return;
-      }
+      }      // Subir imagen al servidor
+      print('📸 Subiendo foto de perfil desde: ${image.path}');
+      final response = await _apiClient.uploadProfilePhoto(image.path);
+      print('📸 Respuesta del servidor: $response');
 
-      // Subir imagen al servidor
-      final response = await _apiClient.uploadProfilePhoto(image.path);      if (response['ok'] == true) {
+      if (response['ok'] == true) {
         // Actualizar la URL de la foto localmente
         final newPhotoUrl = response['photoUrl'];
         final fullUrl = '${_apiClient.baseUrl}$newPhotoUrl';
@@ -625,11 +624,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildActionItem(
                       icon: Icons.refresh,
                       title: 'Actualizar datos de perfil',
-                      color: AppColors.azulPrimario,
-                      onTap: _refreshUserData,
+                      color: AppColors.azulPrimario,                    onTap: _refreshUserData,
                     ),
-                    _buildEditableInfoItem(Icons.person_outline, 'Apellido',
-                        _apellido, () => _editField('apellido')),
                     _buildEditableInfoItem(Icons.account_circle, 'Usuario',
                         _usuario, () => _editField('usuario')),
                     _buildEditableInfoItem(Icons.school, 'Campus', _campus,
@@ -661,19 +657,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 16), // Opciones de cuenta
                 _buildInfoSection(
                   title: 'Mi Cuenta',
-                  items: [
-                    _buildActionItem(
+                  items: [                    _buildActionItem(
                       icon: Icons.favorite,
                       title: 'Mis Favoritos',
                       color: AppColors.error,
-                      onTap: () => _navigateToSection(context, 2),
+                      onTap: () => context.push('/home/favorites'),
                     ),
                     _buildActionItem(
                       icon: Icons.notifications,
                       title: 'Notificaciones',
                       color: AppColors.amarilloPrimario,
-                      onTap: () =>
-                          _showFeatureMessage(context, 'Notificaciones'),
+                      onTap: () => context.push('/home/notifications'),
                     ),
                     _buildActionItem(
                       icon: Icons.history,
@@ -1178,21 +1172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showFeatureMessage(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Próximamente: $feature'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.azulPrimario,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
-  void _navigateToSection(BuildContext context, int index) {
-    if (Navigator.canPop(context)) Navigator.pop(context);
-    _showFeatureMessage(context, 'Navegando a la sección $index');
-  }
 
   // 🔹 Logout con confirmación, Google Sign-In y go_router
   void _logout(BuildContext context) {
@@ -1279,11 +1259,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   } // Método auxiliar para obtener el valor actual de un campo
-
   String _getCurrentValue(String fieldType) {
     switch (fieldType) {
-      case 'apellido':
-        return _apellido;
       case 'usuario':
         return _usuario;
       case 'campus':
@@ -1349,25 +1326,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: fieldType == 'teléfono'
+                  border: const OutlineInputBorder(),                  labelText: fieldType == 'teléfono'
                       ? 'Número de teléfono'
-                      : fieldType == 'apellido'
-                          ? 'Apellido'
-                          : fieldType == 'usuario'
-                              ? 'Nombre de usuario'
-                              : fieldType == 'campus'
-                                  ? 'Campus'
-                                  : 'Dirección',
+                      : fieldType == 'usuario'
+                          ? 'Nombre de usuario'
+                          : fieldType == 'campus'
+                              ? 'Campus'
+                              : 'Dirección',
                   hintText: fieldType == 'teléfono'
                       ? '+56 9 1234 5678'
-                      : fieldType == 'apellido'
-                          ? 'Ej: García'
-                          : fieldType == 'usuario'
-                              ? 'Ej: juan_garcia'
-                              : fieldType == 'campus'
-                                  ? 'Campus Temuco'
-                                  : 'Ej: Av. Alemania 0211, Temuco',
+                      : fieldType == 'usuario'
+                          ? 'Ej: juan_garcia'
+                          : fieldType == 'campus'
+                              ? 'Campus Temuco'
+                              : 'Ej: Av. Alemania 0211, Temuco',
                 ),
                 keyboardType: fieldType == 'teléfono'
                     ? TextInputType.phone
@@ -1429,14 +1401,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // Llamar al backend para actualizar
-      final apiClient = authService.apiClient;
-
-      // Crear el objeto de actualización con solo el campo que cambió
+      final apiClient = authService.apiClient;      // Crear el objeto de actualización con solo el campo que cambió
       Map<String, String?> updateParams = {};
       switch (fieldType) {
-        case 'apellido':
-          updateParams['apellido'] = newValue;
-          break;
         case 'usuario':
           updateParams['usuario'] = newValue;
           break;
@@ -1449,10 +1416,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         case 'dirección':
           updateParams['direccion'] = newValue.isEmpty ? null : newValue;
           break;
-      }
-
-      final response = await apiClient.updateProfile(
-        apellido: updateParams['apellido'],
+      }      final response = await apiClient.updateProfile(
         // ✅ REMOVIDO: usuario: updateParams['usuario'],
         campus: updateParams['campus'],
         telefono: updateParams['telefono'],
@@ -1462,12 +1426,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print('✅ Respuesta del servidor: $response');
 
       // Solo actualizar localmente si la llamada al backend fue exitosa
-      if (mounted) {
-        setState(() {
+      if (mounted) {        setState(() {
           switch (fieldType) {
-            case 'apellido':
-              _apellido = newValue;
-              break;
             case 'usuario':
               _usuario = newValue;
               break;
@@ -1510,14 +1470,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-
   // Función para generar mensajes específicos de actualización
   String _getUpdateMessage(String fieldType, String newValue) {
     switch (fieldType) {
-      case 'apellido':
-        return newValue.isEmpty
-            ? 'Apellido eliminado correctamente'
-            : 'Apellido actualizado a: $newValue';
       case 'usuario':
         return 'Nombre de usuario actualizado a: $newValue';
       case 'campus':

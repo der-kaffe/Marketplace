@@ -51,11 +51,10 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
 // PUT /api/users/profile - Actualizar perfil del usuario actual
 router.put('/profile', authenticateToken, async (req, res, next) => {
   try {
-    const { apellido, usuario, campus, telefono, direccion } = req.body;
+    const { usuario, campus, telefono, direccion } = req.body;
 
     // Validar que al menos un campo sea enviado
     const updateData = {};
-    if (apellido !== undefined) updateData.apellido = apellido;
     if (usuario !== undefined) updateData.usuario = usuario;
     if (campus !== undefined) updateData.campus = campus;
     if (telefono !== undefined) updateData.telefono = telefono;
@@ -66,7 +65,7 @@ router.put('/profile', authenticateToken, async (req, res, next) => {
         'Se debe proporcionar al menos un campo para actualizar',
         'VALIDATION_ERROR',
         400,
-        { fields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion'] }
+        { fields: ['usuario', 'campus', 'telefono', 'direccion'] }
       );
     }
 
@@ -97,7 +96,7 @@ router.put('/profile', authenticateToken, async (req, res, next) => {
         rol: true,
         estado: true
       }
-    }); res.json({
+    });    res.json({
       ok: true,
       message: 'Perfil actualizado correctamente',
       user: {
@@ -110,7 +109,7 @@ router.put('/profile', authenticateToken, async (req, res, next) => {
         telefono: updatedUser.telefono,
         direccion: updatedUser.direccion,
         role: updatedUser.rol.nombre,
-        editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
+        editableFields: ['usuario', 'campus', 'telefono', 'direccion']
       }
     });
 
@@ -334,9 +333,7 @@ router.get('/:id', async (req, res, next) => {
         400,
         { field: "id", value: id }
       );
-    }
-
-    const user = await prisma.cuentas.findUnique({
+    }    const user = await prisma.cuentas.findUnique({
       where: { id: userId },
       select: { // Selecciona solo los campos públicos que quieres mostrar
         id: true,
@@ -346,8 +343,8 @@ router.get('/:id', async (req, res, next) => {
         campus: true,
         reputacion: true,
         fechaRegistro: true,
+        fotoPerfilUrl: true, // ✅ AGREGADO: Incluir foto de perfil
         // NO incluyas correo o contraseña aquí por seguridad
-        // Puedes añadir un campo 'avatar' si lo tienes en tu schema
       }
     });
 
@@ -360,16 +357,50 @@ router.get('/:id', async (req, res, next) => {
       );
     }
 
-    // Formatea la respuesta (opcional pero bueno)
+    // ✅ NUEVO: Obtener estadísticas del vendedor
+    const [totalPublicaciones, publicacionesActivas, totalVentas] = await Promise.all([
+      // Total de productos publicados por este vendedor
+      prisma.productos.count({
+        where: { vendedorId: userId }
+      }),
+      
+      // Productos activos/disponibles
+      prisma.productos.count({
+        where: { 
+          vendedorId: userId,
+          estadoId: 1, // Estado "Disponible"
+          visible: true 
+        }
+      }),
+      
+      // Total de ventas completadas
+      prisma.transacciones.count({
+        where: { 
+          vendedorId: userId,
+          estado: 'Completada'
+        }
+      })
+    ]);    // Formatea la respuesta (opcional pero bueno)
     res.json({
       success: true,
       data: {
         id: user.id,
+        nombre: user.nombre, // ✅ AGREGADO: Nombre individual
+        apellido: user.apellido, // ✅ AGREGADO: Apellido individual  
         nombreCompleto: `${user.nombre || ''} ${user.apellido || ''}`.trim(),
         usuario: user.usuario,
         campus: user.campus,
         reputacion: user.reputacion ? Number(user.reputacion) : 0.0,
         miembroDesde: user.fechaRegistro,
+        fotoPerfilUrl: user.fotoPerfilUrl, // ✅ Incluir foto de perfil
+        
+        // ✅ NUEVO: Estadísticas del vendedor
+        estadisticas: {
+          totalPublicaciones,
+          publicacionesActivas,
+          totalVentas,
+          ventasCompletadas: totalVentas // Alias para claridad
+        }
       }
     });
 

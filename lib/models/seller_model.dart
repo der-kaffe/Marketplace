@@ -1,25 +1,27 @@
 class Seller {
-  final String id; // ✅ AGREGAR
+  final String id;
   final String name;
-  final String? email; // ✅ CAMBIAR a nullable
-  final String? avatar; // ✅ CAMBIAR a nullable
+  final String? email;
+  final String? avatar;
   final String location;
   final double reputation;
   final int totalSales;
   final int activeListings;
   final int soldListings;
-  final String? campus; // ✅ AGREGAR
+  final String? campus;
+  final DateTime? memberSince; // ✅ NUEVO: Fecha de registro
 
   Seller({
-    required this.id, // ✅ AGREGAR
+    required this.id,
     required this.name,
-    this.email, // ✅ CAMBIAR
-    this.avatar, // ✅ CAMBIAR
+    this.email,
+    this.avatar,
     required this.location,
     required this.reputation,
     required this.totalSales,
     required this.activeListings,
     required this.soldListings,
-    this.campus, // ✅ AGREGAR
+    this.campus,
+    this.memberSince, // ✅ NUEVO
   });
 }

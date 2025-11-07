@@ -302,10 +302,9 @@ class ApiClient {
     }
   }
 
-  // Actualizar campos editables del perfil
+  // Actualizar campos editables del perfil  Future<Map<String, dynamic>> updateProfile({
   Future<Map<String, dynamic>> updateProfile({
     String? name, // ✅ AGREGAR name
-    String? apellido,
     String? usuario,
     String? campus,
     String? telefono,
@@ -314,7 +313,6 @@ class ApiClient {
     try {
       final body = <String, dynamic>{};
       if (name != null) body['name'] = name; // ✅ AGREGAR
-      if (apellido != null) body['apellido'] = apellido;
       if (usuario != null) body['usuario'] = usuario;
       if (campus != null) body['campus'] = campus;
       if (telefono != null) body['telefono'] = telefono;
@@ -661,11 +659,14 @@ class ApiClient {
   Future<Map<String, dynamic>> getUserById(int userId) async {
     try {
       final uri = Uri.parse('$baseUrl/api/users/$userId');
-      final response = await http.get(uri, headers: _headers);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data;
+      final response = await http.get(uri, headers: _headers);      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        // Extraer solo la data del usuario, no toda la respuesta
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'];
+        } else {
+          return responseData;
+        }
       } else {
         throw ApiException(
           message: 'Usuario no encontrado',
