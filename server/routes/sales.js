@@ -285,4 +285,83 @@ router.get('/stats/summary', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/sales - Crear nueva transacción
+router.post('/', authenticateToken, [
+  body('productoId').isInt({ min: 1 }).withMessage('productoId requerido'),
+  body('cantidad').isInt({ min: 1 }).withMessage('cantidad requerida'),
+  body('estado')
+    .isIn(['iniciada', 'esperando_confirmacion', 'completada', 'cancelada'])
+    .withMessage('Estado inválido'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Datos inválidos',
+        errors: errors.array()
+      });
+    }
+
+    const { productoId, cantidad, estado } = req.body;
+
+    // Buscar el producto y su vendedor
+    const producto = await prisma.productos.findUnique({
+      where: { id: productoId },
+      include: { vendedor: true }
+    });
+
+    if (!producto) {
+      return res.status(404).json({ ok: false, message: 'Producto no encontrado' });
+    }
+
+    // Buscar el estadoId correspondiente
+    const estadoObj = await prisma.estadosTransaccion.findFirst({
+      where: { nombre: { equals: estado, mode: 'insensitive' } }
+    });
+
+    if (!estadoObj) {
+      return res.status(400).json({ ok: false, message: 'Estado de transacción no válido' });
+    }
+
+    // Crear la transacción
+    const transaccion = await prisma.transacciones.create({
+      data: {
+        productoId,
+        cantidad,
+        compradorId: req.user.userId,
+        vendedorId: producto.vendedorId,
+        estadoId: estadoObj.id,
+        fecha: new Date()
+      },
+      include: {
+        producto: { select: { id: true, nombre: true } },
+        comprador: { select: { id: true, nombre: true, correo: true } },
+        vendedor: { select: { id: true, nombre: true, correo: true } },
+        estado: true
+      }
+    });
+
+    res.status(201).json({
+      ok: true,
+      message: 'Transacción creada exitosamente',
+      transaccion: {
+        id: transaccion.id,
+        producto: transaccion.producto,
+        cantidad: transaccion.cantidad,
+        comprador: transaccion.comprador,
+        vendedor: transaccion.vendedor,
+        estado: transaccion.estado.nombre,
+        fecha: transaccion.fecha
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creando transacción:', error);
+    res.status(500).json({
+      ok: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
 module.exports = router;

@@ -142,6 +142,21 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> saveFcmToken(String fcmToken) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/users/profile/fcm-token'),
+        headers: _headers, // Usa los headers de autenticación
+        body: json.encode({
+          'fcmToken': fcmToken,
+        }),
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // NUEVO: Obtener los productos del usuario autenticado
   Future<ProductsResponse> getMyProducts({
     int page = 1,
@@ -287,10 +302,9 @@ class ApiClient {
     }
   }
 
-  // Actualizar campos editables del perfil
+  // Actualizar campos editables del perfil  Future<Map<String, dynamic>> updateProfile({
   Future<Map<String, dynamic>> updateProfile({
     String? name, // ✅ AGREGAR name
-    String? apellido,
     String? usuario,
     String? campus,
     String? telefono,
@@ -299,7 +313,6 @@ class ApiClient {
     try {
       final body = <String, dynamic>{};
       if (name != null) body['name'] = name; // ✅ AGREGAR
-      if (apellido != null) body['apellido'] = apellido;
       if (usuario != null) body['usuario'] = usuario;
       if (campus != null) body['campus'] = campus;
       if (telefono != null) body['telefono'] = telefono;
@@ -355,7 +368,8 @@ class ApiClient {
 
       try {
         final errorBody = jsonDecode(response.body);
-        final errorMessage = errorBody['error']?['message'] ?? 'Error desconocido';
+        final errorMessage =
+            errorBody['error']?['message'] ?? 'Error desconocido';
         final errorCode = errorBody['error']?['code'] ?? 'UNKNOWN_ERROR';
 
         print('   ❌ Error code: $errorCode');
@@ -445,23 +459,171 @@ class ApiClient {
     required int categoriaId,
     double? precioAnterior,
     int? cantidad,
+    String? imageUrl,
+    String? informacionTecnica,
+    String? estadoProducto,
+    String? tiempoUso,
+    List<String>? imagenes, // Múltiples imágenes
   }) async {
     try {
+      final body = <String, dynamic>{
+        'nombre': nombre,
+        'descripcion': descripcion,
+        'precioActual': precioActual,
+        'categoriaId': categoriaId,
+        'precioAnterior': precioAnterior,
+        'cantidad': cantidad ?? 1,
+      };
+      
+      // Soporte para imagen única (compatibilidad)
+      if (imageUrl != null) {
+        body['imageUrl'] = imageUrl;
+      }
+      
+      // Nuevos campos
+      if (informacionTecnica != null && informacionTecnica.isNotEmpty) {
+        body['informacionTecnica'] = informacionTecnica;
+      }
+      if (estadoProducto != null && estadoProducto.isNotEmpty) {
+        body['estadoProducto'] = estadoProducto;
+      }
+      if (tiempoUso != null && tiempoUso.isNotEmpty) {
+        body['tiempoUso'] = tiempoUso;
+      }
+      
+      // Múltiples imágenes
+      if (imagenes != null && imagenes.isNotEmpty) {
+        body['imagenes'] = imagenes;
+      }
+      
       final response = await http.post(
         Uri.parse('$baseUrl/api/products'),
         headers: _headers,
-        body: json.encode({
-          'nombre': nombre,
-          'descripcion': descripcion,
-          'precioActual': precioActual,
-          'categoriaId': categoriaId,
-          'precioAnterior': precioAnterior,
-          'cantidad': cantidad ?? 1,
-        }),
+        body: json.encode(body),
       );
       return _handleResponse(response);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// ✅ NUEVO: Inicia una transacción de compra
+  Future<Map<String, dynamic>> createTransaction({
+    required int productId,
+    required int quantity,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/transactions');
+      print('🛒 Creando transacción: POST $uri');
+      final response = await http.post(
+        uri,
+        headers: _headers, // Usa los headers con token
+        body: jsonEncode({
+          'productId': productId,
+          'quantity': quantity,
+        }),
+      );
+
+      print('   -> Respuesta: ${response.statusCode}');
+      // Usamos _handleResponse que ya maneja errores 4xx/5xx
+      return _handleResponse(response);
+
+    } catch (e) {
+      print('❌ Excepción en createTransaction: $e');
+      // Re-lanzar como ApiException si no lo es ya
+      if (e is ApiException) {
+        rethrow;
+      }
+      throw ApiException(message: 'Error de conexión al crear transacción: $e');
+    }
+  }
+
+  // --- MÉTODOS PARA TRANSACCIONES Y CONFIRMACIÓN ---
+
+  /// Obtiene la lista de compras del usuario actual
+  Future<TransactionListResponse> getMyPurchases({int page = 1, int limit = 10}) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/transactions/purchases').replace(
+        queryParameters: {'page': page.toString(), 'limit': limit.toString()},
+      );
+      print('🛍️ Obteniendo mis compras: GET $uri');
+      final response = await http.get(uri, headers: _headers);
+      final data = _handleResponse(response);
+      return TransactionListResponse.fromJsonPurchases(data);
+    } catch (e) {
+      print('❌ Excepción en getMyPurchases: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al obtener compras: $e');
+    }
+  }
+
+  /// Obtiene la lista de ventas del usuario actual
+  Future<TransactionListResponse> getMySales({int page = 1, int limit = 10}) async {
+    try {
+       final uri = Uri.parse('$baseUrl/api/transactions/sales').replace(
+        queryParameters: {'page': page.toString(), 'limit': limit.toString()},
+      );
+      print('💰 Obteniendo mis ventas: GET $uri');
+      final response = await http.get(uri, headers: _headers);
+       final data = _handleResponse(response);
+      return TransactionListResponse.fromJsonSales(data);
+    } catch (e) {
+       print('❌ Excepción en getMySales: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al obtener ventas: $e');
+    }
+  }
+
+  /// Vendedor confirma la entrega de una transacción
+  Future<Map<String, dynamic>> confirmDelivery(int transactionId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-delivery');
+      print('🚚 Confirmando entrega (Vendedor): PATCH $uri');
+      final response = await http.patch(uri, headers: _headers);
+      print('   -> Respuesta: ${response.statusCode}');
+      return _handleResponse(response);
+    } catch (e) {
+      print('❌ Excepción en confirmDelivery: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al confirmar entrega: $e');
+    }
+  }
+
+  /// Comprador confirma el recibo de una transacción
+  Future<Map<String, dynamic>> confirmReceipt(int transactionId) async {
+     try {
+      final uri = Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-receipt');
+      print('🤝 Confirmando recibo (Comprador): PATCH $uri');
+      final response = await http.patch(uri, headers: _headers);
+      print('   -> Respuesta: ${response.statusCode}');
+      return _handleResponse(response);
+    } catch (e) {
+      print('❌ Excepción en confirmReceipt: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al confirmar recibo: $e');
+    }
+  }
+
+  // Subir foto de perfil
+  Future<Map<String, dynamic>> uploadProfilePhoto(String imagePath) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/upload/profile-photo');
+      final request = http.MultipartRequest('POST', uri);
+      
+      // Agregar headers de autorización
+      if (_token != null) {
+        request.headers['Authorization'] = 'Bearer $_token';
+      }
+      
+      // Agregar la imagen
+      request.files.add(await http.MultipartFile.fromPath('photo', imagePath));
+      
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+      
+      return _handleResponse(response);
+    } catch (e) {
+      throw ApiException(message: 'Error subiendo foto de perfil: $e');
     }
   }
 
@@ -479,8 +641,10 @@ class ApiClient {
       );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        final body = response.body.isNotEmpty ? json.decode(response.body) : null;
-        final message = body != null ? (body['message'] ?? response.body) : response.body;
+        final body =
+            response.body.isNotEmpty ? json.decode(response.body) : null;
+        final message =
+            body != null ? (body['message'] ?? response.body) : response.body;
         throw ApiException(
           message: 'Error actualizando visibilidad: $message',
           statusCode: response.statusCode,
@@ -495,11 +659,14 @@ class ApiClient {
   Future<Map<String, dynamic>> getUserById(int userId) async {
     try {
       final uri = Uri.parse('$baseUrl/api/users/$userId');
-      final response = await http.get(uri, headers: _headers);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return data;
+      final response = await http.get(uri, headers: _headers);      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        // Extraer solo la data del usuario, no toda la respuesta
+        if (responseData['success'] == true && responseData['data'] != null) {
+          return responseData['data'];
+        } else {
+          return responseData;
+        }
       } else {
         throw ApiException(
           message: 'Usuario no encontrado',
@@ -510,7 +677,6 @@ class ApiClient {
       rethrow;
     }
   }
-
 
   // FAVORITES ENDPOINTS
 
@@ -572,6 +738,57 @@ class ApiClient {
       throw Exception('Error: $e');
     }
   }
+
+  // 🔥 NUEVO: Eliminar producto
+  Future<void> deleteProduct(int productId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/products/$productId');
+      final response = await http.delete(uri, headers: _headers);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ Producto $productId eliminado correctamente');
+        return;
+      } else {
+        print('❌ Error al eliminar producto: ${response.statusCode}');
+        final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        throw ApiException(
+          message: body['message'] ?? 'Error al eliminar producto',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      print('❌ Excepción al eliminar producto: $e');
+      throw ApiException(message: 'Error de conexión: $e');
+    }
+  }
+
+  // 🔥 NUEVO: Actualizar producto
+  Future<Map<String, dynamic>> updateProduct(
+      int productId, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/api/products/$productId');
+      final response = await http.put(
+        uri,
+        headers: _headers,
+        body: jsonEncode(data),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('✅ Producto actualizado correctamente');
+        return jsonDecode(response.body);
+      } else {
+        print('❌ Error actualizando producto: ${response.statusCode}');
+        final body = response.body.isNotEmpty ? jsonDecode(response.body) : {};
+        throw ApiException(
+          message: body['message'] ?? 'Error al actualizar producto',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      print('❌ Excepción en updateProduct: $e');
+      throw ApiException(message: 'Error de conexión: $e');
+    }
+  }
 }
 
 // Helper para obtener la URL base según la plataforma
@@ -618,9 +835,9 @@ class User {
   final String? role;
   final String? apellido;
   final String? usuario;
-  final String? campus;
-  final String? telefono;
+  final String? campus;  final String? telefono;
   final String? direccion;
+  final String? fotoPerfilUrl;
 
   User({
     required this.id,
@@ -633,6 +850,7 @@ class User {
     this.campus,
     this.telefono,
     this.direccion,
+    this.fotoPerfilUrl,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -643,10 +861,10 @@ class User {
       rolId: json['rolId'] ?? json['rol_id'],
       role: json['rol']?['nombre'] ?? json['role'], // ✅ soporta backend Prisma
       apellido: json['apellido'],
-      usuario: json['usuario'],
-      campus: json['campus'],
+      usuario: json['usuario'],      campus: json['campus'],
       telefono: json['telefono'],
       direccion: json['direccion'],
+      fotoPerfilUrl: json['fotoPerfilUrl'],
     );
   }
 
@@ -661,6 +879,7 @@ class User {
         'campus': campus,
         'telefono': telefono,
         'direccion': direccion,
+        'fotoPerfilUrl': fotoPerfilUrl,
       };
 
   bool get isAdmin =>
@@ -739,14 +958,19 @@ class ProductFromDB {
   final double? precioAnterior;
   final double? precioActual;
   final String? categoria; // Campo de categoría (nombre)
-  final String?
-      categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
+  final String? categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
   final double? calificacion;
   final int? cantidad;
   final String estado;
   final DateTime fechaAgregado;
   final List<dynamic> imagenes; // Bytes de imágenes
   final VendedorFromDB vendedor;
+  final bool? visible; // ✅ Añadido campo visible
+  
+  // 👇 Nuevos campos
+  final String? informacionTecnica;
+  final String? estadoProducto; // 'nuevo' o 'usado'
+  final String? tiempoUso; // ej: "6 meses", "2 años"
 
   ProductFromDB({
     required this.id,
@@ -755,13 +979,17 @@ class ProductFromDB {
     this.precioAnterior,
     this.precioActual,
     this.categoria,
-    this.categoriaId, // Añadir al constructor
+    this.categoriaId,
     this.calificacion,
     this.cantidad,
     required this.estado,
     required this.fechaAgregado,
     required this.imagenes,
     required this.vendedor,
+    required this.visible, // ✅ Añadido al constructor
+    this.informacionTecnica,
+    this.estadoProducto,
+    this.tiempoUso,
   });
 
   factory ProductFromDB.fromJson(Map<String, dynamic> json) {
@@ -795,21 +1023,64 @@ class ProductFromDB {
       return DateTime.now();
     }
 
+    // Helper para booleanos
+    bool safeToBool(dynamic value, {bool defaultValue = true}) {
+      if (value == null) return defaultValue;
+      if (value is bool) return value;
+      if (value is String) return value.toLowerCase() == 'true';
+      if (value is int) return value == 1;
+      return defaultValue;
+    }
+
+    // ✅ NUEVA LÓGICA MÁS SEGURA PARA CATEGORÍA Y ESTADO
+    String? categoriaNombre;
+    String? categoriaIdStr;
+    dynamic categoriaJson = json['categoria'];
+    if (categoriaJson is Map) {
+      categoriaNombre = categoriaJson['nombre']?.toString();
+      categoriaIdStr = categoriaJson['id']?.toString();
+    } else if (categoriaJson is String) {
+      categoriaNombre = categoriaJson;
+      // No podemos obtener el ID si solo viene el nombre
+    }
+    // Si la API envía 'categoriaId' directamente, úsalo como fallback si no lo obtuvimos del objeto anidado
+    categoriaIdStr ??= json['categoriaId']?.toString();
+
+
+    String estadoNombre = '';
+    dynamic estadoJson = json['estado'];
+    if (estadoJson is Map) {
+      estadoNombre = estadoJson['nombre']?.toString() ?? '';
+    } else if (estadoJson is String) {
+      estadoNombre = estadoJson;
+    }
+
     return ProductFromDB(
       id: safeToInt(json['id']) ?? 0,
       nombre: json['nombre']?.toString() ?? '',
       descripcion: json['descripcion']?.toString(),
       precioAnterior: safeToDouble(json['precioAnterior']),
       precioActual: safeToDouble(json['precioActual']),
-      categoria: json['categoria']?.toString(),
-      // Asumiendo que la API también devuelve 'categoriaId'
-      categoriaId: json['categoriaId']?.toString(), // Convertir a String
+
+      // ✅ USA LOS VALORES PROCESADOS
+      categoria: categoriaNombre,
+      categoriaId: categoriaIdStr,
+
       calificacion: safeToDouble(json['calificacion']),
       cantidad: safeToInt(json['cantidad']),
-      estado: json['estado']?.toString() ?? '',
+
+      // ✅ USA EL VALOR PROCESADO
+      estado: estadoNombre,
+
       fechaAgregado: safeParseDatetime(json['fechaAgregado']),
       imagenes: json['imagenes'] ?? [],
       vendedor: VendedorFromDB.fromJson(json['vendedor'] ?? {}),
+      visible: safeToBool(json['visible'], defaultValue: true),
+      
+      // 👇 Nuevos campos
+      informacionTecnica: json['informacionTecnica']?.toString(),
+      estadoProducto: json['estadoProducto']?.toString(),
+      tiempoUso: json['tiempoUso']?.toString(),
     );
   }
 
@@ -819,6 +1090,7 @@ class ProductFromDB {
     print('Nombre Producto: ${nombre}');
     print('Categoria Nombre (RAW): ${categoria}');
     print('Categoria ID (RAW): ${categoriaId}');
+    print('Cantidad (RAW): ${cantidad}'); // 👈 Añadí este print para verificar
     print('-----------------------------');
 
     // Usar categoriaId como el identificador para el filtro si está disponible y es numérico
@@ -827,29 +1099,59 @@ class ProductFromDB {
         ? categoriaId.toString()
         : (categoria ?? 'Sin categoría');
     print(
-        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})');
+        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})'
+    );
 
+    print('IMAGENES para producto $id:');
+    print(imagenes);
+    print('URL extraída por _getImageUrl(): ${_getImageUrl()}');
     return ProductModel.Product(
       id: id.toString(),
       title: nombre,
       description: descripcion ?? 'Sin descripción',
       price: precioActual ?? 0.0,
-      imageUrl: _getImageUrl(), // Manejar imágenes como bytes o placeholder
+      imageUrl: _getImageUrl(),
       rating: calificacion ?? 0.0,
-      reviewCount: 0, // Por ahora
-      category: categoryIdentifier, // Ahora debería ser el ID como String
-      isAvailable: estado == 'Disponible',
+      reviewCount: 0, 
+      category: categoryIdentifier,
+      isAvailable: this.visible ?? true, 
+      cantidad: cantidad ?? 0,
       sellerId: vendedor.id.toString(),
-      sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}',
-      sellerAvatar: null, // Por ahora
+      sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}'.trim(), // Trim para quitar espacios extra
+      sellerAvatar: vendedor.avatarUrl, // ✅ Usar el avatar del vendedor si existe
+      sellerEmail: vendedor.correo,
+      // 👇 Nuevos campos
+      informacionTecnica: informacionTecnica,
+      estadoProducto: estadoProducto,
+      tiempoUso: tiempoUso,
+      imagenes: _getAllImageUrls(),
     );
   }
 
   String? _getImageUrl() {
     if (imagenes.isNotEmpty) {
-      return null; // Usará el placeholder por defecto
+      final img = imagenes.first;
+      if (img is Map && img['urlImagen'] != null && img['urlImagen'].toString().isNotEmpty) {
+        return img['urlImagen'];
+      }
+      if (img is String && img.isNotEmpty) {
+        return img;
+      }
     }
     return null;
+  }
+
+  List<String> _getAllImageUrls() {
+    if (imagenes.isEmpty) return [];
+    final List<String> urls = [];
+    for (var img in imagenes) {
+      if (img is Map && img['urlImagen'] != null && img['urlImagen'].toString().isNotEmpty) {
+        urls.add(img['urlImagen']);
+      } else if (img is String && img.isNotEmpty) {
+        urls.add(img);
+      }
+    }
+    return urls;
   }
 }
 
@@ -860,6 +1162,7 @@ class VendedorFromDB {
   final String correo;
   final String? campus;
   final double reputacion;
+  final String? avatarUrl; // 👈 AÑADE ESTO SI TU API LO DEVUELVE
 
   VendedorFromDB({
     required this.id,
@@ -868,6 +1171,7 @@ class VendedorFromDB {
     required this.correo,
     this.campus,
     required this.reputacion,
+    this.avatarUrl, // 👈 AÑADE ESTO
   });
 
   factory VendedorFromDB.fromJson(Map<String, dynamic> json) {
@@ -899,6 +1203,7 @@ class VendedorFromDB {
       correo: json['correo']?.toString() ?? '',
       campus: json['campus']?.toString(),
       reputacion: safeToDouble(json['reputacion']),
+      avatarUrl: json['avatar']?.toString(), // 👈 AÑADE ESTO
     );
   }
 }
@@ -1083,6 +1388,122 @@ class FavoritedProduct {
   }
 }
 
+// --- MODELOS PARA TRANSACCIONES ---
+
+// Modelo simplificado para las listas de compras/ventas
+class TransactionSummary {
+  final int id;
+  final DateTime fecha;
+  final String estado;
+  final int cantidad;
+  final double precioTotal;
+  final bool confirmacionComprador;
+  final bool confirmacionVendedor;
+  final TransactionProductInfo producto;
+  final TransactionUserInfo? comprador; // Nullable en la lista de compras
+  final TransactionUserInfo? vendedor; // Nullable en la lista de ventas
+
+  TransactionSummary({
+    required this.id,
+    required this.fecha,
+    required this.estado,
+    required this.cantidad,
+    required this.precioTotal,
+    required this.confirmacionComprador,
+    required this.confirmacionVendedor,
+    required this.producto,
+    this.comprador,
+    this.vendedor,
+  });
+
+  factory TransactionSummary.fromJson(Map<String, dynamic> json) {
+    return TransactionSummary(
+      id: json['id'] ?? 0,
+      fecha: DateTime.tryParse(json['fecha'] ?? '') ?? DateTime.now(),
+      estado: json['estado'] ?? 'Desconocido',
+      cantidad: json['cantidad'] ?? 0,
+      precioTotal: (json['precioTotal'] as num?)?.toDouble() ?? 0.0,
+      confirmacionComprador: json['confirmacionComprador'] ?? false,
+      confirmacionVendedor: json['confirmacionVendedor'] ?? false,
+      producto: TransactionProductInfo.fromJson(json['producto'] ?? {}),
+      comprador: json['comprador'] != null
+          ? TransactionUserInfo.fromJson(json['comprador'])
+          : null,
+      vendedor: json['vendedor'] != null
+          ? TransactionUserInfo.fromJson(json['vendedor'])
+          : null,
+    );
+  }
+}
+
+// Info básica del producto en una transacción
+class TransactionProductInfo {
+  final int id;
+  final String nombre;
+  final String? imageUrl; // Placeholder
+
+  TransactionProductInfo({required this.id, required this.nombre, this.imageUrl});
+
+  factory TransactionProductInfo.fromJson(Map<String, dynamic> json) {
+    return TransactionProductInfo(
+      id: json['id'] ?? 0,
+      nombre: json['nombre'] ?? 'Producto Desconocido',
+      // imageUrl: json['imageUrl'], // Ajustar si la API envía la imagen
+    );
+  }
+}
+
+// Info básica del usuario (comprador/vendedor) en una transacción
+class TransactionUserInfo {
+  final int id;
+  final String nombreCompleto;
+  final String? usuario;
+
+  TransactionUserInfo({required this.id, required this.nombreCompleto, this.usuario});
+
+  factory TransactionUserInfo.fromJson(Map<String, dynamic> json) {
+    return TransactionUserInfo(
+      id: json['id'] ?? 0,
+      nombreCompleto: json['nombreCompleto'] ?? 'Usuario Desconocido',
+      usuario: json['usuario'],
+    );
+  }
+}
+
+// Respuesta para las listas de transacciones (con paginación)
+class TransactionListResponse {
+  final bool ok;
+  final List<TransactionSummary> transactions;
+  final PaginationInfo pagination;
+
+  TransactionListResponse({
+    required this.ok,
+    required this.transactions,
+    required this.pagination,
+  });
+
+  factory TransactionListResponse.fromJsonPurchases(Map<String, dynamic> json) {
+    return TransactionListResponse(
+      ok: json['ok'] ?? false,
+      transactions: (json['purchases'] as List<dynamic>?)
+              ?.map((item) => TransactionSummary.fromJson(item))
+              .toList() ??
+          [],
+      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
+    );
+  }
+   factory TransactionListResponse.fromJsonSales(Map<String, dynamic> json) {
+    return TransactionListResponse(
+      ok: json['ok'] ?? false,
+      transactions: (json['sales'] as List<dynamic>?)
+              ?.map((item) => TransactionSummary.fromJson(item))
+              .toList() ??
+          [],
+      pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
+    );
+  }
+}
+
 // Excepción personalizada para errores de API
 class ApiException implements Exception {
   final String message;
@@ -1100,6 +1521,3 @@ class ApiException implements Exception {
     return 'ApiException: $message (Status: $statusCode)';
   }
 }
-
-
-

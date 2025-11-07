@@ -10,10 +10,13 @@ Una aplicación Flutter completa de marketplace con backend Node.js y PostgreSQL
 - **Autenticación**: JWT + Google Auth
 - **Funcionalidades**: 
   - Sistema de usuarios (Admin, Vendedor, Cliente)
-  - CRUD de productos
+  - CRUD de productos con **múltiples imágenes** (hasta 5 por producto)
   - Chat entre usuarios
   - Sistema de calificaciones
   - Panel de administración
+  - **Galería de imágenes** con carousel interactivo
+  - **Gestión de perfil de usuario**
+  - **Sistema de favoritos**
 
 ## 📱 Frontend (Flutter)
 
@@ -29,10 +32,20 @@ lib/
 ├── main.dart
 ├── models/          # Modelos de datos
 ├── screens/         # Pantallas de la app
+│   ├── profile_screen.dart      # 👤 Gestión completa de perfil
+│   ├── favorites_screen.dart    # ❤️ Lista de productos favoritos
+│   ├── home_screen.dart         # 🏠 Con funcionalidad de favoritos
+│   └── new_post_screen.dart     # 📝 Crear productos con múltiples imágenes
 ├── services/        # Servicios (API, Auth)
 ├── widgets/         # Widgets reutilizables
+│   └── product_card.dart        # 📦 Con carousel de múltiples imágenes
 └── core/           # Configuración y tema
 ```
+
+### Navegación en la App
+- **Perfil**: Accesible desde la barra de navegación inferior (ícono de persona)
+- **Favoritos**: Accesible desde la barra de navegación inferior (ícono de corazón)
+- **Toggle de favoritos**: Disponible en cada tarjeta de producto (ícono de corazón)
 
 ## 🚀 Backend (Node.js + PostgreSQL)
 
@@ -57,6 +70,64 @@ Ver [BACKEND_README.md](BACKEND_README.md) para más detalles.
 1. **PostgreSQL**: Configurar DATABASE_URL en `server/.env`
 2. **Flutter**: Actualizar endpoint de API en `lib/services/api_client.dart`
 3. **Variables de entorno**: Copiar `server/.env.example` a `server/.env`
+
+## 👤 Gestión de Perfil de Usuario
+
+### Funcionalidades del Perfil
+- **Información personal**: Edición de datos como apellido, usuario, campus, teléfono y dirección
+- **Autenticación**: Soporte para login con Google y JWT
+- **Foto de perfil**: Subida y actualización de imagen de perfil
+- **Gestión de productos**: Visualización de productos creados por el usuario
+- **Estadísticas**: Contadores de favoritos, reseñas y transacciones
+
+### Características Técnicas
+- Integración con Google Sign-In para autenticación
+- Actualización de datos en tiempo real
+- Validación de formularios
+- Manejo de estados de carga y error
+- Selector de imágenes desde galería o cámara
+
+```dart
+// Pantalla principal: lib/screens/profile_screen.dart
+// Funcionalidades incluidas:
+- Edición de perfil completa
+- Visualización de productos del usuario
+- Gestión de favoritos
+- Historial de transacciones
+```
+
+## ❤️ Sistema de Favoritos
+
+### Funcionalidades de Favoritos
+- **Agregar/Quitar favoritos**: Toggle de productos favoritos con un toque
+- **Lista de favoritos**: Pantalla dedicada para ver todos los productos guardados
+- **Persistencia**: Los favoritos se sincronizan con el backend
+- **Contadores**: Visualización del número total de favoritos
+- **Actualización en tiempo real**: Los cambios se reflejan instantáneamente
+
+### Características Técnicas
+- API REST para gestión de favoritos (`/api/favorites`)
+- Sincronización automática entre pantallas
+- Cache local para mejor rendimiento
+- Indicadores visuales (corazón rojo/gris)
+- Manejo de estados offline
+
+```dart
+// Pantallas relacionadas:
+lib/screens/favorites_screen.dart    // Lista completa de favoritos
+lib/screens/profile_screen.dart      // Contador de favoritos
+lib/screens/home_screen.dart         // Toggle de favoritos en productos
+
+// Componentes:
+lib/widgets/product_card.dart        // Botón de favorito en cada producto
+```
+
+### API Endpoints de Favoritos
+```javascript
+GET    /api/favorites        // Obtener favoritos del usuario
+POST   /api/favorites        // Agregar producto a favoritos
+DELETE /api/favorites/:id    // Remover producto de favoritos
+```
 
 ## 👤 Usuarios por defecto
 

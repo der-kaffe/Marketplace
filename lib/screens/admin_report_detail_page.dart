@@ -16,8 +16,6 @@ class ReportDetailPage extends StatefulWidget {
 
 class _ReportDetailPageState extends State<ReportDetailPage> {
   final AuthService _authService = AuthService();
-  final TextEditingController _notesController = TextEditingController();
-
   Map<String, dynamic>? _reportData;
   bool _isLoading = true;
   String reportStatus = 'Pendiente';
@@ -60,12 +58,6 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
   }
 
   @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
@@ -90,154 +82,170 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalle del Reporte'),
+        backgroundColor: Colors.redAccent,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                producto != null ? 'Reporte de producto' : 'Reporte de usuario',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.redAccent,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              InfoRow(label: 'Motivo', value: motivo),
-              InfoRow(label: 'Reportado por', value: '${reportante['nombre']} ${reportante['apellido']}'),
-              InfoRow(label: 'Fecha', value: fecha.substring(0, 10)),
-
-              if (producto != null)
-                InfoRow(label: 'Producto', value: producto['nombre'])
-              else if (usuarioReportado != null)
-                InfoRow(label: 'Usuario reportado', value: '${usuarioReportado['nombre']} ${usuarioReportado['apellido']}'),
-
-              const SizedBox(height: 24),
-              _buildStatusToggle(context),
-              const SizedBox(height: 24),
-              _buildActionButtons(),
-              const SizedBox(height: 24),
-
-              TextField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Notas internas',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusToggle(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'Estado: $reportStatus',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 10),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: reportStatus == 'Pendiente' ? Colors.green : Colors.grey,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-          onPressed: () async {
-            final nuevoEstadoId = reportStatus == 'Pendiente' ? 2 : 1; // suponiendo 1=Pendiente, 2=Revisado
-            final token = await _authService.getToken();
-
-            final url = Uri.parse('http://10.0.2.2:3001/api/reports/${widget.reportId}');
-
-            try {
-              final response = await http.patch(
-                url,
-                headers: {
-                  'Authorization': 'Bearer $token',
-                  'Content-Type': 'application/json',
-                },
-                body: jsonEncode({'estadoId': nuevoEstadoId}),
-              );
-
-              if (response.statusCode == 200) {
-                setState(() {
-                  reportStatus = reportStatus == 'Pendiente' ? 'Revisado' : 'Pendiente';
-                });
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      reportStatus == 'Revisado'
-                          ? 'Reporte marcado como revisado'
-                          : 'Reporte marcado como pendiente',
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Título
+            Card(
+              color: Colors.redAccent.shade100,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Icon(
+                      producto != null
+                          ? Icons.shopping_cart
+                          : Icons.person,
+                      size: 32,
+                      color: Colors.white,
                     ),
-                  ),
-                );
-                Navigator.pop(context, true);
-              } else {
-                throw Exception('Error al actualizar estado');
-              }
-            } catch (e) {
-              print('❌ Error actualizando estado: $e');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No se pudo actualizar el estado')),
-              );
-            }
-          },
-          child: Text(
-            reportStatus == 'Pendiente' ? 'Marcar como revisado' : 'Marcar como pendiente',
-          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        producto != null
+                            ? 'Reporte de Producto'
+                            : 'Reporte de Usuario',
+                        style: textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Información del reporte
+            Card(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 3,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    InfoRow(
+                        label: 'Motivo',
+                        value: motivo,
+                        icon: Icons.report_problem),
+                    const Divider(),
+                    InfoRow(
+                        label: 'Reportado por',
+                        value: '${reportante['nombre']} ${reportante['apellido']}',
+                        icon: Icons.person),
+                    const Divider(),
+                    InfoRow(label: 'Fecha', value: fecha.substring(0, 10), icon: Icons.calendar_today),
+                    const Divider(),
+                    if (producto != null)
+                      InfoRow(
+                          label: 'Producto',
+                          value: producto['nombre'],
+                          icon: Icons.shopping_bag)
+                    else if (usuarioReportado != null)
+                      InfoRow(
+                          label: 'Usuario reportado',
+                          value:
+                              '${usuarioReportado['nombre']} ${usuarioReportado['apellido']}',
+                          icon: Icons.person_outline),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
+            // Estado del reporte
+            Card(
+              color: Colors.blueGrey.shade50,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Estado actual:',
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: reportStatus == 'Pendiente'
+                            ? Colors.orangeAccent
+                            : Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: const TextStyle(fontSize: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _toggleStatus,
+                      icon: Icon(reportStatus == 'Pendiente'
+                          ? Icons.pending_actions
+                          : Icons.check_circle),
+                      label: Text(reportStatus == 'Pendiente'
+                          ? 'Marcar como revisado'
+                          : 'Marcar como pendiente'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildActionButtons() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Publicación eliminada (simulado)')),
-            );
+  Future<void> _toggleStatus() async {
+    final nuevoEstadoId = reportStatus == 'Pendiente' ? 2 : 1;
+    final token = await _authService.getToken();
 
-            // Aquí podrías implementar la lógica real de eliminación de producto
-          },
-          icon: const Icon(Icons.delete),
-          label: const Text('Eliminar publicación'),
-        ),
-        const SizedBox(height: 12),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orangeAccent,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            textStyle: const TextStyle(fontSize: 16),
-          ),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Usuario suspendido (simulado)')),
-            );
+    final url = Uri.parse('http://10.0.2.2:3001/api/reports/${widget.reportId}');
 
-            // Aquí podrías implementar la lógica real de suspensión de usuario
-          },
-          icon: const Icon(Icons.block),
-          label: const Text('Suspender usuario'),
-        ),
-      ],
-    );
+    try {
+      final response = await http.patch(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'estadoId': nuevoEstadoId}),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          reportStatus = reportStatus == 'Pendiente' ? 'Revisado' : 'Pendiente';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              reportStatus == 'Revisado'
+                  ? 'Reporte marcado como revisado'
+                  : 'Reporte marcado como pendiente',
+            ),
+          ),
+        );
+        Navigator.pop(context, true);
+      } else {
+        throw Exception('Error al actualizar estado');
+      }
+    } catch (e) {
+      print('❌ Error actualizando estado: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo actualizar el estado')),
+      );
+    }
   }
 }

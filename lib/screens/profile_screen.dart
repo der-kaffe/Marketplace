@@ -5,12 +5,15 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
-import '../services/product_service.dart'; // Importar servicio de productos
-import '../models/product_model.dart'; // Importar modelo de producto
-import '../widgets/product_card.dart'; // Reutilizar la tarjeta de producto
-import '../widgets/product_detail_modal.dart'; // Reutilizar el modal de detalle
+import '../services/product_service.dart';
+import '../services/api_client.dart';
+import '../services/websocket_service.dart';
+import '../models/product_model.dart';
+import '../widgets/product_card.dart';
+import '../widgets/product_detail_modal.dart';
 
 // Instancia global para manejar Google Sign-In
 final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -29,45 +32,91 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = 'Usuario';
   String _userEmail = 'usuario@ejemplo.com';
   String? _userPhotoUrl;
-
   // Campos editables
-  String _apellido = '';
   String _usuario = '';
   String _campus = 'Campus Temuco';
   String? _telefono;
   String? _direccion;
 
-  // --- NUEVO: Estado para los productos del usuario ---
   final ProductService _productService = ProductService();
   List<Product> _myProducts = [];
   bool _isLoadingMyProducts = true;
-  // --- FIN NUEVO ---
+
+  int _favoritesCount = 0;
+  final Set<String> _favoriteProductIds = {};
+  int _reviewsCount = 0; // Placeholder
+
+  // --- ✅ NUEVO: Estado para Transacciones ---
+  final ApiClient _apiClient = ApiClient(baseUrl: getDefaultBaseUrl());
+  final AuthService _authService = AuthService(); 
+  List<TransactionSummary> _myPurchases = [];
+  List<TransactionSummary> _mySales = [];
+  bool _isLoadingPurchases = true;
+  bool _isLoadingSales = true;
+
+  bool _isUploadingPhoto = false; // Para mostrar indicador de carga
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
-    _loadMyProducts(); // Cargar los productos del usuario
+    _initializeProfile();
   }
 
+  Future<void> _initializeProfile() async {
+    setState(() => _isLoading = true);
+    try {
+      await Future.wait([
+        _loadUserData(),
+        _loadMyProducts(),
+        _loadFavoritesCount(),
+        _loadMyPurchases(),
+        _loadMySales(),
+      ]);
+    } catch (e) {
+      print('Error inicializando perfil: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
   Future<void> _loadUserData() async {
     try {
       print('🔍 Cargando datos del perfil desde backend...');
-      final authService = AuthService();
+
+      // ✅ NUEVO: Primero intentar obtener datos frescos del backend
+      try {
+        final token = await _authService.getToken();
+        if (token != null && token.isNotEmpty) {
+          _authService.apiClient.setToken(token);
+          final profileResponse = await _authService.apiClient.getUserProfile();
+          
+          if (profileResponse['success'] == true) {
+            final userData = profileResponse['data'];
+            final updatedUser = User.fromJson(userData);
+            await _authService.saveUserData(updatedUser);
+            print('🔄 Datos del perfil actualizados desde el backend');
+          }
+        }
+      } catch (e) {
+        print('⚠️ No se pudo obtener datos frescos del backend: $e');
+      }
 
       // Obtener datos del usuario actual desde AuthService
-      final currentUser = authService.currentUser;
+      final currentUser = _authService.currentUser;
       if (currentUser != null) {
-        print('👤 Usuario actual del AuthService: ${currentUser.name}');
-        setState(() {
+        print('👤 Usuario actual del AuthService: ${currentUser.name}');        setState(() {
           _userName = currentUser.name;
           _userEmail = currentUser.email;
           // ✅ CORREGIR: Manejar valores nullable con ?? ''
-          _apellido = currentUser.apellido ?? '';
           _usuario = currentUser.usuario ?? '';
           _campus = currentUser.campus ?? 'Campus Temuco';
           _telefono = currentUser.telefono;
           _direccion = currentUser.direccion;
+          // ✅ USAR foto de perfil del usuario o como fallback la de Google
+          if (currentUser.fotoPerfilUrl != null) {
+            _userPhotoUrl = currentUser.fotoPerfilUrl!.startsWith('http') 
+                ? currentUser.fotoPerfilUrl 
+                : '${_apiClient.baseUrl}${currentUser.fotoPerfilUrl}';
+          }
         });
         print('🧠 Rol del usuario: ${currentUser.role}');
         print('🔑 rolId: ${currentUser.rolId}');
@@ -76,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         print('⚠️ No hay usuario autenticado');
         // Intentar obtener desde datos de Google como fallback
-        final googleData = await authService.getGoogleUserData();
+        final googleData = await _authService.getGoogleUserData();
         if (googleData != null) {
           setState(() {
             _userName = googleData['name'] ?? 'Usuario';
@@ -124,16 +173,426 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-  // --- FIN NUEVO ---
 
-  // Método para refrescar los datos del usuario (simplificado)
+  Future<void> _loadFavoritesCount() async {
+    try {
+      final token = await _authService.getToken();
+      if (token != null && token.isNotEmpty) {
+        _authService.apiClient.setToken(token);
+      }
+      final resp = await _authService.apiClient.getProductFavorites(page: 1, limit: 100);
+      if (mounted) {
+        setState(() {
+          _favoritesCount = resp.favorites.length;
+          _favoriteProductIds.clear();
+          for (var fav in resp.favorites) {
+            _favoriteProductIds.add(fav.productoId.toString());
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _favoritesCount = 0);
+      }
+    }
+  }
+
+  // Reemplaza el método de refresco para usar la inicialización paralela
   Future<void> _refreshUserData() async {
-    print('🔄 Refrescando datos del perfil...');
-    setState(() {
-      _isLoading = true;
-    });
-    await _loadUserData();
-    await _loadMyProducts(); // Refrescar también los productos
+    await _initializeProfile();
+  }
+
+  // --- ✅ NUEVO: Métodos para cargar Compras y Ventas ---
+  Future<void> _loadMyPurchases() async {
+    if (!mounted) return;
+    setState(() => _isLoadingPurchases = true);
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token); // Asegurar token en ApiClient
+
+      final response = await _apiClient.getMyPurchases();
+      if (mounted) {
+        setState(() {
+          _myPurchases = response.transactions;
+          _isLoadingPurchases = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error cargando mis compras: $e');
+      if (mounted) {
+        setState(() => _isLoadingPurchases = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cargar compras: ${e is ApiException ? e.message : e.toString()}')),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadMySales() async {
+    if (!mounted) return;
+    setState(() => _isLoadingSales = true);
+    try {
+       final token = await _authService.getToken();
+      if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token); // Asegurar token en ApiClient
+
+      final response = await _apiClient.getMySales();
+       if (mounted) {
+        setState(() {
+          _mySales = response.transactions;
+          _isLoadingSales = false;
+        });
+      }
+    } catch (e) {
+      print('❌ Error cargando mis ventas: $e');
+      if (mounted) {
+        setState(() => _isLoadingSales = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Error al cargar ventas: ${e is ApiException ? e.message : e.toString()}')),
+        );
+      }
+    }
+  }
+
+  // --- ✅ NUEVO: Métodos para Confirmar (ventas vendidas)---
+  Future<void> _confirmReceipt(int transactionId) async {
+    // Mostrar diálogo de confirmación (opcional pero recomendado)
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Recibo'),
+        content: const Text('¿Confirmas que has recibido este producto? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return; // Si cancela, no hacer nada
+
+    // Mostrar indicador de carga
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Confirmando recibo...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final token = await _authService.getToken();
+       if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token);
+
+      await _apiClient.confirmReceipt(transactionId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ ¡Recibo confirmado!'), backgroundColor: Colors.green),
+        );
+        // Recargar la lista de compras para ver el cambio de estado
+        await _loadMyPurchases();
+      }
+    } catch (e) {
+       print('❌ Error confirmando recibo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelivery(int transactionId) async {
+     final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Entrega'),
+        content: const Text('¿Confirmas que has entregado este producto al comprador? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Confirmando entrega...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+       final token = await _authService.getToken();
+       if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token);
+
+      await _apiClient.confirmDelivery(transactionId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ ¡Entrega confirmada!'), backgroundColor: Colors.green),
+        );
+        // Recargar la lista de ventas
+        await _loadMySales();
+      }
+    } catch (e) {
+      print('❌ Error confirmando entrega: $e');
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // Método para alternar favoritos
+  Future<void> _toggleFavorite(Product product) async {
+    try {
+      final productId = int.parse(product.id);
+      final isFavorite = _favoriteProductIds.contains(product.id);
+
+      if (isFavorite) {
+        await _authService.apiClient.removeProductFavorite(productoId: productId);
+        setState(() {
+          _favoriteProductIds.remove(product.id);
+          _favoritesCount--; // Actualiza el contador
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Eliminado de favoritos')),
+          );
+        }
+      } else {
+        await _authService.apiClient.addProductFavorite(productoId: productId);
+        setState(() {
+          _favoriteProductIds.add(product.id);
+          _favoritesCount++; // Actualiza el contador
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Agregado a favoritos')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
+  // Método para alternar visibilidad del producto
+  Future<void> _toggleProductVisibility(Product product) async {
+    try {
+      final productId = int.tryParse(product.id);
+      if (productId == null) {
+        throw Exception('ID de producto inválido');
+      }
+
+      // 1. Tarea Futura: Lógica de "Vendido"
+      // Aquí es donde implementarás la lógica de "ocultar si está vendido"
+      // if (product.estadoProducto == 'vendido') {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(content: Text('No se puede cambiar la visibilidad de un producto vendido.')),
+      //   );
+      //   return; 
+      // }
+
+      final newVisibility = !product.isAvailable;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              ),
+              const SizedBox(width: 16),
+              Text(newVisibility ? 'Haciendo público...' : 'Ocultando...'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // 2. Llamar al backend
+      await _productService.toggleVisibility(
+        productId: productId,
+        visible: newVisibility,
+      );
+
+      // 3. Actualizar UI local (adaptado para _myProducts)
+      setState(() {
+        final productIndex = _myProducts.indexWhere((p) => p.id == product.id);
+        if (productIndex != -1) {
+          _myProducts[productIndex] = product.copyWith(isAvailable: newVisibility);
+        }
+      });
+
+      // 4. Mostrar confirmación
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newVisibility
+                  ? '✅ Producto visible para todos'
+                  : '🔒 Producto oculto',
+            ),
+            backgroundColor: newVisibility ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // 5. Manejo de errores
+      print('❌ Error cambiando visibilidad: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  // Método para cambiar foto de perfil
+  Future<void> _changeProfilePhoto() async {
+    try {
+      // Mostrar opciones de selección
+      final ImageSource? source = await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Wrap(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera),
+                  title: const Text('Tomar foto'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Elegir de galería'),
+                  onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cancel),
+                  title: const Text('Cancelar'),
+                  onTap: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      if (source == null) return;
+
+      setState(() => _isUploadingPhoto = true);
+
+      // Mostrar indicador de carga
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 16),
+              Text('Subiendo foto de perfil...'),
+            ],
+          ),
+          duration: Duration(seconds: 10),
+        ),
+      );
+
+      // Seleccionar imagen
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (image == null) {
+        setState(() => _isUploadingPhoto = false);
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        return;
+      }      // Subir imagen al servidor
+      print('📸 Subiendo foto de perfil desde: ${image.path}');
+      final response = await _apiClient.uploadProfilePhoto(image.path);
+      print('📸 Respuesta del servidor: $response');
+
+      if (response['ok'] == true) {
+        // Actualizar la URL de la foto localmente
+        final newPhotoUrl = response['photoUrl'];
+        final fullUrl = '${_apiClient.baseUrl}$newPhotoUrl';
+        
+        setState(() {
+          _userPhotoUrl = fullUrl;
+          _isUploadingPhoto = false;
+        });
+
+        // ✅ NUEVO: Actualizar también el usuario en AuthService para persistir la foto
+        final currentUser = _authService.currentUser;
+        if (currentUser != null) {
+          final updatedUser = User(
+            id: currentUser.id,
+            email: currentUser.email,
+            name: currentUser.name,
+            rolId: currentUser.rolId,
+            role: currentUser.role,
+            apellido: currentUser.apellido,
+            usuario: currentUser.usuario,
+            campus: currentUser.campus,
+            telefono: currentUser.telefono,
+            direccion: currentUser.direccion,
+            fotoPerfilUrl: newPhotoUrl, // ✅ Actualizar con la nueva URL relativa
+          );
+          await _authService.saveUserData(updatedUser);
+          print('📸 Foto de perfil actualizada en AuthService: $newPhotoUrl');
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Foto de perfil actualizada correctamente'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Error desconocido');
+      }
+    } catch (e) {
+      print('❌ Error cambiando foto de perfil: $e');
+      setState(() => _isUploadingPhoto = false);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -165,11 +624,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildActionItem(
                       icon: Icons.refresh,
                       title: 'Actualizar datos de perfil',
-                      color: AppColors.azulPrimario,
-                      onTap: _refreshUserData,
+                      color: AppColors.azulPrimario,                    onTap: _refreshUserData,
                     ),
-                    _buildEditableInfoItem(Icons.person_outline, 'Apellido',
-                        _apellido, () => _editField('apellido')),
                     _buildEditableInfoItem(Icons.account_circle, 'Usuario',
                         _usuario, () => _editField('usuario')),
                     _buildEditableInfoItem(Icons.school, 'Campus', _campus,
@@ -188,31 +644,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 
                 const SizedBox(height: 16),
-
                 // --- NUEVO: Sección "Mis Productos" ---
                 _buildMyProductsSection(),
-                // --- FIN NUEVO ---
+                const SizedBox(height: 16),
 
+                // secciones de Compras y Ventas
+                _buildPurchasesSection(),
+                const SizedBox(height: 16),
+                _buildSalesSection(),
                 const SizedBox(height: 16),
 
                 const SizedBox(height: 16), // Opciones de cuenta
                 _buildInfoSection(
                   title: 'Mi Cuenta',
-                  items: [
-                    _buildActionItem(
+                  items: [                    _buildActionItem(
                       icon: Icons.favorite,
                       title: 'Mis Favoritos',
                       color: AppColors.error,
-                      onTap: () => _navigateToSection(context, 2),
+                      onTap: () => context.push('/home/favorites'),
                     ),
                     _buildActionItem(
                       icon: Icons.notifications,
                       title: 'Notificaciones',
                       color: AppColors.amarilloPrimario,
-                      onTap: () =>
-                          _showFeatureMessage(context, 'Notificaciones'),
+                      onTap: () => context.push('/home/notifications'),
                     ),
-
+                    _buildActionItem(
+                      icon: Icons.history,
+                      title: 'Historial de Transacciones',
+                      color: Colors.indigo,
+                      onTap: () => context.push('/transactions'),
+                    ),
                     if (AuthService().isAdmin)
                       _buildActionItem(
                         icon: Icons.admin_panel_settings,
@@ -228,7 +690,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 30),
 
                 // Versión de la aplicación
@@ -263,44 +724,80 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
       child: Column(
-        children: [
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.blanco,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.blanco, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha((0.2 * 255).toInt()),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
+        children: [          GestureDetector(
+            onTap: _changeProfilePhoto,
+            child: Stack(
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: AppColors.blanco,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.blanco, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha((0.2 * 255).toInt()),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: _isUploadingPhoto
+                      ? const CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(AppColors.azulPrimario),
+                        )
+                      : _userPhotoUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(50),
+                              child: Image.network(
+                                _userPhotoUrl!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: AppColors.azulPrimario,
+                                  );
+                                },
+                              ),
+                            )
+                          : const Icon(
+                              Icons.person,
+                              size: 60,
+                              color: AppColors.azulPrimario,
+                            ),
+                ),
+                // Icono de cámara para indicar que es clickeable
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: AppColors.amarilloPrimario,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.blanco, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha((0.3 * 255).toInt()),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.camera_alt,
+                      size: 16,
+                      color: AppColors.textoOscuro,
+                    ),
+                  ),
                 ),
               ],
             ),
-            child: _userPhotoUrl != null
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child: Image.network(
-                      _userPhotoUrl!,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.person,
-                          size: 60,
-                          color: AppColors.azulPrimario,
-                        );
-                      },
-                    ),
-                  )
-                : const Icon(
-                    Icons.person,
-                    size: 60,
-                    color: AppColors.azulPrimario,
-                  ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -331,11 +828,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildStatistic('12', 'Pedidos'),
+              _buildStatistic(_myProducts.length.toString(), 'Publicaciones'),
               _verticalDivider(),
-              _buildStatistic('5', 'Favoritos'),
+              _buildStatistic(_favoritesCount.toString(), 'Favoritos'),
               _verticalDivider(),
-              _buildStatistic('3', 'Reseñas'),
+              _buildStatistic(_reviewsCount.toString(), 'Reseñas'),
             ],
           ),
         ],
@@ -415,10 +912,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
   
-  // --- NUEVO: Widget para construir la sección de "Mis Productos" ---
   Widget _buildMyProductsSection() {
     return _buildInfoSection(
-      title: 'Mis Productos',
+      title: 'Mis Publicaciones',
       items: [
         if (_isLoadingMyProducts)
           const Padding(
@@ -434,11 +930,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const Text('No has publicado ningún producto.'),
                   const SizedBox(height: 8),
                   ElevatedButton(
-                    onPressed: () => context.push('/new_post'), 
-                    child: const Text('Publicar mi primer producto')
-                  )
+                      onPressed: () => context.push('/new_post'),
+                      child: const Text('Publicar mi primer producto'))
                 ],
-              )
+              ),
             ),
           )
         else
@@ -450,23 +945,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               itemCount: _myProducts.length,
               itemBuilder: (context, index) {
                 final product = _myProducts[index];
+                
+                // ✅ ESTADO DE FAVORITO EN TIEMPO REAL
+                final isFavorite = _favoriteProductIds.contains(product.id);
+
                 return Container(
                   width: 180,
-                  margin: const EdgeInsets.only(right: 12),
-                  child: ProductCard(
+                  margin: const EdgeInsets.only(right: 12),                  child: ProductCard(
                     title: product.title,
                     description: product.description,
                     price: product.price,
                     imageUrl: product.imageUrl,
-                    isFavorite: product.isFavorite,
+                    imagenes: product.imagenes, // 🖼️ Múltiples imágenes
+                    
+                    // ✅ PASA EL VALOR CALCULADO
+                    isFavorite: isFavorite, 
+                    
                     isAvailable: product.isAvailable,
-                    onToggleFavorite: () {
-                       _showFeatureMessage(context, 'Manejar favoritos desde el perfil');
-                    },
-                    onToggleVisibility: () {
-                      // Lógica para cambiar visibilidad (opcional, requiere más estado)
-                       _showFeatureMessage(context, 'Manejar visibilidad desde el perfil');
-                    },
+                    estadoProducto: product.estadoProducto,
+                    tiempoUso: product.tiempoUso,
+
+                    // ✅ CONECTA LOS MÉTODOS REALES
+                    onToggleFavorite: () => _toggleFavorite(product),
+                    onToggleVisibility: () => _toggleProductVisibility(product),
+
                     onTap: () {
                       showModalBottomSheet(
                         context: context,
@@ -483,7 +985,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
-  // --- FIN NUEVO ---
 
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Padding(
@@ -520,6 +1021,112 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // --- ✅ NUEVO: Widgets para construir las secciones de Compras y Ventas ---
+  Widget _buildPurchasesSection() {
+    return _buildInfoSection(
+      title: 'Mis Compras',
+      items: [
+        if (_isLoadingPurchases)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40.0),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_myPurchases.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: Text('No has realizado ninguna compra aún.')),
+          )
+        else
+          // Usamos ListView.separated para añadir divisores
+          ListView.separated(
+            shrinkWrap: true, // Importante dentro de otro ListView
+            physics: const NeverScrollableScrollPhysics(), // Evitar scroll anidado
+            itemCount: _myPurchases.length,
+            itemBuilder: (context, index) {
+              final purchase = _myPurchases[index];
+              return _buildTransactionTile(purchase, isPurchase: true);
+            },
+            separatorBuilder: (context, index) => const Divider(height: 1),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSalesSection() {
+     return _buildInfoSection(
+      title: 'Mis Ventas',
+      items: [
+        if (_isLoadingSales)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40.0),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_mySales.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: Text('No has realizado ninguna venta aún.')),
+          )
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _mySales.length,
+            itemBuilder: (context, index) {
+              final sale = _mySales[index];
+              return _buildTransactionTile(sale, isPurchase: false);
+            },
+             separatorBuilder: (context, index) => const Divider(height: 1),
+          ),
+      ],
+    );
+  }
+
+  // Widget reutilizable para mostrar una compra o venta
+  Widget _buildTransactionTile(TransactionSummary transaction, {required bool isPurchase}) {
+    final user = isPurchase ? transaction.vendedor : transaction.comprador;
+    final canConfirm = transaction.estado == 'Pendiente'; // Solo se puede confirmar si está pendiente
+    final alreadyConfirmed = isPurchase ? transaction.confirmacionComprador : transaction.confirmacionVendedor;
+    final showConfirmButton = canConfirm && !alreadyConfirmed;
+
+    return ListTile(
+      // leading: CircleAvatar(child: Icon(Icons.shopping_bag)), // O imagen del producto
+      title: Text(transaction.producto.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+           Text('${DateFormat('dd/MM/yyyy HH:mm').format(transaction.fecha)} - ${_formatCLP(transaction.precioTotal)}'),
+          if (user != null) Text(isPurchase ? 'Vendedor: ${user.nombreCompleto}' : 'Comprador: ${user.nombreCompleto}'),
+          Row( // Mostrar estado y confirmaciones
+            children: [
+              Text('Estado: ${transaction.estado}'),
+              const SizedBox(width: 8),
+              if (transaction.confirmacionVendedor) const Icon(Icons.check_circle, color: Colors.blue, size: 16), // Vendedor OK
+              if (transaction.confirmacionComprador) const Icon(Icons.check_circle, color: Colors.green, size: 16), // Comprador OK
+            ],
+          )
+        ],
+      ),
+      trailing: showConfirmButton
+          ? ElevatedButton(
+              onPressed: () {
+                if (isPurchase) {
+                  _confirmReceipt(transaction.id);
+                } else {
+                  _confirmDelivery(transaction.id);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                 padding: const EdgeInsets.symmetric(horizontal: 8),
+                 minimumSize: const Size(0, 30), // Botón más pequeño
+                 backgroundColor: isPurchase ? Colors.green : Colors.blue,
+              ),
+              child: Text(isPurchase ? 'Recibido' : 'Entregado', style: const TextStyle(fontSize: 12)),
+            )
+          : null, // No mostrar botón si no se puede confirmar
+       isThreeLine: true, // Ajustar si el subtítulo tiene varias líneas
+    );
+  }
+
   String _formatCLP(num value) {
     final format =
         NumberFormat.currency(locale: 'es_CL', symbol: '\$', decimalDigits: 0);
@@ -531,75 +1138,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .trim();
   }
 
-  Widget _buildOrderItem({
-    required String orderNumber,
-    required String date,
-    required String status,
-    required double amount,
-    required Color statusColor,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: AppColors.azulPrimario.withAlpha((0.1 * 255).toInt()),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child:
-                const Icon(Icons.shopping_bag, color: AppColors.azulPrimario),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(orderNumber,
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textoOscuro)),
-                    Text(_formatCLP(amount),
-                        style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.azulOscuro)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(date,
-                        style: const TextStyle(
-                            fontSize: 14, color: AppColors.textoSecundario)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                          color: statusColor.withAlpha((0.1 * 255).toInt()),
-                          borderRadius: BorderRadius.circular(4)),
-                      child: Text(status,
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildActionItem({
     required IconData icon,
@@ -634,21 +1172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showFeatureMessage(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Próximamente: $feature'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.azulPrimario,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
 
-  void _navigateToSection(BuildContext context, int index) {
-    if (Navigator.canPop(context)) Navigator.pop(context);
-    _showFeatureMessage(context, 'Navegando a la sección $index');
-  }
 
   // 🔹 Logout con confirmación, Google Sign-In y go_router
   void _logout(BuildContext context) {
@@ -668,6 +1192,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pop(context);
 
                 try {
+                  // 🔹 Desconectar el socket antes de cerrar sesión
+                  final wsService = WebSocketService();
+                  wsService.disconnect();
+
                   // 🔹 Cerrar sesión en Google
                   await _googleSignIn.signOut();
 
@@ -731,11 +1259,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   } // Método auxiliar para obtener el valor actual de un campo
-
   String _getCurrentValue(String fieldType) {
     switch (fieldType) {
-      case 'apellido':
-        return _apellido;
       case 'usuario':
         return _usuario;
       case 'campus':
@@ -801,25 +1326,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),
-                  labelText: fieldType == 'teléfono'
+                  border: const OutlineInputBorder(),                  labelText: fieldType == 'teléfono'
                       ? 'Número de teléfono'
-                      : fieldType == 'apellido'
-                          ? 'Apellido'
-                          : fieldType == 'usuario'
-                              ? 'Nombre de usuario'
-                              : fieldType == 'campus'
-                                  ? 'Campus'
-                                  : 'Dirección',
+                      : fieldType == 'usuario'
+                          ? 'Nombre de usuario'
+                          : fieldType == 'campus'
+                              ? 'Campus'
+                              : 'Dirección',
                   hintText: fieldType == 'teléfono'
                       ? '+56 9 1234 5678'
-                      : fieldType == 'apellido'
-                          ? 'Ej: García'
-                          : fieldType == 'usuario'
-                              ? 'Ej: juan_garcia'
-                              : fieldType == 'campus'
-                                  ? 'Campus Temuco'
-                                  : 'Ej: Av. Alemania 0211, Temuco',
+                      : fieldType == 'usuario'
+                          ? 'Ej: juan_garcia'
+                          : fieldType == 'campus'
+                              ? 'Campus Temuco'
+                              : 'Ej: Av. Alemania 0211, Temuco',
                 ),
                 keyboardType: fieldType == 'teléfono'
                     ? TextInputType.phone
@@ -881,14 +1401,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // Llamar al backend para actualizar
-      final apiClient = authService.apiClient;
-
-      // Crear el objeto de actualización con solo el campo que cambió
+      final apiClient = authService.apiClient;      // Crear el objeto de actualización con solo el campo que cambió
       Map<String, String?> updateParams = {};
       switch (fieldType) {
-        case 'apellido':
-          updateParams['apellido'] = newValue;
-          break;
         case 'usuario':
           updateParams['usuario'] = newValue;
           break;
@@ -901,10 +1416,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         case 'dirección':
           updateParams['direccion'] = newValue.isEmpty ? null : newValue;
           break;
-      }
-
-      final response = await apiClient.updateProfile(
-        apellido: updateParams['apellido'],
+      }      final response = await apiClient.updateProfile(
         // ✅ REMOVIDO: usuario: updateParams['usuario'],
         campus: updateParams['campus'],
         telefono: updateParams['telefono'],
@@ -914,12 +1426,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       print('✅ Respuesta del servidor: $response');
 
       // Solo actualizar localmente si la llamada al backend fue exitosa
-      if (mounted) {
-        setState(() {
+      if (mounted) {        setState(() {
           switch (fieldType) {
-            case 'apellido':
-              _apellido = newValue;
-              break;
             case 'usuario':
               _usuario = newValue;
               break;
@@ -962,14 +1470,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-
   // Función para generar mensajes específicos de actualización
   String _getUpdateMessage(String fieldType, String newValue) {
     switch (fieldType) {
-      case 'apellido':
-        return newValue.isEmpty
-            ? 'Apellido eliminado correctamente'
-            : 'Apellido actualizado a: $newValue';
       case 'usuario':
         return 'Nombre de usuario actualizado a: $newValue';
       case 'campus':

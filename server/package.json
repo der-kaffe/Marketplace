@@ -10,10 +10,12 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
-    "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset",
+    "db:seed:categories": "node prisma/seed_categories.js",
+    "db:studio": "prisma studio",    "db:reset": "prisma migrate reset",
     "verify": "node verify-setup.js",
-    "setup": "node setup-postgresql.js"
+    "setup": "node setup-postgresql.js",
+    "security:generate-secrets": "node scripts/generate-jwt-secrets.js",
+    "security:audit": "npm audit && npm audit fix"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -22,6 +24,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^7.2.0",
     "express-validator": "^7.0.1",
+    "firebase-admin": "^13.5.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",

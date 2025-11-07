@@ -1,6 +1,7 @@
 // lib/screens/home_screen.dart (actualizado con solución de duplicados y búsqueda por rango de precio)
 
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import '../models/product_model.dart' as ProductModel;
 import '../services/product_service.dart';
 import '../services/auth_service.dart';
@@ -12,34 +13,36 @@ import '../widgets/category_card.dart';
 import '../widgets/product_card.dart';
 import 'package:flutter/services.dart'; // Importante para TextInputFormatter
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> with RouteAware {
   final ProductService _productService = ProductService();
   final ScrollController _scrollController = ScrollController();
   final AuthService _authService = AuthService();
 
-  final List<Product> _allProducts =
-      []; // Almacena *todos* los productos cargados (puede acumular duplicados si se recarga mal)
-  final List<Product> _originalProducts =
-      []; // Almacena *una sola vez* los productos iniciales, limpia de duplicados
-  List<Product> _filteredProducts =
-      []; // Almacena los productos *filtrados* o la copia de _originalProducts
+  // El "Master" de todos los productos, acceso instantáneo por ID.
+  final Map<String, Product> _masterProductMap = {};
+  // Lista de IDs que se deben mostrar en la UI, en orden.
+  List<String> _filteredProductIds = [];
+
   List<ProductModel.ApiCategory> _apiCategories = [];
   bool _isLoadingProducts = false;
   bool _isLoadingCategories = true;
   String? _errorCategories;
   int _page = 1;
-  final int _limit = 4;
+  final int _limit = 20;
   final Set<String> _favoriteProductIds = {};
 
   String? _selectedCategoryName;
   int? _selectedCategoryId;
+  bool _hasLoadedAllProducts = false; // Control para evitar cargas innecesarias
 
   // --- NUEVO: Estados para el filtro de rango de precio ---
   double? _precioMinimo;
@@ -49,19 +52,55 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadCategories();
-    _loadMoreProducts(); // Carga productos iniciales
-    _loadFavorites();
+
+    // ✅ OPTIMIZACIÓN: Cargar todo en paralelo, no en serie.
+    // Esto inicia todas las llamadas de red al mismo tiempo.
+    _loadDataParalelamente();
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels >=
               _scrollController.position.maxScrollExtent - 200 &&
           !_isLoadingProducts &&
-          _selectedCategoryName == null) {
-        // No cargar más si hay un filtro activo
+          _selectedCategoryId == null &&
+          _precioMinimo == null &&
+          _precioMaximo == null &&
+          _masterProductMap.isNotEmpty &&
+          !_hasLoadedAllProducts) {
         _loadMoreProducts();
       }
     });
+  }
+
+  // ✅ NUEVO MÉTODO HELPER para la carga paralela
+  Future<void> _loadDataParalelamente() async {
+    // Inicia todas las cargas y espera a que terminen juntas.
+    // El usuario verá los productos, categorías y favoritos
+    // aparecer casi al mismo tiempo.
+    await Future.wait([
+      _loadCategories(),
+      _loadMoreProducts(),
+      _loadFavorites(),
+    ]);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Registrar el observer
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Se llama cuando vuelves a Home desde otra pantalla
+    forceRefreshProducts();
   }
 
   Future<void> _loadCategories() async {
@@ -188,24 +227,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       // 5. Actualizar UI local solo si la petición fue exitosa
+      // ✅ OPTIMIZACIÓN: Solo actualiza el Map.
+      // El GridView leerá este cambio la próxima vez que se redibuje.
       setState(() {
-        // Actualizar en _allProducts
-        final productIndex = _allProducts.indexWhere((p) => p.id == product.id);
-        if (productIndex != -1) {
-          _allProducts[productIndex] = product.copyWith(isAvailable: newVisibility);
-        }
-
-        // Actualizar en _originalProducts
-        final originalIndex = _originalProducts.indexWhere((p) => p.id == product.id);
-        if (originalIndex != -1) {
-          _originalProducts[originalIndex] = product.copyWith(isAvailable: newVisibility);
-        }
-
-        // Actualizar en _filteredProducts
-        final filteredIndex = _filteredProducts.indexWhere((p) => p.id == product.id);
-        if (filteredIndex != -1) {
-          _filteredProducts[filteredIndex] = product.copyWith(isAvailable: newVisibility);
-        }
+        final updatedProduct = product.copyWith(isAvailable: newVisibility);
+        _masterProductMap[product.id] = updatedProduct;
       });
 
       // 6. Mostrar confirmación
@@ -213,9 +239,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              newVisibility 
-                ? '✅ Producto visible para todos' 
-                : '🔒 Producto oculto',
+              newVisibility
+                  ? '✅ Producto visible para todos'
+                  : '🔒 Producto oculto',
             ),
             backgroundColor: newVisibility ? Colors.green : Colors.orange,
             duration: const Duration(seconds: 2),
@@ -223,16 +249,26 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
 
-      print('✅ Visibilidad actualizada: $newVisibility para producto #$productId');
-
+      print(
+          '✅ Visibilidad actualizada: $newVisibility para producto #$productId');
     } catch (e) {
-      // 7. Manejo de errores
+      // 7. MANEJO DE ERRORES MEJORADO
       print('❌ Error cambiando visibilidad: $e');
+
+      String errorMessage = 'Error: ${e.toString()}'; // Mensaje por defecto
+      Color errorColor = Colors.red; // Color por defecto
+
+      // Comprobar si es un error de permiso
+      if (e.toString().contains('No tienes permiso')) {
+        errorMessage = 'No puedes ocultar una publicación que no te pertenece.';
+        errorColor = Colors.orange; // Usar un color de "advertencia"
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            content: Text(errorMessage),
+            backgroundColor: errorColor, // Usar el color dinámico
             duration: const Duration(seconds: 3),
           ),
         );
@@ -242,9 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Método para cargar productos (simula paginación)
   Future<void> _loadMoreProducts() async {
-    if (_isLoadingProducts || _selectedCategoryName != null)
-      return; // No cargar si hay filtro activo o ya está cargando
-
+    if (_isLoadingProducts || _hasLoadedAllProducts) return;
     setState(() => _isLoadingProducts = true);
 
     try {
@@ -254,37 +288,68 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       setState(() {
-        // Lógica para poblar _allProducts y _originalProducts
-        if (_allProducts.isEmpty && _originalProducts.isEmpty) {
-          // Primera carga: poblar ambas listas
-          _allProducts.addAll(newProducts);
-          _originalProducts
-              .addAll(newProducts); // Guardar copia limpia original
-          _filteredProducts =
-              List.from(_originalProducts); // Mostrar originales
-        } else if (_allProducts.isNotEmpty && _originalProducts.isNotEmpty) {
-          // Carga paginada: añadir solo a _allProducts
-          _allProducts.addAll(newProducts);
-          // Si NO hay filtro activo, también añadir a _filteredProducts
-          if (_selectedCategoryName == null) {
-            _filteredProducts.addAll(newProducts);
-          }
+        if (newProducts.isEmpty || newProducts.length < _limit) {
+          _hasLoadedAllProducts = true;
+          print('✅ Todos los productos han sido cargados...');
         }
+
+        // ✅ OPTIMIZACIÓN: Añadir a Map y a lista de IDs
+        for (var product in newProducts) {
+          _masterProductMap[product.id] = product;
+        }
+
+        // Si no hay filtro, añade los nuevos IDs a la lista visible
+        if (_selectedCategoryId == null &&
+            _precioMinimo == null &&
+            _precioMaximo == null) {
+          _filteredProductIds.addAll(newProducts.map((p) => p.id));
+        }
+
         _page++;
       });
-
-      print(
-          '✅ Productos cargados: ${newProducts.length} (total _allProducts: ${_allProducts.length}, total _originalProducts: ${_originalProducts.length})');
+      print('✅ Productos cargados: ${newProducts.length}');
     } catch (e) {
       print('❌ Error cargando productos: $e');
-      setState(() => _isLoadingProducts = false);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error cargando productos: $e')),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProducts = false);
+      }
     }
+  }
+
+  Future<void> forceRefreshProducts() async {
+    print('🔄 Forzando recarga de productos...');
+
+    setState(() {
+      _page = 1;
+      // ✅ OPTIMIZACIÓN: Limpiar el Map y la lista de IDs
+      _masterProductMap.clear();
+      _filteredProductIds.clear();
+
+      _selectedCategoryName = null;
+      _selectedCategoryId = null;
+      _precioMinimo = null;
+      _precioMaximo = null;
+      _hasLoadedAllProducts = false;
+      _isLoadingProducts = false;
+    });
+
+    // Llama a _loadMoreProducts, que ahora llenará las nuevas estructuras
+    await _loadMoreProducts();
+  }
+
+  void _removeProductFromUI(String productId) {
+    setState(() {
+      // ✅ OPTIMIZACIÓN: Eliminar de Map y de lista de IDs
+      _masterProductMap.remove(productId);
+      _filteredProductIds.remove(productId);
+    });
+    print('✅ UI actualizada. Producto $productId eliminado de la lista.');
   }
 
   // --- NUEVO: Función auxiliar corregida para obtener nombres de subcategorías ---
@@ -311,7 +376,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return names;
   }
-  // --- FIN NUEVO ---
 
   // --- NUEVO: Método para abrir el modal de filtros ---
   void _showPriceFilterModal() {
@@ -437,38 +501,39 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-  // --- FIN NUEVO ---
 
-  // --- NUEVO: Método para aplicar el filtro combinado ---
   void _applyCombinedFilter() {
+    // ✅ OPTIMIZACIÓN: Iterar sobre 'values' del Map es más rápido que una lista
+    List<Product> sourceList = _masterProductMap.values.toList();
+
+    // Filtrar por categoría
+    if (_selectedCategoryId != null) {
+      Set<String> categoryNamesToFilter =
+          _getAllSubcategoryNames(_selectedCategoryId!, _apiCategories);
+      sourceList = sourceList.where((product) {
+        return categoryNamesToFilter.contains(product.category);
+      }).toList();
+    }
+
+    // Filtrar por precio
+    if (_precioMinimo != null || _precioMaximo != null) {
+      sourceList = sourceList.where((product) {
+        bool passesMinCheck =
+            _precioMinimo == null || product.price >= _precioMinimo!;
+        bool passesMaxCheck =
+            _precioMaximo == null || product.price <= _precioMaximo!;
+        return passesMinCheck && passesMaxCheck;
+      }).toList();
+    }
+
     setState(() {
-      // Comienza con la lista original
-      _filteredProducts = List.from(_originalProducts);
-
-      // Filtrar por categoría si hay una seleccionada
-      if (_selectedCategoryId != null) {
-        Set<String> categoryNamesToFilter =
-            _getAllSubcategoryNames(_selectedCategoryId!, _apiCategories);
-        _filteredProducts = _filteredProducts.where((product) {
-          return categoryNamesToFilter.contains(product.category);
-        }).toList();
-      }
-
-      // Filtrar por precio si hay un rango establecido
-      if (_precioMinimo != null || _precioMaximo != null) {
-        _filteredProducts = _filteredProducts.where((product) {
-          bool passesMinCheck =
-              _precioMinimo == null || product.price >= _precioMinimo!;
-          bool passesMaxCheck =
-              _precioMaximo == null || product.price <= _precioMaximo!;
-          return passesMinCheck && passesMaxCheck;
-        }).toList();
-      }
+      // Almacena solo los IDs de los productos filtrados
+      _filteredProductIds = sourceList.map((p) => p.id).toList();
     });
+
     print(
-        '🔍 Aplicando filtro combinado. Productos filtrados: ${_filteredProducts.length}');
+        '🔍 Aplicando filtro combinado. Productos filtrados: ${_filteredProductIds.length}');
   }
-  // --- FIN NUEVO ---
 
   // --- ACTUALIZAR: _filterProductsByCategory para usar _applyCombinedFilter ---
   void _filterProductsByCategory(int? categoryId, String? categoryName) {
@@ -488,15 +553,192 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _page = 1; // Reiniciar página si se aplica un filtro
     print(
-        '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProducts.length}');
+        '🔍 Filtrando por categoría: $categoryName (ID: $categoryId) y precio. Productos filtrados: ${_filteredProductIds.length}');
   }
-  // --- FIN ACTUALIZAR ---
 
-  // --- ACTUALIZAR: _clearCategoryFilter para usar _applyCombinedFilter ---
+  // --- ACTUALIZAR: _clearCategoryFilter para limpiar todos los filtros ---
   void _clearCategoryFilter() {
-    _filterProductsByCategory(null, null);
+    setState(() {
+      _selectedCategoryId = null;
+      _selectedCategoryName = null;
+      _precioMinimo = null;
+      _precioMaximo = null;
+      // ✅ OPTIMIZACIÓN: Restaura la lista de IDs desde las llaves del Map
+      _filteredProductIds = _masterProductMap.keys.toList();
+    });
+    print(
+        '🔍 Filtros limpiados. Mostrando todos los productos: ${_filteredProductIds.length}');
   }
-  // --- FIN ACTUALIZAR ---
+
+  // --- NUEVO: Mapeo de iconos por categoría ---
+  IconData _getIconForCategory(String categoryName) {
+    final name = categoryName.toLowerCase();
+    switch (name) {
+      // Principales
+      case 'vehículos':
+      case 'vehiculos':
+        return Icons.directions_car;
+      case 'propiedades':
+        return Icons.home_filled;
+      case 'electrónicos':
+      case 'electronicos':
+        return Icons.devices;
+      case 'hogar y jardín':
+      case 'hogar y jardin':
+        return Icons.yard;
+      case 'ropa y accesorios':
+        return Icons.checkroom;
+      case 'familia':
+        return Icons.family_restroom;
+      case 'ocio y entretenimiento':
+        return Icons.local_activity;
+      case 'mascotas':
+        return Icons.pets;
+      case 'deportes':
+        return Icons.sports_soccer;
+      case 'juguetes y juegos':
+        return Icons.toys;
+      case 'servicios':
+        return Icons.handyman;
+      case 'empleos':
+        return Icons.work;
+      case 'gratis':
+        return Icons.card_giftcard;
+      case 'clasificados':
+        return Icons.campaign;
+      case 'libros':
+        return Icons.menu_book;
+
+      // Subcategorías comunes
+      case 'autos':
+        return Icons.directions_car_filled;
+      case 'motos':
+        return Icons.two_wheeler;
+      case 'camionetas y suv':
+        return Icons.directions_car;
+      case 'repuestos y accesorios':
+        return Icons.build;
+      case 'bicicletas':
+        return Icons.pedal_bike;
+
+      case 'arriendo':
+        return Icons.apartment;
+      case 'venta':
+        return Icons.house_siding;
+      case 'habitaciones':
+        return Icons.bed;
+
+      case 'computadoras':
+        return Icons.computer;
+      case 'laptops':
+        return Icons.laptop_mac;
+      case 'smartphones':
+        return Icons.phone_android;
+      case 'tablets':
+        return Icons.tablet_mac;
+      case 'audio y parlantes':
+        return Icons.speaker;
+      case 'consolas y videojuegos':
+        return Icons.sports_esports;
+      case 'accesorios':
+        return Icons.memory;
+
+      case 'muebles':
+        return Icons.chair_alt;
+      case 'electrodomésticos':
+      case 'electrodomesticos':
+        return Icons.kitchen;
+      case 'decoración':
+      case 'decoracion':
+        return Icons.emoji_objects;
+      case 'herramientas':
+        return Icons.handyman;
+      case 'jardinería':
+      case 'jardineria':
+        return Icons.yard;
+
+      case 'hombre':
+        return Icons.male;
+      case 'mujer':
+        return Icons.female;
+      case 'niños':
+      case 'ninos':
+        return Icons.child_friendly;
+      case 'calzado':
+        return Icons.hiking;
+      case 'bolsos y accesorios':
+        return Icons.shopping_bag;
+
+      case 'bebés':
+      case 'bebes':
+        return Icons.baby_changing_station;
+      case 'cuidado infantil':
+        return Icons.stroller;
+
+      case 'libros y revistas':
+        return Icons.menu_book;
+      case 'música e instrumentos':
+      case 'musica e instrumentos':
+        return Icons.music_note;
+      case 'coleccionables':
+        return Icons.auto_awesome;
+
+      case 'alimentos y accesorios':
+        return Icons.pets;
+      case 'adopciones':
+        return Icons.volunteer_activism;
+
+      case 'fitness':
+        return Icons.fitness_center;
+      case 'ciclismo':
+        return Icons.pedal_bike;
+      case 'fútbol':
+      case 'futbol':
+        return Icons.sports_soccer;
+
+      case 'juegos de mesa':
+        return Icons.table_rows;
+      case 'juguetes educativos':
+        return Icons.extension;
+
+      case 'clases particulares':
+        return Icons.menu_book;
+      case 'reparaciones':
+        return Icons.build_circle;
+      case 'limpieza':
+        return Icons.cleaning_services;
+
+      case 'tiempo completo':
+        return Icons.work;
+      case 'medio tiempo':
+        return Icons.work_outline;
+      case 'freelance':
+        return Icons.laptop_mac;
+
+      case 'anuncios':
+        return Icons.campaign;
+      case 'intercambios':
+        return Icons.swap_horiz;
+
+      case 'regalos':
+        return Icons.card_giftcard;
+
+      case 'académicos':
+      case 'academicos':
+        return Icons.school;
+      case 'ficción':
+      case 'ficcion':
+        return Icons.menu_book_outlined;
+      case 'no ficción':
+      case 'no ficcion':
+        return Icons.menu_book_rounded;
+
+      case 'todo':
+        return Icons.apps;
+      default:
+        return Icons.category;
+    }
+  }
 
   // --- NUEVO: Búsqueda de productos por texto (ignora tildes/acentos) ---
   String _normalizeText(String text) {
@@ -517,26 +759,25 @@ class _HomeScreenState extends State<HomeScreen> {
         _applyCombinedFilter();
       } else {
         final normalizedQuery = _normalizeText(query);
-        _filteredProducts = _originalProducts.where((product) {
-          final titleNorm = _normalizeText(product.title);
-          final descNorm = _normalizeText(product.description);
-          return titleNorm.contains(normalizedQuery) || descNorm.contains(normalizedQuery);
-        }).toList();
+        // ✅ OPTIMIZACIÓN: Filtrar el Map y solo devolver los IDs
+        _filteredProductIds = _masterProductMap.values
+            .where((product) {
+              final titleNorm = _normalizeText(product.title);
+              final descNorm = _normalizeText(product.description);
+              return titleNorm.contains(normalizedQuery) ||
+                  descNorm.contains(normalizedQuery);
+            })
+            .map((p) => p.id)
+            .toList(); // Solo guarda los IDs
       }
     });
   }
   // --- FIN NUEVO ---
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_isLoadingProducts && _originalProducts.isEmpty) {
-      // Cambiado a _originalProducts
+    // ✅ CORRECCIÓN 1: Comprobar el Map en lugar de la lista antigua
+    if (_isLoadingProducts && _masterProductMap.isEmpty) {
       return const Scaffold(
         body: Center(
           child: SpinKitWave(
@@ -556,7 +797,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: TextField(
             decoration: InputDecoration(
               hintText: 'Buscar productos...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.azulPrimario),
+              prefixIcon:
+                  const Icon(Icons.search, color: AppColors.azulPrimario),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: AppColors.azulPrimario),
@@ -567,11 +809,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.amarilloPrimario, width: 2),
+                borderSide: const BorderSide(
+                    color: AppColors.amarilloPrimario, width: 2),
               ),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
             ),
             onChanged: (value) {
               _searchProductsByText(value);
@@ -580,286 +824,396 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_alt, color: AppColors.amarilloPrimario),
+            icon:
+                const Icon(Icons.filter_alt, color: AppColors.amarilloPrimario),
             onPressed: _showPriceFilterModal,
             tooltip: 'Filtrar por precio',
           ),
         ],
       ),
       backgroundColor: AppColors.fondoClaro,
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.azulPrimario,
-                    AppColors.azulPrimario.withValues(alpha: 0.8)
+      body: RefreshIndicator(
+        onRefresh: forceRefreshProducts,
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.azulPrimario,
+                      AppColors.azulPrimario.withOpacity(0.8)
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.azulPrimario.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
                   ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.azulPrimario.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '¡Bienvenido al MicroMarket!',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Descubre productos increíbles de la comunidad UCT',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
-
-                  if (!_isLoadingCategories && _apiCategories.isNotEmpty) ...[
-                    const Text(
-                      'Categorías',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.azulPrimario,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 120,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _apiCategories.length,
-                        itemBuilder: (context, index) {
-                          final category = _apiCategories[index];
-                          Color color = _getCategoryColor(index);
-                          String title = category.nombre;
-                          IconData icon =
-                              ProductService.getIconForName('category');
-
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              left: index == 0 ? 16 : 8,
-                              right:
-                                  index == _apiCategories.length - 1 ? 16 : 0,
-                            ),
-                            child: CategoryCard(
-                              icon: icon,
-                              title: title,
-                              color: color,
-                              onTap: () {
-                                _filterProductsByCategory(
-                                    category.id, category.nombre);
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ] else if (_isLoadingCategories) ...[
-                    const Text(
-                      'Categorías',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.azulPrimario,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Center(child: CircularProgressIndicator()),
-                    const SizedBox(height: 16),
-                  ] else if (_errorCategories != null) ...[
-                    const Text(
-                      'Categorías',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.azulPrimario,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Error al cargar categorías: $_errorCategories'),
-                          ElevatedButton(
-                            onPressed: _loadCategories,
-                            child: const Text('Reintentar'),
+                          const Text(
+                            '¡Bienvenido al MicroMarket!',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Descubre productos increíbles de la comunidad UCT',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                  ] else if (_apiCategories.isEmpty) ...[
-                    const Text(
-                      'Categorías',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.azulPrimario,
-                      ),
+                    const SizedBox(width: 16),
+                    SizedBox(
+                      height: 100,
+                      width: 100,
+                      child: Image.asset('assets/logoMarket.png',
+                          fit: BoxFit.contain),
                     ),
-                    const SizedBox(height: 16),
-                    const Center(child: Text('No hay categorías disponibles.')),
-                    const SizedBox(height: 16),
                   ],
-
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: AppColors.amarilloPrimario
-                                    .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.star,
-                                color: AppColors.amarilloPrimario,
-                                size: 24,
-                              ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    if (!_isLoadingCategories && _apiCategories.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: AppColors.azulPrimario,
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Productos',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.azulPrimario,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            childAspectRatio: 0.75,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
                           ),
-                          itemCount: _filteredProducts.length +
-                              (_isLoadingProducts &&
-                                      _selectedCategoryName == null
-                                  ? 1
-                                  : 0),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Categorías',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.azulPrimario,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        height:
+                            150, // Aumentar altura para dar espacio a la sombra
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 5), // Padding vertical para la sombra
+                          itemCount:
+                              _apiCategories.length + 1, // +1 para "Todo"
                           itemBuilder: (context, index) {
-                            if (index >= _filteredProducts.length) {
-                              if (_isLoadingProducts &&
-                                  _selectedCategoryName == null) {
-                                return const Center(
-                                  child: SpinKitFadingCircle(
-                                    color: AppColors.azulPrimario,
-                                    size: 40.0,
-                                  ),
-                                );
-                              } else {
-                                return Container();
-                              }
+                            // Primera tarjeta es "Todo"
+                            if (index == 0) {
+                              return Container(
+                                margin:
+                                    const EdgeInsets.only(left: 20, right: 12),
+                                child: CategoryCard(
+                                  icon: _getIconForCategory('todo'),
+                                  title: 'Todo',
+                                  color: AppColors.azulPrimario,
+                                  onTap: () {
+                                    _clearCategoryFilter();
+                                  },
+                                ),
+                              );
                             }
 
-                            final product = _filteredProducts[index];
-                            final isFavorite =
-                                _favoriteProductIds.contains(product.id);
+                            // Resto de categorías
+                            final category = _apiCategories[index - 1];
+                            Color color = _getCategoryColor(index - 1);
+                            String title = category.nombre;
+                            IconData icon =
+                                _getIconForCategory(category.nombre);
 
-                            return ProductCard(
-                              title: product.title,
-                              description: product.description,
-                              price: product.price,
-                              imageUrl: product.imageUrl,
-                              isFavorite: isFavorite,
-                              isAvailable: product.isAvailable,
-                              // ✅ CAMBIAR: Usar el nuevo método conectado al backend
-                              onToggleVisibility: () => _toggleProductVisibility(product),
-                              onToggleFavorite: () => _toggleFavorite(product),
-                              onTap: () {
-                                print('🆔 ID del producto: ${product.id}');
-                                showModalBottomSheet(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: Colors.transparent,
-                                  builder: (_) => ProductDetailModal(product: product),
-                                );
-                              },
+                            return Container(
+                              margin: EdgeInsets.only(
+                                right: index == _apiCategories.length ? 20 : 12,
+                              ),
+                              child: CategoryCard(
+                                icon: icon,
+                                title: title,
+                                color: color,
+                                onTap: () {
+                                  _filterProductsByCategory(
+                                      category.id, category.nombre);
+                                },
+                              ),
                             );
                           },
                         ),
-                        if (_selectedCategoryName != null &&
-                            _filteredProducts.isEmpty &&
-                            !_isLoadingProducts)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: Text(
-                                  'No se encontraron productos en esta categoría.'),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (_isLoadingCategories) ...[
+                      Row(
+                        children: [
+                          Container(
+                            width: 4,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: AppColors.azulPrimario,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                        // Mensaje si hay filtro de precio activo pero no hay productos
-                        if (_precioMinimo != null || _precioMaximo != null)
-                          if (_filteredProducts.isEmpty && !_isLoadingProducts)
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Categorías',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.azulPrimario,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Center(child: CircularProgressIndicator()),
+                      const SizedBox(height: 16),
+                    ] else if (_errorCategories != null) ...[
+                      const Text(
+                        'Categorías',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.azulPrimario,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: Column(
+                          children: [
+                            Text(
+                                'Error al cargar categorías: $_errorCategories'),
+                            ElevatedButton(
+                              onPressed: _loadCategories,
+                              child: const Text('Reintentar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else if (_apiCategories.isEmpty) ...[
+                      const Text(
+                        'Categorías',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.azulPrimario,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Center(
+                          child: Text('No hay categorías disponibles.')),
+                      const SizedBox(height: 16),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.amarilloPrimario
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.star,
+                                  color: AppColors.amarilloPrimario,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Productos',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.azulPrimario,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          _filteredProductIds.isEmpty && !_isLoadingProducts
+                              ? Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 40),
+                                    child: Text(
+                                      'No se encontraron productos.',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    childAspectRatio: 0.75,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                  ),
+                                  itemCount: _filteredProductIds.length +
+                                      (_isLoadingProducts &&
+                                              _selectedCategoryName == null
+                                          ? 1
+                                          : 0),
+                                  itemBuilder: (context, index) {
+                                    if (index >= _filteredProductIds.length) {
+                                      if (_isLoadingProducts &&
+                                          _selectedCategoryName == null) {
+                                        return const Center(
+                                          child: SpinKitFadingCircle(
+                                            color: AppColors.azulPrimario,
+                                            size: 40.0,
+                                          ),
+                                        );
+                                      } else {
+                                        return Container();
+                                      }
+                                    }
+
+                                    final productId =
+                                        _filteredProductIds[index];
+                                    final product =
+                                        _masterProductMap[productId];
+
+                                    // Si el producto es nulo (no debería pasar),
+                                    // muestra un contenedor vacío.
+                                    if (product == null) {
+                                      print(
+                                          '❌ Error: Producto con ID $productId no encontrado en el Map.');
+                                      return Container();
+                                    }
+
+                                    final isFavorite = _favoriteProductIds
+                                        .contains(product.id);
+                                    return ProductCard(
+                                      title: product.title,
+                                      description: product.description,
+                                      price: product.price,
+                                      imageUrl: product.imageUrl,
+                                      imagenes: product
+                                          .imagenes, // 🖼️ Múltiples imágenes
+                                      isFavorite: isFavorite,
+                                      isAvailable: product.isAvailable,
+                                      estadoProducto: product.estadoProducto,
+                                      tiempoUso: product.tiempoUso,
+                                      onToggleVisibility: () =>
+                                          _toggleProductVisibility(product),
+                                      onToggleFavorite: () =>
+                                          _toggleFavorite(product),
+                                      onTap: () async {
+                                        print(
+                                            '🆔 ID del producto: ${product.id}');
+                                        final deletedProductId =
+                                            await showModalBottomSheet<String>(
+                                          context: context,
+                                          isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) => ProductDetailModal(
+                                              product: product),
+                                        );
+
+                                        if (deletedProductId != null) {
+                                          _removeProductFromUI(
+                                              deletedProductId);
+                                        }
+                                      },
+                                    );
+                                  },
+                                ),
+                          // Mensaje si hay filtro de categoría pero no hay productos
+                          // ✅ CORRECCIÓN 2: Comprobar _filteredProductIds
+                          if (_selectedCategoryName != null &&
+                              _filteredProductIds.isEmpty &&
+                              !_isLoadingProducts)
                             const Center(
                               child: Padding(
                                 padding: EdgeInsets.all(16.0),
                                 child: Text(
-                                    'No se encontraron productos en el rango de precio.'),
+                                    'No se encontraron productos en esta categoría.'),
                               ),
                             ),
-                      ],
+
+                          // Mensaje si hay filtro de precio pero no hay productos
+                          // ✅ CORRECCIÓN 3: Comprobar _filteredProductIds
+                          if (_precioMinimo != null || _precioMaximo != null)
+                            if (_filteredProductIds.isEmpty &&
+                                !_isLoadingProducts)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(16.0),
+                                  child: Text(
+                                      'No se encontraron productos en el rango de precio.'),
+                                ),
+                              ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

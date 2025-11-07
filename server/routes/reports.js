@@ -3,7 +3,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-
+const admin = require('firebase-admin');
 const router = express.Router();
 
 // Util para manejar errores de validación
@@ -19,6 +19,9 @@ const handleValidationErrors = (req, res, next) => {
     next();
 };
 
+// ==========================================
+// POST /api/reports - Crear un reporte
+// ==========================================
 // ==========================================
 // POST /api/reports - Crear un reporte
 // ==========================================
@@ -53,7 +56,7 @@ router.post(
             }
 
             // Validar que no se reporte a sí mismo
-            if (usuarioReportadoId && usuarioReportadoId === reportanteId) {
+            if (usuarioReportadoId && Number(usuarioReportadoId) === reportanteId) { // Convertir a Number para comparación estricta
                 return res.status(400).json({
                     ok: false,
                     message: 'No puedes reportarte a ti mismo',
@@ -61,19 +64,20 @@ router.post(
             }
 
             // Validar existencia del producto
+            let productoReportado = null; // Guardamos el producto para usarlo después
             if (productoId) {
-                const producto = await prisma.productos.findUnique({
+                productoReportado = await prisma.productos.findUnique({
                     where: { id: Number(productoId) },
                 });
 
-                if (!producto) {
+                if (!productoReportado) {
                     return res.status(404).json({
                         ok: false,
                         message: 'Producto no encontrado',
                     });
                 }
 
-                if (producto.vendedorId === reportanteId) {
+                if (productoReportado.vendedorId === reportanteId) {
                     return res.status(400).json({
                         ok: false,
                         message: 'No puedes reportar tu propio producto',
@@ -119,12 +123,12 @@ router.post(
                     productoId: productoId ? Number(productoId) : null,
                     usuarioReportadoId: usuarioReportadoId ? Number(usuarioReportadoId) : null,
                     motivo,
-                    estadoId: 1, // Pendiente
+                    estadoId: 1, // Pendiente por defecto
                 },
-                include: {
-                    reportante: { select: { id: true, nombre: true, apellido: true, correo: true } },
+                include: { // Incluimos datos necesarios para la notificación
+                    reportante: { select: { id: true, nombre: true, usuario: true } },
                     producto: { select: { id: true, nombre: true, vendedorId: true } },
-                    usuarioReportado: { select: { id: true, nombre: true, apellido: true, correo: true } },
+                    usuarioReportado: { select: { id: true, nombre: true } },
                     estado: true,
                 },
             });
@@ -138,10 +142,59 @@ router.post(
                 },
             });
 
+            // ⭐️ INICIO: Enviar Notificación Push (ESTE ES EL BLOQUE NUEVO) ⭐️
+            let recipientId = null;
+            let notificationMessage = '';
+            const reporterName = nuevoReporte.reportante.usuario || nuevoReporte.reportante.nombre || 'Alguien';
+
+            // Determinar quién recibe la notificación
+            if (nuevoReporte.usuarioReportadoId) {
+                recipientId = nuevoReporte.usuarioReportadoId;
+                notificationMessage = `${reporterName} ha reportado tu cuenta. Motivo: "${motivo}"`;
+            } else if (nuevoReporte.productoId && productoReportado) {
+                recipientId = productoReportado.vendedorId;
+                if (recipientId !== reportanteId) {
+                    notificationMessage = `${reporterName} ha reportado tu producto "${productoReportado.nombre}". Motivo: "${motivo}"`;
+                } else {
+                    recipientId = null; // No notificar
+                }
+            }
+
+            // Si se determinó un destinatario, enviar la notificación push
+            if (recipientId && notificationMessage) {
+                try {
+                    // 1. Buscar el token FCM del destinatario
+                    const usuario = await prisma.cuentas.findUnique({
+                        where: { id: recipientId },
+                        select: { fcm_token: true }
+                    });
+
+                    if (usuario && usuario.fcm_token) {
+                        // 2. Definir y enviar el mensaje
+                        console.log(`🔔 Enviando notificación de REPORTE a ${usuario.fcm_token}`);
+                        await admin.messaging().send({
+                            token: usuario.fcm_token,
+                            notification: {
+                                title: '¡Has recibido un reporte! 🚩',
+                                body: notificationMessage
+                            },
+                            data: {
+                                screen: 'reports',
+                                reportId: nuevoReporte.id.toString()
+                            }
+                        });
+                    }
+                } catch (fcmError) {
+                    console.error("❌ Error al enviar notificación FCM de reporte:", fcmError);
+                }
+            }
+            // ⭐️ FIN: Enviar Notificación Push ⭐️
+
+            // Respuesta final al usuario que creó el reporte
             res.status(201).json({
                 ok: true,
                 message: 'Reporte enviado exitosamente',
-                reporte: {
+                reporte: { // Enviamos datos simplificados
                     id: nuevoReporte.id,
                     motivo: nuevoReporte.motivo,
                     fecha: nuevoReporte.fecha,
@@ -152,11 +205,13 @@ router.post(
             });
         } catch (error) {
             console.error('❌ Error creando reporte:', error);
+            if (error.code === 'P2003' || error.code === 'P2025') {
+                return res.status(400).json({ ok: false, message: 'ID de producto o usuario inválido.' });
+            }
             res.status(500).json({ ok: false, message: 'Error interno del servidor' });
         }
     }
 );
-
 
 // ==========================================
 // GET /api/reports - Listar reportes (Admin)
@@ -454,5 +509,7 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
         });
     }
 });
+
+
 
 module.exports = router;

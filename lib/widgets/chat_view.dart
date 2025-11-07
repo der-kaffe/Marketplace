@@ -64,9 +64,7 @@ class _ChatViewState extends State<ChatView> {
 
     // Verificar conexión WebSocket
     if (_chatService.isConnected) {
-      print('✅ WebSocket conectado correctamente');
     } else {
-      print('⚠️ WebSocket no conectado, intentando reconectar...');
       await _chatService.initialize();
     }
   }
@@ -114,7 +112,6 @@ class _ChatViewState extends State<ChatView> {
 
       _scrollToBottom();
     } catch (e) {
-      print('❌ Error cargando mensajes: $e');
       setState(() {
         _isLoadingMessages = false;
       });
@@ -125,10 +122,6 @@ class _ChatViewState extends State<ChatView> {
     _messageSubscription = _chatService.messageStream.listen((message) {
       if (!mounted) return; // Verificar que el widget aún esté montado
 
-      print('🔍 Mensaje recibido en ChatView: $message');
-      print('👤 Usuario actual: $_currentUserId');
-      print('🎯 Destinatario: ${widget.destinatarioId}');
-
       // Solo agregar mensajes de esta conversación específica
       final remitenteId = message['remitenteId'];
       final destinatarioId = message['destinatarioId'];
@@ -138,19 +131,14 @@ class _ChatViewState extends State<ChatView> {
           (remitenteId == widget.destinatarioId &&
               destinatarioId == _currentUserId);
 
-      print('✅ Es de esta conversación: $isFromThisConversation');
-
       if (isFromThisConversation) {
         // Verificar si el mensaje ya existe para evitar duplicados
         final messageId = message['id'];
         final exists = messages.any((msg) => msg['id'] == messageId);
 
-        print('📝 Mensaje ya existe: $exists');
-
         if (!exists) {
           final formattedMessage =
               _chatService.formatMessage(message, _currentUserId ?? 0);
-          print('➕ Agregando mensaje formateado: $formattedMessage');
 
           setState(() {
             // Buscar y remover mensaje temporal si existe
@@ -162,7 +150,6 @@ class _ChatViewState extends State<ChatView> {
             if (tempIndex != -1) {
               // Reemplazar mensaje temporal con el real
               messages[tempIndex] = formattedMessage;
-              print('🔄 Reemplazando mensaje temporal con real');
             } else {
               // Agregar nuevo mensaje
               messages.add(formattedMessage);
@@ -253,8 +240,6 @@ class _ChatViewState extends State<ChatView> {
 
       // El WebSocket reemplazará el mensaje temporal con el real
     } catch (e) {
-      print('❌ Error enviando mensaje: $e');
-
       // Remover mensaje temporal si falla el envío
       setState(() {
         messages.removeWhere((msg) => msg['id'] == tempMessage['id']);
@@ -315,7 +300,6 @@ class _ChatViewState extends State<ChatView> {
         }
       } else {
         // Fallback: usar base64
-        print('⚠️ Fallback a base64 para imagen');
         final base64Image = await _imageUploadService.imageToBase64(imageFile);
         if (base64Image != null) {
           await _chatService.sendMessage(
@@ -340,7 +324,6 @@ class _ChatViewState extends State<ChatView> {
         _isUploadingImage = false;
       });
     } catch (e) {
-      print('❌ Error seleccionando imagen: $e');
       setState(() {
         _isUploadingImage = false;
       });
@@ -379,8 +362,6 @@ class _ChatViewState extends State<ChatView> {
   // Función mejorada para manejar imágenes base64
   Widget _buildBase64Image(String base64Content) {
     try {
-      print('📦 Procesando imagen base64...');
-
       // Validar y limpiar el contenido base64
       final cleanedContent = _validateAndCleanBase64(base64Content);
       if (cleanedContent == null) {
@@ -410,13 +391,11 @@ class _ChatViewState extends State<ChatView> {
           fit: BoxFit.cover,
           gaplessPlayback: true, // Evitar parpadeo
           errorBuilder: (context, error, stackTrace) {
-            print('❌ Error renderizando imagen base64: $error');
             return _buildImageErrorWidget('Error renderizando imagen');
           },
         ),
       );
     } catch (e) {
-      print('❌ Error procesando imagen base64: $e');
       return _buildImageErrorWidget('Error procesando imagen');
     }
   }
@@ -426,26 +405,20 @@ class _ChatViewState extends State<ChatView> {
     try {
       // Validar formato base64
       if (!base64Content.contains(',')) {
-        print('❌ Formato base64 inválido: falta separador');
         return null;
       }
 
       // Extraer solo la parte base64 (después de la coma)
       final parts = base64Content.split(',');
       if (parts.length != 2) {
-        print('❌ Formato base64 inválido: estructura incorrecta');
         return null;
       }
 
       final mimeType = parts[0];
       final base64Data = parts[1];
 
-      print('🔍 MIME type: $mimeType');
-      print('📏 Longitud base64: ${base64Data.length} caracteres');
-
       // Validar que sea una imagen
       if (!mimeType.contains('image/')) {
-        print('❌ No es un tipo de imagen válido: $mimeType');
         return null;
       }
 
@@ -454,13 +427,11 @@ class _ChatViewState extends State<ChatView> {
 
       // Validar que el string base64 sea válido
       if (!RegExp(r'^[A-Za-z0-9+/]*={0,2}$').hasMatch(cleanBase64)) {
-        print('❌ Caracteres inválidos en base64');
         return null;
       }
 
       return cleanBase64;
     } catch (e) {
-      print('❌ Error validando base64: $e');
       return null;
     }
   }
@@ -504,7 +475,6 @@ class _ChatViewState extends State<ChatView> {
       return true;
     }
 
-    print('⚠️ Formato de imagen no reconocido en los bytes');
     return false;
   }
 
@@ -601,28 +571,9 @@ class _ChatViewState extends State<ChatView> {
             child: Container(
               width: size,
               height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.azulPrimario,
-                    AppColors.azulPrimario.withOpacity(0.7),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.azulPrimario.withOpacity(0.3),
-                    blurRadius: 10,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.school, // Icono de universidad
-                color: Colors.white,
-                size: 30,
+              child: Image.asset(
+                'assets/logoMarket.png',
+                fit: BoxFit.contain,
               ),
             ),
           ),
@@ -692,8 +643,6 @@ class _ChatViewState extends State<ChatView> {
                         if (msg["tipo"] == 'imagen' && msg["text"] != null) {
                           // Mostrar imagen - puede ser URL o base64
                           final imageContent = msg["text"];
-                          print(
-                              '🖼️ Procesando imagen: ${imageContent.substring(0, imageContent.length > 50 ? 50 : imageContent.length)}...');
 
                           if (imageContent.startsWith('http') ||
                               imageContent.startsWith('/uploads')) {
@@ -707,8 +656,6 @@ class _ChatViewState extends State<ChatView> {
                                 imageUrl = 'http://localhost:3001$imageContent';
                               }
                             }
-
-                            print('🌐 URL de imagen: $imageUrl');
 
                             content = ClipRRect(
                               borderRadius: BorderRadius.circular(14),
@@ -727,7 +674,6 @@ class _ChatViewState extends State<ChatView> {
                                   );
                                 },
                                 errorBuilder: (context, error, stackTrace) {
-                                  print('❌ Error cargando imagen URL: $error');
                                   return _buildImageErrorWidget(
                                       'Error cargando imagen');
                                 },
@@ -738,8 +684,6 @@ class _ChatViewState extends State<ChatView> {
                             content = _buildBase64Image(imageContent);
                           } else {
                             // Fallback: mostrar como texto
-                            print(
-                                '⚠️ Formato de imagen no reconocido: ${imageContent.substring(0, imageContent.length > 30 ? 30 : imageContent.length)}...');
                             content =
                                 _buildImageErrorWidget('Formato no soportado');
                           }

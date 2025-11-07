@@ -1,3 +1,5 @@
+// product_detail_modal.dart
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/product_model.dart';
@@ -8,7 +10,200 @@ import '../screens/chat_page.dart';
 import '../services/product_service.dart';
 import '../services/report_service.dart';
 import '../services/auth_service.dart';
-import '../services/rating_service.dart'; // Añadido
+import '../services/rating_service.dart'; 
+import '../services/api_client.dart';
+
+// 🖼️ Widget de visor de imágenes en pantalla completa
+class FullScreenImageViewer extends StatefulWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const FullScreenImageViewer({
+    super.key,
+    required this.imageUrls,
+    this.initialIndex = 0,
+  });
+
+  @override
+  State<FullScreenImageViewer> createState() => _FullScreenImageViewerState();
+}
+
+class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
+  late PageController _pageController;
+  late int _currentIndex;
+  final TransformationController _transformationController = TransformationController();
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black.withOpacity(0.7),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          '${_currentIndex + 1} / ${widget.imageUrls.length}',
+          style: const TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.zoom_out_map, color: Colors.white),
+            onPressed: _resetZoom,
+            tooltip: 'Resetear zoom',
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.imageUrls.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _resetZoom(); // Reset zoom al cambiar de imagen
+        },
+        itemBuilder: (context, index) {
+          return Center(
+            child: InteractiveViewer(
+              transformationController: _transformationController,
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.network(
+                widget.imageUrls[index],
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.grey.shade900,
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image,
+                          size: 80,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Error al cargar imagen',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    color: Colors.grey.shade900,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: Colors.white,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: widget.imageUrls.length > 1 
+          ? Container(
+              height: 80,
+              color: Colors.black.withOpacity(0.7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.chevron_left,
+                      color: _currentIndex > 0 ? Colors.white : Colors.grey,
+                      size: 32,
+                    ),
+                    onPressed: _currentIndex > 0 
+                        ? () {
+                            _pageController.previousPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                  ),
+                  // Indicadores de página
+                  Row(
+                    children: List.generate(
+                      widget.imageUrls.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: _currentIndex == index ? 12 : 8,
+                        height: _currentIndex == index ? 12 : 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _currentIndex == index 
+                              ? Colors.white
+                              : Colors.white.withOpacity(0.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.chevron_right,
+                      color: _currentIndex < widget.imageUrls.length - 1 
+                          ? Colors.white 
+                          : Colors.grey,
+                      size: 32,
+                    ),
+                    onPressed: _currentIndex < widget.imageUrls.length - 1 
+                        ? () {
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
+                        : null,
+                  ),
+                ],
+              ),
+            )
+          : null,
+    );
+  }
+}
 
 class ProductDetailModal extends StatefulWidget {
   final Product product;
@@ -22,9 +217,12 @@ class ProductDetailModal extends StatefulWidget {
 class _ProductDetailModalState extends State<ProductDetailModal> {
   int _userRating = 0;
   final AuthService _authService = AuthService();
-  final RatingService _ratingService = RatingService(); // Añadido
-  double _sellerReputation = 0.0; // Añadido para mostrar reputación
-  bool _isLoadingReputation = true; // Añadido para estado de carga
+  final RatingService _ratingService = RatingService();
+  final ProductService _productService = ProductService();
+  double _sellerReputation = 0.0;
+  bool _isLoadingReputation = true;
+  int _cantidadAComprar = 1;
+  bool _isComprando = false;
 
   @override
   void initState() {
@@ -32,44 +230,36 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     _loadSellerReputation(); // Cargar reputación del vendedor al iniciar
   }
 
-  // Método para cargar la reputación del vendedor
+  // 👇 MÉTODO CORREGIDO
+  // Método para cargar la reputación del vendedor (optimizado)
   Future<void> _loadSellerReputation() async {
+    setState(() {
+      _isLoadingReputation = true;
+    });
     try {
-      final sellerId = int.parse(widget.product.sellerId);
-      final ratings = await _ratingService.getSellerRatings(sellerId);
+      final sellerId = widget.product.sellerId;
+      // 1. Llama al servicio que obtiene el perfil del vendedor
+      final sellerInfo = await _productService.getSellerInfo(sellerId);
 
-      if (ratings.isNotEmpty) {
-        // Calcular promedio de reputación
-        double total = 0;
-        for (var rating in ratings) {
-          // Convertir de forma segura el valor a double
-          dynamic puntuacionValue = rating['puntuacion'];
-          double puntuacion = 0.0;
+      // 2. Extrae la reputación que ya viene calculada desde el backend
+      //    El .toString() y double.tryParse() da robustez si viene como String, num, o Decimal
+      final reputationValue = sellerInfo['reputacion']?.toString() ?? '0.0';
+      final reputation = double.tryParse(reputationValue) ?? 0.0;
 
-          if (puntuacionValue is num) {
-            puntuacion = puntuacionValue.toDouble();
-          } else if (puntuacionValue is String) {
-            puntuacion = double.tryParse(puntuacionValue) ?? 0.0;
-          }
-
-          total += puntuacion;
-        }
+      if (mounted) {
         setState(() {
-          _sellerReputation = total / ratings.length;
-          _isLoadingReputation = false;
-        });
-      } else {
-        setState(() {
-          _sellerReputation = 0.0;
+          _sellerReputation = reputation;
           _isLoadingReputation = false;
         });
       }
     } catch (e) {
       print('❌ Error cargando reputación: $e');
-      setState(() {
-        _sellerReputation = 0.0;
-        _isLoadingReputation = false;
-      });
+      if (mounted) {
+        setState(() {
+          _sellerReputation = 0.0;
+          _isLoadingReputation = false;
+        });
+      }
     }
   }
 
@@ -128,6 +318,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       print(
           '   ✅ Calificación enviada exitosamente, actualizando reputación...');
 
+      // Llama a la versión optimizada para refrescar la reputación
       await _loadSellerReputation();
 
       setState(() {
@@ -257,13 +448,14 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
 
       Navigator.pop(context);
 
+      final String avatarUrlOrPath = widget.product.sellerAvatar ?? '../../assets/usuario_sin_foto.jpg';
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ChatPage(
             userName: widget.product.sellerName ?? 'Vendedor',
-            avatar: widget.product.sellerAvatar ??
-                'https://thumbs.dreamstime.com/b/vector-de-perfil-avatar-predeterminado-foto-usuario-medios-sociales-icono-183042379.jpg',
+            avatar: avatarUrlOrPath,
             destinatarioId: sellerId,
           ),
         ),
@@ -407,16 +599,382 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
     );
   }
 
+  // ✅ 2. AÑADE ESTOS MÉTODOS
+  //    para controlar el selector de cantidad y el botón de compra.
+
+  /// Incrementa la cantidad a comprar, con un tope máximo del stock.
+  void _incrementarCantidad() {
+    // Usamos el 'widget.product.cantidad' que asumimos que existe en tu modelo.
+    final int stockDisponible = widget.product.cantidad; 
+
+    if (_cantidadAComprar < stockDisponible) {
+      setState(() {
+        _cantidadAComprar++;
+      });
+    } else {
+      // Si intenta agregar más del stock, muéstrale un aviso.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay más unidades disponibles.'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  /// Decrementa la cantidad a comprar, con un tope mínimo de 1.
+  void _decrementarCantidad() {
+    if (_cantidadAComprar > 1) {
+      setState(() {
+        _cantidadAComprar--;
+      });
+    }
+  }
+
+  // ✅ MODIFICADO: Ahora llama a la API para crear la transacción
+  Future<void> _comprarProducto() async { // 👈 Hacerla async
+    // Evitar doble click
+    if (_isComprando) return;
+
+    setState(() => _isComprando = true);
+
+    print('🛒 Iniciando compra de ${widget.product.title}');
+    print('   - Producto ID: ${widget.product.id}');
+    print('   - Cantidad seleccionada: $_cantidadAComprar');
+
+    try {
+      // Necesitamos el ID como entero
+      final productIdInt = int.parse(widget.product.id);
+
+      // Llamamos al servicio (que llama al ApiClient)
+      // Asegúrate de tener una instancia de ApiClient o un servicio que lo use.
+      // Aquí usamos _productService como ejemplo, pero idealmente tendrías un TransactionService.
+      final apiClient = ApiClient(baseUrl: getDefaultBaseUrl()); // O usa tu instancia existente
+      final token = await _authService.getToken();
+      if (token == null) {
+         throw Exception("Debes iniciar sesión para comprar");
+      }
+      apiClient.setToken(token);
+
+      final result = await apiClient.createTransaction(
+        productId: productIdInt,
+        quantity: _cantidadAComprar,
+      );
+
+      // Éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? '¡Pedido realizado con éxito!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Podrías cerrar el modal o navegar a "Mis Compras"
+         Navigator.pop(context); // Cierra el modal después de comprar
+      }
+
+    } catch (e) {
+      // Error
+      print('❌ Error al comprar: $e');
+      String errorMessage = 'Ocurrió un error al realizar el pedido.';
+      if (e is ApiException) {
+        errorMessage = e.message; // Usa el mensaje de error de la API
+      } else {
+        errorMessage = e.toString();
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $errorMessage'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      // Asegurarse de quitar el estado de carga
+      if (mounted) {
+        setState(() => _isComprando = false);
+      }
+    }
+  }
+
+  ///   Este método construye la UI para la sección de compra.
+  Widget _buildBuySection() {
+    // Asumimos que 'widget.product.cantidad' es el stock
+    final int stockDisponible = widget.product.cantidad; 
+    final bool estaAgotado = stockDisponible <= 0;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.fondoClaro,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Mostrar la cantidad disponible
+          Text(
+            estaAgotado 
+              ? 'Producto Agotado' 
+              : 'Unidades disponibles: $stockDisponible',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: estaAgotado ? Colors.red : AppColors.azulOscuro,
+            ),
+          ),
+          
+          // Si no está agotado, muestra el selector y el botón
+          if (!estaAgotado) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Seleccionar cantidad:', style: TextStyle(fontSize: 16)),
+                
+                // 2. Selector de cantidad (+ / -)
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove, color: AppColors.azulPrimario),
+                        padding: EdgeInsets.zero,
+                        // Deshabilitar si la cantidad es 1
+                        onPressed: _cantidadAComprar <= 1 ? null : _decrementarCantidad, 
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          '$_cantidadAComprar',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, color: AppColors.azulPrimario),
+                        padding: EdgeInsets.zero,
+                        // Deshabilitar si se alcanza el stock
+                        onPressed: _cantidadAComprar >= stockDisponible ? null : _incrementarCantidad, 
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // 3. Botón de Comprar
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                // Deshabilitar botón si está cargando
+                onPressed: _isComprando ? null : _comprarProducto,
+                icon: _isComprando
+                    ? Container( // Indicador de carga pequeño
+                        width: 20,
+                        height: 20,
+                        padding: const EdgeInsets.all(2.0),
+                        child: const CircularProgressIndicator(
+                          color: AppColors.azulOscuro,
+                          strokeWidth: 3,
+                        ),
+                      )
+                    : const Icon(Icons.shopping_cart_checkout),
+                label: Text(_isComprando ? 'Procesando...' : 'Comprar Ahora'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.amarilloPrimario,
+                  foregroundColor: AppColors.azulOscuro,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  // Cambia el estilo si está deshabilitado
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmAndDeleteProduct() async {
+    print('🆔 DEBUG: widget.product = ${widget.product}');
+    print('🆔 DEBUG: widget.product.id = ${widget.product.id}');
+    if (widget.product == null || widget.product.id == null || widget.product.id.toString().isEmpty) {
+      print('❌ El producto o su id es null o vacío');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: El producto no tiene ID válido')),
+        );
+      }
+      return;
+    }
+
+    print('🟡 Abriendo diálogo de confirmación...');
+    final confirm = await showDialog<bool>(
+      context: context, 
+      barrierDismissible: false,
+      
+      // ⬇️ FIX 1: Recibe el 'dialogContext' del builder
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text("Eliminar producto"),
+        content: const Text("¿Seguro que deseas eliminar este producto?"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              print('🔴 Cancelar presionado');
+              // ⬇️ FIX 2: Usa 'dialogContext'
+              Navigator.pop(dialogContext, false); 
+            },
+            child: const Text("Cancelar"),
+          ),
+          TextButton(
+            onPressed: () {
+              print('🟢 Eliminar presionado');
+              // ⬇️ FIX 3: Usa 'dialogContext'
+              Navigator.pop(dialogContext, true); 
+            },
+            child: const Text("Eliminar"),
+          ),
+        ],
+      ),
+    );
+
+    // ⬇️ Tu otra corrección (que sigue siendo necesaria)
+    if (!mounted) return; 
+
+    print('🟣 Valor de confirm: $confirm');
+    if (confirm == true) {
+      try {
+        final productId = int.tryParse(widget.product.id.toString());
+        print('🗑️ Eliminando producto con id: $productId');
+        
+        await _productService.deleteProduct(productId!); 
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Producto eliminado correctamente')),
+          );
+          
+          await Future.delayed(const Duration(milliseconds: 300)); 
+
+          if (!mounted) return; 
+          
+          Navigator.of(context).pop(widget.product.id); 
+        }
+        
+        print('✅ Producto eliminado, cerrando modal');
+      
+      } catch (e) {
+        print('❌ Error al eliminar producto: $e');
+        if (mounted) { 
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('❌ Error eliminando producto: $e')),
+          );
+        }
+      }
+    } else {
+      print('🟠 Eliminación cancelada o diálogo cerrado sin aceptar');
+    }
+  }
+
+  // 🖼️ Galería de imágenes mejorada para el modal
   Widget _buildModalImage() {
-    if (widget.product.imageUrl == null || widget.product.imageUrl!.isEmpty) {
-      return Image.asset(
+    // Usar múltiples imágenes si están disponibles, sino usar imageUrl individual
+    final List<String> imageUrls = widget.product.imagenes?.where((url) => url.isNotEmpty).toList() ?? 
+        (widget.product.imageUrl != null && widget.product.imageUrl!.isNotEmpty ? [widget.product.imageUrl!] : []);
+
+    if (imageUrls.isEmpty) {
+      return _buildFallbackImage();
+    }
+
+    if (imageUrls.length == 1) {
+      // Una sola imagen
+      return _buildSingleModalImage(imageUrls.first);
+    }
+
+    // Múltiples imágenes - carousel con indicadores
+    return _buildImageCarousel(imageUrls);
+  }
+  // 📷 Imagen única en modal
+  Widget _buildSingleModalImage(String imageUrl) {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade100,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),        child: GestureDetector(
+          onTap: () => _openFullScreenViewer([imageUrl], 0),
+          child: Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: Colors.grey.shade100,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🎠 Carousel de imágenes con indicadores de página
+  Widget _buildImageCarousel(List<String> imageUrls) {
+    return _ImageCarouselWidget(
+      imageUrls: imageUrls,
+      onImageTap: (index) => _openFullScreenViewer(imageUrls, index),
+    );
+  }
+
+  // 📱 Abrir visor de pantalla completa
+  void _openFullScreenViewer(List<String> imageUrls, int initialIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(
+          imageUrls: imageUrls,
+          initialIndex: initialIndex,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+  }
+
+  // 🖼️ Imagen por defecto cuando no hay imágenes
+  Widget _buildFallbackImage() {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+      child: Image.asset(
         'assets/producto_sin_foto.jpg',
-        height: 200,
-        width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            height: 200,
             color: Colors.grey.shade200,
             child: const Icon(
               Icons.image,
@@ -425,38 +983,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
             ),
           );
         },
-      );
-    }
-
-    return Image.network(
-      widget.product.imageUrl!,
-      height: 200,
-      width: double.infinity,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Image.asset(
-          'assets/producto_sin_foto.jpg',
-          height: 200,
-          width: double.infinity,
-          fit: BoxFit.cover,
-        );
-      },
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Container(
-          height: 200,
-          color: Colors.grey.shade100,
-          child: Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 3,
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-            ),
-          ),
-        );
-      },
+      ),
     );
   }
 
@@ -502,11 +1029,160 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                
+                // Descripción del producto
                 Text(
                   widget.product.description,
                   style: const TextStyle(fontSize: 16),
                 ),
+                
+                // 👇 Nueva sección: Información adicional del producto
+                if (widget.product.estadoProducto != null || 
+                    widget.product.tiempoUso != null || 
+                    widget.product.informacionTecnica != null) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Información del producto',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.azulPrimario,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Estado del producto y tiempo de uso en fila
+                  if (widget.product.estadoProducto != null || widget.product.tiempoUso != null)
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        if (widget.product.estadoProducto != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: widget.product.estadoProducto == 'nuevo' 
+                                  ? Colors.green.withOpacity(0.15)
+                                  : Colors.orange.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: widget.product.estadoProducto == 'nuevo' 
+                                    ? Colors.green
+                                    : Colors.orange,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  widget.product.estadoProducto == 'nuevo' 
+                                      ? Icons.check_circle
+                                      : Icons.sell,
+                                  size: 18,
+                                  color: widget.product.estadoProducto == 'nuevo' 
+                                      ? Colors.green.shade700
+                                      : Colors.orange.shade700,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  widget.product.estadoProducto == 'nuevo' ? 'Nuevo' : 'Usado',
+                                  style: TextStyle(
+                                    color: widget.product.estadoProducto == 'nuevo' 
+                                        ? Colors.green.shade700
+                                        : Colors.orange.shade700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (widget.product.tiempoUso != null && widget.product.tiempoUso!.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.blue.shade300,
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.access_time, size: 18, color: Colors.blue.shade700),
+                                const SizedBox(width: 6),
+                                Text(
+                                  widget.product.tiempoUso!,
+                                  style: TextStyle(
+                                    color: Colors.blue.shade700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  
+                  // Información técnica
+                  if (widget.product.informacionTecnica != null && 
+                      widget.product.informacionTecnica!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, 
+                                size: 20, 
+                                color: AppColors.azulPrimario),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Información técnica',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.azulOscuro,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.product.informacionTecnica!,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  const Divider(),
+                ],
+                
                 const SizedBox(height: 16),
+
+                // ✅ 3. AÑADE TU NUEVA SECCIÓN AQUÍ
+                const SizedBox(height: 24), // Un buen espacio
+                _buildBuySection(),
+                const SizedBox(height: 16),
+                // ------------------------------------
 
                 // Sección de reputación del vendedor
                 Container(
@@ -628,10 +1304,20 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     ),
                     icon: CircleAvatar(
                       radius: 20,
-                      backgroundImage: NetworkImage(
-                        widget.product.sellerAvatar ??
-                            "https://via.placeholder.com/150",
-                      ),
+                      // Lógica para decidir qué tipo de imagen mostrar
+                      backgroundImage: (widget.product.sellerAvatar != null && widget.product.sellerAvatar!.startsWith('http'))
+                          // Si el avatar es una URL, usa NetworkImage
+                          ? NetworkImage(widget.product.sellerAvatar!)
+                          // Si no, usa el Asset local
+                          : const AssetImage('assets/usuario_sin_foto.jpg') as ImageProvider,
+                      // Fallback por si la carga de NetworkImage falla (opcional pero recomendado)
+                      onBackgroundImageError: (_, __) {
+                        // Puedes dejar esto vacío o loggear un error
+                      },
+                      child: (widget.product.sellerAvatar != null && widget.product.sellerAvatar!.startsWith('http'))
+                          ? null // Si es NetworkImage, no necesita child
+                          // Si es AssetImage, el child se muestra si onBackgroundImageError falla
+                          : const Icon(Icons.person, size: 20), // Fallback de Icono
                     ),
                     label: Text(
                       "Ver perfil del vendedor: ${widget.product.sellerName ?? 'Desconocido'}",
@@ -646,43 +1332,54 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                         MaterialPageRoute(
                           builder: (context) =>
                               FutureBuilder<Map<String, dynamic>>(
-                                future: seller,
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
-                                    return Scaffold(
-                                      appBar: AppBar(title: const Text('Perfil del Vendedor')),
-                                      body: const Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
+                            future: seller,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Scaffold(
+                                  appBar: AppBar(
+                                      title: const Text('Perfil del Vendedor')),
+                                  body: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+                              }
 
-                                  if (snapshot.hasError || !snapshot.hasData) {
-                                    return Scaffold(
-                                      appBar: AppBar(title: const Text('Perfil del Vendedor')),
-                                      body: Center(
-                                        child: Text('Error cargando perfil: ${snapshot.error}'),
-                                      ),
-                                    );
-                                  }
+                              if (snapshot.hasError || !snapshot.hasData) {
+                                return Scaffold(
+                                  appBar: AppBar(
+                                      title: const Text('Perfil del Vendedor')),
+                                  body: Center(
+                                    child: Text(
+                                        'Error cargando perfil: ${snapshot.error}'),
+                                  ),
+                                );
+                              }                              // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
+                              final sellerData = snapshot.data!;
+                              print('🔍 Datos del vendedor recibidos: $sellerData'); // Debug
+                              
+                              final sellerObject = Seller(
+                                id: sellerData['id']?.toString() ??
+                                    widget.product.sellerId,
+                                name: sellerData['name'] ?? 'Vendedor',
+                                email: sellerData['correo'] ?? sellerData['email'],
+                                avatar: sellerData['avatar'],
+                                location: sellerData['campus'] ?? 'Desconocido',
+                                reputation: sellerData['reputacion']?.toDouble() ?? 0.0,
+                                // ✅ USAR ESTADÍSTICAS REALES del backend con conversión segura
+                                totalSales: (sellerData['totalVentas'] as num?)?.toInt() ?? 0,
+                                activeListings: (sellerData['publicacionesActivas'] as num?)?.toInt() ?? 0,
+                                soldListings: (sellerData['totalVentas'] as num?)?.toInt() ?? 0, // Ventas = productos vendidos
+                                memberSince: sellerData['miembroDesde'] != null 
+                                    ? DateTime.tryParse(sellerData['miembroDesde'].toString()) 
+                                    : null,
+                              );
+                              
+                              print('✅ Objeto Seller creado - Activas: ${sellerObject.activeListings}, Ventas: ${sellerObject.totalSales}'); // Debug
 
-                                  // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
-                                  final sellerData = snapshot.data!;
-                                  final sellerObject = Seller(
-                                    id: sellerData['id']?.toString() ?? widget.product.sellerId, // ✅ AGREGADO
-                                    name: sellerData['nombre'] ?? sellerData['name'] ?? 'Vendedor',
-                                    email: sellerData['correo'] ?? sellerData['email'] ?? '',
-                                    avatar: sellerData['avatar'],
-                                    location: sellerData['campus'] ?? 'Desconocido',
-                                    reputation: sellerData['reputacion']?.toDouble() ?? 0.0,
-                                    totalSales: 0, // ✅ Por ahora, valor por defecto
-                                    activeListings: 0, // ✅ Por ahora, valor por defecto
-                                    soldListings: 0, // ✅ Por ahora, valor por defecto
-                                  );
-
-                                  return SellerProfilePage(seller: sellerObject);
-                                },
-                              ),
+                              return SellerProfilePage(seller: sellerObject);
+                            },
+                          ),
                         ),
                       );
                     },
@@ -728,11 +1425,290 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                     },
                   ),
                 ),
+                const SizedBox(height: 16),
+
+                FutureBuilder<Map<String, dynamic>?>(
+                  future: _authService.getCurrentUser(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox.shrink();
+                    final currentUser = snapshot.data;
+                    final isMyProduct =
+                        currentUser != null &&
+                        currentUser['id'].toString() == widget.product.sellerId;
+
+                    if (!isMyProduct) return const SizedBox.shrink();
+
+                    return Column(
+                      children: [
+                        const Divider(height: 32),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                // Navegar a pantalla de edición usando el id en la URL
+                                context.push('/edit_product/${widget.product.id}');
+                              },
+                              icon: const Icon(Icons.edit),
+                              label: const Text('Editar'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                                onPressed: _confirmAndDeleteProduct,
+                                icon: const Icon(Icons.delete),
+                                label: const Text('Eliminar'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+// 🎠 Widget separado para el carousel de imágenes con estado propio
+class _ImageCarouselWidget extends StatefulWidget {
+  final List<String> imageUrls;
+  final Function(int)? onImageTap;
+
+  const _ImageCarouselWidget({
+    required this.imageUrls,
+    this.onImageTap,
+  });
+
+  @override
+  State<_ImageCarouselWidget> createState() => _ImageCarouselWidgetState();
+}
+
+class _ImageCarouselWidgetState extends State<_ImageCarouselWidget> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+      child: Image.asset(
+        'assets/producto_sin_foto.jpg',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey.shade200,
+            child: const Icon(
+              Icons.image,
+              size: 60,
+              color: Colors.grey,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade100,
+      ),
+      child: Stack(
+        children: [
+          // Carousel de imágenes
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: widget.imageUrls.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    if (widget.onImageTap != null) {
+                      widget.onImageTap!(index);
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FullScreenImageViewer(
+                            imageUrls: widget.imageUrls,
+                            initialIndex: index,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: Image.network(
+                    widget.imageUrls[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildFallbackImage(),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+          
+          // Indicadores de página (dots)
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.imageUrls.length,
+                (index) => Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: _currentIndex == index ? 12 : 8,
+                  height: _currentIndex == index ? 12 : 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentIndex == index 
+                        ? Colors.white
+                        : Colors.white.withOpacity(0.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // Contador de imágenes
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                '${_currentIndex + 1}/${widget.imageUrls.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          
+          // Botones de navegación (opcional, para mejor UX)
+          if (widget.imageUrls.length > 1) ...[
+            // Botón anterior
+            Positioned(
+              left: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    if (_currentIndex > 0) {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.chevron_left,
+                      color: _currentIndex > 0 ? Colors.white : Colors.white54,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Botón siguiente
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: GestureDetector(
+                  onTap: () {
+                    if (_currentIndex < widget.imageUrls.length - 1) {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.chevron_right,
+                      color: _currentIndex < widget.imageUrls.length - 1 ? Colors.white : Colors.white54,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

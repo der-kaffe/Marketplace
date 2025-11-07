@@ -1,5 +1,6 @@
+// lib/models/product_model.dart
+
 /// Modelo para representar un producto en la aplicación
-/// product_model.dart
 class Product {
   final String id;
   final String title;
@@ -11,11 +12,19 @@ class Product {
   final String category;
   final bool isAvailable;
   final bool isFavorite;
+  final int cantidad; 
 
   // 👤 Datos del vendedor
   final String sellerId;
   final String? sellerName;
   final String? sellerAvatar;
+  final String? sellerEmail;
+
+  // 👇 Nuevos campos
+  final String? informacionTecnica;
+  final String? estadoProducto; // 'nuevo' o 'usado'
+  final String? tiempoUso; // ej: "6 meses", "2 años"
+  final List<String>? imagenes; // Múltiples imágenes
 
   const Product({
     required this.id,
@@ -28,9 +37,15 @@ class Product {
     required this.category,
     this.isAvailable = true,
     this.isFavorite = false,
+    required this.cantidad,
     required this.sellerId,
     this.sellerName,
     this.sellerAvatar,
+    this.sellerEmail,
+    this.informacionTecnica,
+    this.estadoProducto,
+    this.tiempoUso,
+    this.imagenes,
   });
 
   /// Crea una copia del producto con algunos campos modificados
@@ -45,9 +60,15 @@ class Product {
     String? category,
     bool? isAvailable,
     bool? isFavorite,
+    int? cantidad, 
     String? sellerId,
     String? sellerName,
     String? sellerAvatar,
+    String? sellerEmail,
+    String? informacionTecnica,
+    String? estadoProducto,
+    String? tiempoUso,
+    List<String>? imagenes,
   }) {
     return Product(
       id: id ?? this.id,
@@ -60,9 +81,15 @@ class Product {
       category: category ?? this.category,
       isAvailable: isAvailable ?? this.isAvailable,
       isFavorite: isFavorite ?? this.isFavorite,
+      cantidad: cantidad ?? this.cantidad,
       sellerId: sellerId ?? this.sellerId,
       sellerName: sellerName ?? this.sellerName,
       sellerAvatar: sellerAvatar ?? this.sellerAvatar,
+      sellerEmail: sellerEmail ?? this.sellerEmail,
+      informacionTecnica: informacionTecnica ?? this.informacionTecnica,
+      estadoProducto: estadoProducto ?? this.estadoProducto,
+      tiempoUso: tiempoUso ?? this.tiempoUso,
+      imagenes: imagenes ?? this.imagenes,
     );
   }
 
@@ -79,9 +106,15 @@ class Product {
       'category': category,
       'isAvailable': isAvailable,
       'isFavorite': isFavorite,
+      'cantidad': cantidad,
       'sellerId': sellerId,
       'sellerName': sellerName,
       'sellerAvatar': sellerAvatar,
+      'sellerEmail': sellerEmail,
+      'informacionTecnica': informacionTecnica,
+      'estadoProducto': estadoProducto,
+      'tiempoUso': tiempoUso,
+      'imagenes': imagenes,
     };
   }
 
@@ -98,9 +131,17 @@ class Product {
       category: json['category'] as String,
       isAvailable: json['isAvailable'] as bool? ?? true,
       isFavorite: json['isFavorite'] as bool? ?? false,
+      cantidad: (json['cantidad'] as int?) ?? 0, 
       sellerId: json['sellerId'] as String,
       sellerName: json['sellerName'] as String?,
       sellerAvatar: json['sellerAvatar'] as String?,
+      sellerEmail: json['sellerEmail'] as String?,
+      informacionTecnica: json['informacionTecnica'] as String?,
+      estadoProducto: json['estadoProducto'] as String?,
+      tiempoUso: json['tiempoUso'] as String?,
+      imagenes: json['imagenes'] != null 
+          ? List<String>.from(json['imagenes'] as List) 
+          : null,
     );
   }
 }

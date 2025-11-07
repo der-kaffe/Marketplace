@@ -1,33 +1,77 @@
+import 'dart:async'; // 1. Importar 'async' para el Timer
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/custom_bottom_navigation.dart';
 import '../theme/app_colors.dart';
+import 'new_post_screen.dart';
 import 'home_screen.dart';
-import 'messages_screen.dart';
-import 'favorites_screen.dart';
-import 'profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
   final Widget? child;
-  const MainScreen({super.key, this.child});
+
+  // ✅ 1. ACEPTA LA GLOBALKEY
+  final GlobalKey<HomeScreenState> homeScreenKey;
+
+  const MainScreen(
+      {super.key,
+      this.child,
+      required this.homeScreenKey // ✅ 2. RECÍBELA EN EL CONSTRUCTOR
+      });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  // --- 3. Añadir estado para notificaciones ---
+  Timer? _notificationTimer;
+  bool _hasUnreadNotifications = false;
 
-  final List<Widget> _screens = const [
-    HomeScreen(),
-    MessagesScreen(),
-    FavoritesScreen(),
-    ProfileScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // 4. Iniciar el sondeo de notificaciones
+  }
+
+  @override
+  void dispose() {
+    // 5. Cancelar el timer al salir
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
+  // ✅ 4. NUEVA FUNCIÓN PARA CALCULAR EL ÍNDICE BASADO EN GOROUTER
+  int _calculateCurrentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).matchedLocation;
+    if (location.startsWith('/home/messages')) return 1;
+    if (location.startsWith('/home/favorites')) return 2;
+    if (location.startsWith('/home/profile')) return 3;
+    // Cualquier otra cosa (incluyendo /home) es 0
+    return 0;
+  }
+
+  // ✅ 5. NUEVA FUNCIÓN PARA OBTENER EL TÍTULO BASADO EN GOROUTER
+  String _getTitle(int currentIndex) {
+    switch (currentIndex) {
+      case 0:
+        return 'Inicio';
+      case 1:
+        return 'Mensajes';
+      case 2:
+        return 'Favoritos';
+      case 3:
+        return 'Perfil';
+      default:
+        return 'MicroMarket';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final body = widget.child ?? _screens[_currentIndex];
+    // ✅ 6. CALCULA EL ÍNDICE ACTUAL
+    final int currentIndex = _calculateCurrentIndex(context);
+
+    //final body = widget.child ?? _screens[_currentIndex];
 
     return Scaffold(
       appBar: AppBar(
@@ -37,52 +81,95 @@ class _MainScreenState extends State<MainScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(color: AppColors.blanco, borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.store, color: AppColors.azulPrimario, size: 24),
+              decoration: BoxDecoration(
+                  color: AppColors.blanco,
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Icon(Icons.store,
+                  color: AppColors.azulPrimario, size: 24),
             ),
             const SizedBox(width: 10),
-            Text(_getTitle(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+            Text(_getTitle(currentIndex),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 20)),
           ],
         ),
         actions: [
-          if (_currentIndex == 0)
-            IconButton(icon: const Icon(Icons.search, color: AppColors.amarilloPrimario), onPressed: () {}),
+          // --- 7. Modificar el IconButton para que sea un Stack ---
           IconButton(
-            icon: const Icon(Icons.notifications, color: AppColors.amarilloPrimario),
             onPressed: () {
+              // Al ir a notificaciones, actualizamos el icono
+              setState(() {
+                _hasUnreadNotifications = false;
+              });
               context.push('/home/notifications');
             },
+            icon: Stack(
+              clipBehavior:
+                  Clip.none, // Permite que el círculo se vea fuera del icono
+              children: [
+                const Icon(Icons.notifications,
+                    color: AppColors.amarilloPrimario, size: 28),
+
+                // El círculo rojo (badge)
+                if (_hasUnreadNotifications)
+                  Positioned(
+                    top: -2,
+                    right: -4,
+                    child: Container(
+                      height: 12,
+                      width: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.blanco, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
+          // -----------------------------------------------------
         ],
         elevation: 0,
       ),
-      body: body,
+
+      // ✅ 8. ASIGNA EL 'widget.child' DIRECTAMENTE AL BODY
+      body: widget.child,
+
       bottomNavigationBar: CustomBottomNavigation(
-        currentIndex: _currentIndex,
+        currentIndex: currentIndex,
         onTap: (index) {
-          setState(() => _currentIndex = index);
           switch (index) {
-            case 0: context.go('/home'); break;
-            case 1: context.go('/home/messages'); break;
-            case 2: context.go('/home/favorites'); break;
-            case 3: context.go('/home/profile'); break;
+            case 0:
+              context.go('/home');
+              break;
+            case 1:
+              context.go('/home/messages');
+              break;
+            case 2:
+              context.go('/home/favorites');
+              break;
+            case 3:
+              context.go('/home/profile');
+              break;
           }
         },
-        onNewPost: () {
-          // 👇 usar push para mantener el historial y que "atrás" vuelva bien
-          context.push('/new_post');
+
+        // ✅ 9. IMPLEMENTA LA LÓGICA DE 'await' Y 'forceRefresh'
+
+        onNewPost: () async {
+          // Usar GoRouter para navegar y esperar el resultado
+          await context.push('/new_post');
+
+          // Siempre refresca productos al volver, sin importar cómo se regrese
+          widget.homeScreenKey.currentState?.forceRefreshProducts();
+
+          // Si el usuario estaba en otra pestaña, vuelve a Home
+          if (_calculateCurrentIndex(context) != 0) {
+            context.go('/home');
+          }
         },
       ),
     );
-  }
-
-  String _getTitle() {
-    switch (_currentIndex) {
-      case 0: return 'Inicio';
-      case 1: return 'Mensajes';
-      case 2: return 'Favoritos';
-      case 3: return 'Perfil';
-      default: return 'MicroMarket';
-    }
   }
 }

@@ -13,6 +13,8 @@ import '../../screens/profile_screen.dart';
 import '../../screens/new_post_screen.dart';
 import '../../screens/startup.dart';
 import '../../screens/notifications_screen.dart';
+import '../../screens/edit_product_screen.dart';
+import 'package:marketplace/screens/transactions_page.dart';
 
 // Admin
 import '../../screens/admin_menu_page.dart';
@@ -28,8 +30,14 @@ class AppRouter {
   // Instancia del servicio de autenticación para usar en el redirect
   static final _authService = AuthService();
 
+  // ✅ 1. CREA LA GLOBAL KEY
+  static final GlobalKey<HomeScreenState> _homeScreenKey = GlobalKey<HomeScreenState>();
+
+  static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
   static final GoRouter router = GoRouter(
     initialLocation: '/startup',
+    observers: [routeObserver], // 👈 Agrega el observer aquí
 
     // La lógica de redirección protege las rutas de la aplicación
     redirect: (BuildContext context, GoRouterState state) async {
@@ -89,13 +97,31 @@ class AppRouter {
         ),
       ),
 
+      GoRoute(
+        path: '/edit_product/:id',
+        builder: (context, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '');
+          if (id == null) return const Scaffold(body: Center(child: Text('ID inválido')));
+          return EditProductScreen(productId: id);
+        },
+      ),
+      GoRoute(
+      path: '/transactions',
+      builder: (context, state) => const TransactionsPage(),
+    ),
+
       // Rutas principales de la aplicación dentro de un ShellRoute para la barra de navegación
       ShellRoute(
-        builder: (context, state, child) => MainScreen(child: child),
+        builder: (context, state, child) => MainScreen(
+          // ✅ 2. PASA LA KEY AL BUILDER DE MAINSCREEN
+          homeScreenKey: _homeScreenKey,
+          child: child,
+        ),
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => const HomeScreen(),
+            // ✅ 3. ASIGNA LA KEY AL HOMESCREEN
+            builder: (context, state) => HomeScreen(key: _homeScreenKey),
           ),
           GoRoute(
             path: '/home/messages',

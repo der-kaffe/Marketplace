@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
 import '../services/auth_service.dart';
 import 'chat_page.dart';
+import '../widgets/community_chat_view.dart';
 
 class ConversationsPage extends StatefulWidget {
   const ConversationsPage({super.key});
@@ -26,7 +27,6 @@ class _ConversationsPageState extends State<ConversationsPage> {
   }
 
   Future<void> _initializeChat() async {
-    print('🚀 Inicializando chat...');
     await _loadCurrentUser();
     await _loadConversations();
     _setupWebSocketListeners();
@@ -47,29 +47,16 @@ class _ConversationsPageState extends State<ConversationsPage> {
     });
 
     try {
-      print('🔄 Cargando conversaciones...');
-      print('👤 Usuario actual ID: $_currentUserId');
-      
       final conversationsList = await _chatService.getConversations();
-      print('📋 Conversaciones obtenidas del servicio: ${conversationsList.length}');
-      
-      for (int i = 0; i < conversationsList.length; i++) {
-        print('   ${i + 1}. ${conversationsList[i]}');
-      }
-      
+
       setState(() {
-        conversations = conversationsList.map((conv) => 
-          _chatService.formatConversation(conv, _currentUserId ?? 0)
-        ).toList();
+        conversations = conversationsList
+            .map((conv) =>
+                _chatService.formatConversation(conv, _currentUserId ?? 0))
+            .toList();
         _isLoading = false;
       });
-      
-      print('✅ Conversaciones formateadas: ${conversations.length}');
-      for (int i = 0; i < conversations.length; i++) {
-        print('   ${i + 1}. ${conversations[i]["name"]}: "${conversations[i]["lastMessage"]}"');
-      }
     } catch (e) {
-      print('❌ Error cargando conversaciones: $e');
       setState(() {
         _isLoading = false;
       });
@@ -85,21 +72,37 @@ class _ConversationsPageState extends State<ConversationsPage> {
 
   void _openChat(int index) async {
     final chat = conversations[index];
+    final int otroUsuarioId = chat["id"];
 
+    // ⭐️ Lógica para marcar como leído
+    if (chat["unread"] > 0) {
+      // 1. Actualiza la UI inmediatamente
+      setState(() {
+        conversations[index]["unread"] = 0;
+      });
+
+      // 2. Llama a la API (ahora sí existe en ChatService)
+      try {
+        await _chatService.markMessagesAsRead(otroUsuarioId);
+      } catch (e) {
+        // Opcional: Si falla, revertir el cambio en la UI
+      }
+    }
+
+    // 3. Navega a la pantalla de chat
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatPage(
           userName: chat["name"],
           avatar: chat["avatar"],
-          destinatarioId: chat["id"],
+          destinatarioId: otroUsuarioId,
         ),
       ),
     );
 
-    setState(() {
-      conversations[index]["unread"] = 0;
-    });
+    // 4. Al volver, recarga las conversaciones
+    _loadConversations();
   }
 
   @override
@@ -119,10 +122,22 @@ class _ConversationsPageState extends State<ConversationsPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: SpinKitWave(
-                color: AppColors.azulPrimario,
-                size: 40.0,
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 100,
+                    height: 100,
+                    child: Image.asset('assets/logoMarket.png',
+                        fit: BoxFit.contain),
+                  ),
+                  const SizedBox(height: 16),
+                  const SpinKitWave(
+                    color: AppColors.azulPrimario,
+                    size: 40.0,
+                  ),
+                ],
               ),
             )
           : conversations.isEmpty
@@ -165,11 +180,43 @@ class _ConversationsPageState extends State<ConversationsPage> {
                   ),
                 )
               : ListView.separated(
-                  itemCount: conversations.length,
+                  itemCount: conversations.length + 1,
                   separatorBuilder: (_, __) =>
                       Divider(color: AppColors.grisClaro, height: 1),
                   itemBuilder: (context, index) {
-                    final chat = conversations[index];
+                    if (index == 0) {
+                      // Entrada fija de Comunidad UCT
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppColors.azulPrimario,
+                          child: const Icon(Icons.groups, color: Colors.white),
+                        ),
+                        title: const Text(
+                          'Comunidad UCT',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: const Text('Chat público de la comunidad'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => Scaffold(
+                                appBar: AppBar(
+                                  backgroundColor: AppColors.azulPrimario,
+                                  title: const Text('Comunidad UCT',
+                                      style: TextStyle(color: Colors.white)),
+                                  iconTheme:
+                                      const IconThemeData(color: Colors.white),
+                                ),
+                                body: const CommunityChatView(),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    }
+
+                    final chat = conversations[index - 1];
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundImage: NetworkImage(chat["avatar"]),
@@ -205,9 +252,11 @@ class _ConversationsPageState extends State<ConversationsPage> {
                               if (chat["isMe"])
                                 Container(
                                   margin: const EdgeInsets.only(left: 6),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 4, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: AppColors.azulPrimario.withOpacity(0.1),
+                                    color:
+                                        AppColors.azulPrimario.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -243,7 +292,7 @@ class _ConversationsPageState extends State<ConversationsPage> {
                             ),
                         ],
                       ),
-                      onTap: () => _openChat(index),
+                      onTap: () => _openChat(index - 1),
                     );
                   },
                 ),

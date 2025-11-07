@@ -5,24 +5,35 @@ import 'package:flutter/material.dart';
 class InfoRow extends StatelessWidget {
   final String label;
   final String value;
+  final IconData? icon; // <-- nuevo parámetro opcional
 
-  const InfoRow({super.key, required this.label, required this.value});
+  const InfoRow({super.key, required this.label, required this.value, this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black87, fontSize: 15),
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          if (icon != null)
+            Icon(icon, size: 18, color: Colors.grey[700]),
+          if (icon != null)
+            const SizedBox(width: 6),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(color: Colors.black87, fontSize: 15),
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
             ),
-            TextSpan(text: value),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

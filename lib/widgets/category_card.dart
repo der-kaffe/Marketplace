@@ -23,37 +23,67 @@ class CategoryCard extends StatelessWidget {
     
     return GestureDetector(
       onTap: onTap,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 100,
+        height: 120,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: cardColor.withValues(alpha: 0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+              spreadRadius: 0,
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icono con fondo circular
+            // Icono con fondo circular mejorado y centrado
             Container(
-              padding: const EdgeInsets.all(12),
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
-                color: cardColor.withValues(alpha: 0.1),
+                gradient: LinearGradient(
+                  colors: [
+                    cardColor.withValues(alpha: 0.15),
+                    cardColor.withValues(alpha: 0.08),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
+                border: Border.all(
+                  color: cardColor.withValues(alpha: 0.2),
+                  width: 1.5,
+                ),
               ),
-              child: Icon(
-                icon,
-                color: cardColor,
-                size: 32,
+              child: Center(
+                child: Icon(
+                  icon,
+                  color: cardColor,
+                  size: 24,
+                ),
               ),
             ),
-            const SizedBox(height: 8),
-            // Título de la categoría
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: cardColor,
+            const SizedBox(height: 12),
+            // Título de la categoría mejorado
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: cardColor,
+                  height: 1.2,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

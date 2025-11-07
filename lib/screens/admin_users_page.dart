@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import '../widgets/create_user_dialog.dart';
+import '../widgets/edit_user_dialog.dart';
 
 class UserItem {
   final int id;
   final String nombre;
   final String apellido;
   final String correo;
+  final String usuario;
   final int rolId;
   final int estadoId;
   final String campus;
@@ -19,6 +22,7 @@ class UserItem {
     required this.nombre,
     required this.apellido,
     required this.correo,
+    required this.usuario, 
     required this.rolId,
     required this.estadoId,
     required this.campus,
@@ -31,10 +35,10 @@ class UserItem {
       nombre: json['nombre'] ?? '',
       apellido: json['apellido'] ?? '',
       correo: json['correo'] ?? '',
+      usuario: json['usuario'] ?? '', 
       rolId: json['rolId'] ?? 0,
       estadoId: json['estadoId'] ?? 0,
       campus: json['campus'] ?? '',
-      // si tu backend expone estadoId == X para baneado, puedes mapearlo aquí
       isBanned: (json['estadoId'] == 2), // ejemplo: 2 = baneado
     );
   }
@@ -97,10 +101,15 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     _refreshUsers();
   }
 
-  void _onEdit(UserItem user) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Editar: ${user.nombre} (a implementar)')),
+  void _onEdit(UserItem user) async {
+    final updated = await showDialog(
+      context: context,
+      builder: (_) => EditUserDialog(user: user),
     );
+
+    if (updated == true) {
+      _refreshUsers();
+    }
   }
 
   void _onDelete(UserItem user) async {
@@ -349,10 +358,14 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       backgroundColor: Colors.white,
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF00A8E8),
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Agregar usuario (a implementar)')),
+        onPressed: () async {
+          final created = await showDialog(
+            context: context,
+            builder: (context) => const CreateUserDialog(),
           );
+          if (created == true) {
+            _refreshUsers(); // recarga la lista si se creó un usuario
+          }
         },
         child: const Icon(Icons.add, size: 28),
       ),

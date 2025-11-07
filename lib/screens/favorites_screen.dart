@@ -3,6 +3,9 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
+import '../services/product_service.dart';
+import '../models/product_model.dart';
+import '../widgets/product_detail_modal.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -13,6 +16,7 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   final _authService = AuthService();
+  final ProductService _productService = ProductService();
   bool _isLoading = true;
   bool _isRefreshing = false;
 
@@ -71,11 +75,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.fondoClaro,
-      appBar: AppBar(
-        title: const Text('Mis Favoritos'),
-        backgroundColor: AppColors.azulPrimario,
-        foregroundColor: Colors.white,
-      ),
       body: _isLoading
           ? Center(
               child: SpinKitWave(
@@ -159,8 +158,73 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           icon: const Icon(Icons.delete_outline, color: AppColors.error),
           onPressed: () => _removeFavorite(fav.productoId),
         ),
-        onTap: () {
-          // TODO: Navegar al detalle del producto
+        onTap: () async {
+          // 1. Crear una variable nullable para el contexto del diálogo
+          BuildContext? dialogContext;
+
+          // 2. Mostrar un indicador de carga
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext bContext) { // <-- 3. Capturar el contexto del builder
+              dialogContext = bContext; // <-- 4. Asignarlo a nuestra variable
+              return const Center(
+                child: CircularProgressIndicator(color: AppColors.azulPrimario),
+              );
+            },
+          );
+
+          Product? product;
+          dynamic apiError;
+
+          // 5. Intentar obtener los datos del producto
+          try {
+            product = await _productService.getProductById(fav.productoId.toString());
+          } catch (e) {
+            apiError = e;
+          }
+
+          if (!mounted) return;
+
+          // 6. CERRAR el diálogo de carga USANDO SU PROPIO CONTEXTO
+          if (dialogContext != null) {
+            Navigator.pop(dialogContext!); // <-- ✅ ¡LA CORRECCIÓN CLAVE!
+          } else {
+            // Fallback por si algo muy raro pasa (casi nunca se usará)
+            Navigator.pop(context);
+          }
+
+          // 7. ESPERAR un instante para que el Navigator se asiente
+          await Future.delayed(const Duration(milliseconds: 50));
+          if (!mounted) return;
+
+          // 8. AHORA, decidir qué hacer (mostrar modal o mostrar error)
+          if (product != null) {
+            // 9. ¡Éxito! Mostrar el modal de detalles
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => ProductDetailModal(
+                product: product!.copyWith(
+                  isFavorite: true,
+                ),
+              ),
+            );
+          } else {
+            // 10. Error: Mostrar el error de la API
+            final errorMessage = apiError is ApiException
+                ? apiError.message
+                : (apiError?.toString() ?? 'Error desconocido');
+                
+            print('❌ Error al buscar producto por ID: $errorMessage');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error al cargar detalles: $errorMessage'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         },
       ),
     );

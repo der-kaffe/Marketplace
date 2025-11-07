@@ -6,6 +6,43 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// 📸 Ruta para servir imágenes desde la BD
+router.get('/images/:productoId/:imagenId', async (req, res) => {
+  try {
+    const { productoId, imagenId } = req.params;
+    
+    const imagen = await prisma.imagenesProducto.findFirst({
+      where: {
+        id: parseInt(imagenId),
+        productoId: parseInt(productoId)
+      }
+    });
+
+    if (!imagen) {
+      return res.status(404).json({ ok: false, message: 'Imagen no encontrada' });
+    }
+
+    // Si tiene imagenData en BD, servirla
+    if (imagen.imagenData) {
+      const mimeType = imagen.mimeType || 'image/jpeg';
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache 1 año
+      return res.send(Buffer.from(imagen.imagenData));
+    }
+
+    // Si solo tiene URL (compatibilidad), redirigir o servir archivo estático
+    if (imagen.urlImagen) {
+      // Retornar URL para que el cliente la use
+      return res.json({ ok: true, url: imagen.urlImagen });
+    }
+
+    return res.status(404).json({ ok: false, message: 'Imagen sin datos' });
+  } catch (error) {
+    console.error('Error sirviendo imagen:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/products - Listar productos
 router.get('/', async (req, res) => {
   try {
@@ -104,7 +141,18 @@ router.get('/', async (req, res) => {
       cantidad: product.cantidad,
       estado: product.estado.nombre,
       fechaAgregado: product.fechaAgregado,
-      imagenes: product.imagenes,
+      imagenes: product.imagenes.map(img => ({
+        id: img.id,
+        // Si tiene imagenData, crear URL absoluta para obtenerla desde BD
+        urlImagen: img.imagenData 
+          ? `${req.protocol}://${req.get('host')}/api/products/images/${product.id}/${img.id}`
+          : img.urlImagen,
+        tieneImagenData: !!img.imagenData
+      })),
+      // 👇 Nuevos campos
+      informacionTecnica: product.informacionTecnica,
+      estadoProducto: product.estadoProducto,
+      tiempoUso: product.tiempoUso,
       vendedor: {
         id: product.vendedor.id,
         nombre: product.vendedor.nombre,
@@ -182,7 +230,18 @@ router.get('/my-products', authenticateToken, async (req, res) => {
       estado: product.estado.nombre,
       visible: product.visible,
       fechaAgregado: product.fechaAgregado,
-      imagenes: product.imagenes,
+      imagenes: product.imagenes.map(img => ({
+        id: img.id,
+        // Si tiene imagenData, crear URL absoluta para obtenerla desde BD
+        urlImagen: img.imagenData 
+          ? `${req.protocol}://${req.get('host')}/api/products/images/${product.id}/${img.id}`
+          : img.urlImagen,
+        tieneImagenData: !!img.imagenData
+      })),
+      // 👇 Nuevos campos
+      informacionTecnica: product.informacionTecnica,
+      estadoProducto: product.estadoProducto,
+      tiempoUso: product.tiempoUso,
       vendedor: product.vendedor
     }));
 
@@ -251,7 +310,18 @@ router.get('/:id', async (req, res) => {
       cantidad: product.cantidad,
       estado: product.estado.nombre,
       fechaAgregado: product.fechaAgregado,
-      imagenes: product.imagenes,
+      imagenes: product.imagenes.map(img => ({
+        id: img.id,
+        // Si tiene imagenData, crear URL absoluta para obtenerla desde BD
+        urlImagen: img.imagenData 
+          ? `${req.protocol}://${req.get('host')}/api/products/images/${product.id}/${img.id}`
+          : img.urlImagen,
+        tieneImagenData: !!img.imagenData
+      })),
+      // 👇 Nuevos campos
+      informacionTecnica: product.informacionTecnica,
+      estadoProducto: product.estadoProducto,
+      tiempoUso: product.tiempoUso,
       vendedor: {
         ...product.vendedor,
         reputacion: product.vendedor.reputacion ? Number(product.vendedor.reputacion) : 0
@@ -295,7 +365,12 @@ router.post('/', authenticateToken, [
       precioAnterior, 
       precioActual,
       categoriaId,
-      cantidad
+      cantidad,
+      imageUrl, // <-- Recibe imageUrl del body (compatibilidad)
+      imagenes, // <-- Recibe múltiples imágenes
+      informacionTecnica,
+      estadoProducto, // 'nuevo' o 'usado'
+      tiempoUso
     } = req.body;
 
     // ✅ PASO 1: Verificar que la categoría existe
@@ -360,7 +435,11 @@ router.post('/', authenticateToken, [
         cantidad: cantidad ? parseInt(cantidad) : 1,
         estadoId: 1, // Estado "Disponible"
         visible: true, // Visible por defecto
-        calificacion: 0.0
+        calificacion: 0.0,
+        // 👇 Nuevos campos
+        informacionTecnica: informacionTecnica || null,
+        estadoProducto: estadoProducto || null, // 'nuevo' o 'usado'
+        tiempoUso: tiempoUso || null
       },
       include: {
         categoria: true,
@@ -375,7 +454,78 @@ router.post('/', authenticateToken, [
         },
         estado: true
       }
-    });
+    });    // 🖼️ PASO 5: Manejar múltiples imágenes
+    const imagenesLista = imagenes && Array.isArray(imagenes) ? imagenes : (imageUrl ? [imageUrl] : []);
+    
+    if (imagenesLista.length > 0) {
+      console.log(`📷 Procesando ${imagenesLista.length} imagen(es) para producto ${newProduct.id}`);
+      
+      for (let i = 0; i < imagenesLista.length; i++) {
+        const imagenItem = imagenesLista[i];
+        
+        try {
+          if (typeof imagenItem === 'string') {
+            if (imagenItem.startsWith('data:image')) {
+              // 📸 Procesar imagen base64
+              const base64Match = imagenItem.match(/^data:([^;]+);base64,(.+)$/);
+              if (base64Match) {
+                const mimeType = base64Match[1];
+                const base64Data = base64Match[2];
+                const imageBuffer = Buffer.from(base64Data, 'base64');
+                
+                // Validar tamaño de imagen (máx 10MB)
+                if (imageBuffer.length > 10 * 1024 * 1024) {
+                  console.warn(`⚠️ Imagen ${i+1} muy grande: ${imageBuffer.length} bytes`);
+                  continue;
+                }
+                
+                await prisma.imagenesProducto.create({
+                  data: {
+                    productoId: newProduct.id,
+                    imagenData: imageBuffer,
+                    mimeType: mimeType,
+                    urlImagen: null
+                  }
+                });
+                
+                console.log(`✅ Imagen ${i+1} guardada: ${mimeType}, ${imageBuffer.length} bytes`);
+              }
+            } else {
+              // 🔗 URL (compatibilidad hacia atrás)
+              await prisma.imagenesProducto.create({
+                data: {
+                  productoId: newProduct.id,
+                  urlImagen: imagenItem,
+                  imagenData: null,
+                  mimeType: null
+                }
+              });
+              console.log(`✅ Imagen ${i+1} URL guardada: ${imagenItem}`);
+            }
+          } else if (imagenItem && imagenItem.imageData) {
+            // 📦 Objeto con imageData y mimeType
+            const imageBuffer = Buffer.from(imagenItem.imageData, 'base64');
+            
+            if (imageBuffer.length > 10 * 1024 * 1024) {
+              console.warn(`⚠️ Imagen objeto ${i+1} muy grande: ${imageBuffer.length} bytes`);
+              continue;
+            }
+              await prisma.imagenesProducto.create({
+              data: {
+                productoId: newProduct.id,
+                imagenData: imageBuffer,
+                mimeType: imagenItem.mimeType || 'image/jpeg',
+                urlImagen: null
+              }
+            });
+            
+            console.log(`✅ Imagen objeto ${i+1} guardada: ${imagenItem.mimeType}, ${imageBuffer.length} bytes`);
+          }
+        } catch (imgError) {
+          console.error(`❌ Error procesando imagen ${i+1}:`, imgError);
+        }
+      }
+    }
 
     // ✅ PASO 5: Respuesta exitosa
     res.status(201).json({
@@ -607,14 +757,15 @@ router.put('/:id', authenticateToken, [
   }
 });
 
-// DELETE /api/products/:id - Eliminar producto (soft delete)
+// DELETE /api/products/:id - Eliminar producto (Hard Delete)
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const productoId = parseInt(id); // ⬅️ FIX 1: Definir la variable 'productoId' aquí
 
     // ✅ PASO 1: Verificar que el producto existe
     const producto = await prisma.productos.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: productoId }, // ⬅️ FIX 2: Usar 'productoId'
       include: { vendedor: true, estado: true }
     });
 
@@ -636,7 +787,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // ✅ PASO 3: Verificar si tiene transacciones pendientes
     const transaccionesPendientes = await prisma.transacciones.findFirst({
       where: {
-        productoId: parseInt(id),
+        productoId: productoId, // ⬅️ FIX 3: Usar 'productoId'
         estadoId: { in: [1, 2] } // Estados: Pendiente o En proceso
       }
     });
@@ -648,54 +799,36 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    // ✅ PASO 4: Buscar estado "Eliminado" o "Inactivo"
-    const estadoEliminado = await prisma.estadosProducto.findFirst({
-      where: { 
-        OR: [
-          { nombre: { equals: 'Eliminado', mode: 'insensitive' } },
-          { nombre: { equals: 'Inactivo', mode: 'insensitive' } }
-        ]
-      }
+    // ⬇️ PASO 4 (MODIFICADO): Borrado físico (Hard Delete)
+    // Esto elimina permanentemente la fila de la base de datos.
+    const productoEliminado = await prisma.productos.delete({
+      where: { id: productoId }, // ⬅️ FIX 4: Usar 'productoId'
     });
 
-    if (!estadoEliminado) {
-      return res.status(500).json({
-        ok: false,
-        message: 'Error: Estado "Eliminado" no encontrado en el sistema'
-      });
-    }
-
-    // ✅ PASO 5: Soft delete (cambiar estado a "Eliminado")
-    const productoEliminado = await prisma.productos.update({
-      where: { id: parseInt(id) },
-      data: { 
-        estadoId: estadoEliminado.id,
-        visible: false // También ocultarlo
-      },
-      include: {
-        estado: true,
-        vendedor: {
-          select: { id: true, nombre: true, usuario: true }
-        }
-      }
-    });
-
+    // ⬇️ PASO 5 (MODIFICADO): Respuesta de éxito simple
     res.json({
       ok: true,
       message: 'Producto eliminado exitosamente',
       product: {
         id: productoEliminado.id,
-        nombre: productoEliminado.nombre,
-        estado: productoEliminado.estado.nombre,
-        eliminadoPor: {
-          id: req.user.userId,
-          role: req.user.role
-        }
+        nombre: productoEliminado.nombre
       }
     });
 
   } catch (error) {
     console.error('❌ Error eliminando producto:', error);
+
+    // ⚠️ IMPORTANTE: Manejo de error de borrado
+    // Si el producto está en favoritos, reportes, etc.,
+    // la base de datos lanzará un error de "foreign key".
+    if (error.code === 'P2003') {
+       return res.status(400).json({
+         ok: false,
+         message: 'No se puede eliminar el producto porque está referenciado en otra parte (ej: transacciones, favoritos, reportes).',
+         error: 'Foreign key constraint failed'
+       });
+    }
+
     res.status(500).json({
       ok: false,
       message: 'Error interno del servidor',

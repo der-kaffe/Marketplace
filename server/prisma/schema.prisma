@@ -15,15 +15,18 @@ datasource db {
 model Cuentas {
   id            Int      @id @default(autoincrement())
   nombre        String   @db.VarChar(50)
-  apellido      String?  @db.VarChar(50)
   correo        String   @unique @db.VarChar(255)
   usuario       String   @unique @db.VarChar(255)
+  telefono      String?  @db.VarChar(20)
+  direccion     String?  @db.VarChar(255)
   contrasena    String   @db.VarChar(255)
   rolId         Int      @map("rol_id")
   estadoId      Int      @map("estado_id")
   fechaRegistro DateTime @default(now()) @map("fecha_registro")
   campus        String?  @db.VarChar(100)
   reputacion    Decimal  @default(0.00) @db.Decimal(5, 2)
+  fcm_token    String? @db.Text
+  fotoPerfilUrl String? @db.VarChar(500) @map("foto_perfil_url")
 
   // Relaciones
   rol                     Roles                    @relation(fields: [rolId], references: [id])
@@ -43,14 +46,15 @@ model Cuentas {
   foros                   Foros[]
   publicacionesForo       PublicacionesForo[]
   comentariosPublicacion  ComentariosPublicacion[]
-  notificaciones          Notificaciones[]
   ubicaciones             Ubicaciones[]
   resumenUsuario          ResumenUsuario?
   siguiendo               Seguidores[]             @relation("UsuarioSigue")
   seguidores              Seguidores[]             @relation("UsuarioSeguido")
-
   // 👇 Nueva relación
   favoritos Favoritos[]
+
+  // Relación inversa para mensajes de comunidad
+  comunidadMensajes ComunidadMensajes[]
 
   @@index([rolId])
   @@index([estadoId])
@@ -116,6 +120,11 @@ model Productos {
   /// 👇 Nuevo campo agregado para control de visibilidad de publicaciones
   visible        Boolean  @default(true)
 
+  /// 👇 Nuevos campos: información técnica, estado del producto y tiempo de uso
+  informacionTecnica String? @map("informacion_tecnica") @db.Text
+  estadoProducto     String? @map("estado_producto") @db.VarChar(20) // 'nuevo' o 'usado'
+  tiempoUso          String? @map("tiempo_uso") @db.VarChar(100) // ej: "6 meses", "2 años"
+
   // Relaciones
   categoria     Categorias?        @relation(fields: [categoriaId], references: [id])
   vendedor      Cuentas            @relation("VendedorProductos", fields: [vendedorId], references: [id], onDelete: Cascade)
@@ -136,7 +145,9 @@ model Productos {
 model ImagenesProducto {
   id         Int    @id @default(autoincrement())
   productoId Int    @map("producto_id")
-  urlImagen  Bytes? @map("url_imagen")
+  urlImagen  String? @map("url_imagen") // URL para compatibilidad hacia atrás
+  imagenData Bytes? @map("imagen_data") @db.ByteA // Datos de imagen en bytes
+  mimeType   String? @map("mime_type") @db.VarChar(50) // Tipo MIME (image/jpeg, image/png, etc.)
 
   // Relaciones
   producto Productos @relation(fields: [productoId], references: [id], onDelete: Cascade)
@@ -162,6 +173,12 @@ model Transacciones {
   vendedorId  Int      @map("vendedor_id")
   fecha       DateTime @default(now())
   estadoId    Int      @map("estado_id")
+
+  cantidad              Int      // Cantidad de unidades compradas
+  precioUnitario        Decimal? @map("precio_unitario") @db.Decimal(10, 2) // Precio al momento de la compra
+  precioTotal           Decimal? @map("precio_total") @db.Decimal(10, 2) // Total = cantidad * precioUnitario
+  confirmacionVendedor  Boolean  @default(false) @map("confirmacion_vendedor") // Vendedor confirma entrega
+  confirmacionComprador Boolean  @default(false) @map("confirmacion_comprador") // Comprador confirma recibo
 
   // Relaciones
   producto       Productos          @relation(fields: [productoId], references: [id], onDelete: Cascade)
@@ -233,6 +250,21 @@ model Mensajes {
   @@map("mensajes")
 }
 
+// Mensajes de la comunidad pública "Comunidad UCT"
+model ComunidadMensajes {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int      @map("usuario_id")
+  contenido  String?  @db.Text
+  tipo       String   @default("texto") @db.VarChar(50)
+  fechaEnvio DateTime @default(now()) @map("fecha_envio")
+
+  // Relaciones
+  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("comunidad_mensajes")
+}
+
 // Estados de reportes
 model EstadosReporte {
   id       Int        @id @default(autoincrement())
@@ -280,21 +312,7 @@ model ActividadUsuario {
   @@map("actividad_usuario")
 }
 
-// Notificaciones
-model Notificaciones {
-  id        Int      @id @default(autoincrement())
-  usuarioId Int      @map("usuario_id")
-  tipo      String?  @db.VarChar(50)
-  mensaje   String?  @db.Text
-  leido     Boolean  @default(false)
-  fecha     DateTime @default(now())
 
-  // Relaciones
-  usuario Cuentas @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-
-  @@index([usuarioId])
-  @@map("notificaciones")
-}
 
 // Sistema de publicaciones generales
 model Publicaciones {
