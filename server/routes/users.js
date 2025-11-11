@@ -26,8 +26,8 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
         404,
         { field: "id" }
       );
-    }    res.json({
-      success: true,      data: {
+    } res.json({
+      success: true, data: {
         id: user.id,
         correo: user.correo,
         usuario: user.usuario,
@@ -94,10 +94,11 @@ router.put('/profile', authenticateToken, async (req, res, next) => {
         rol: true,
         estado: true
       }
-    });    res.json({
+    }); res.json({
       ok: true,
       message: 'Perfil actualizado correctamente',
-      user: {        id: updatedUser.id,
+      user: {
+        id: updatedUser.id,
         correo: updatedUser.correo,
         nombre: updatedUser.nombre,
         usuario: updatedUser.usuario,
@@ -142,7 +143,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
       data: users.map(user => ({
         id: user.id,
         correo: user.correo,
-        usuario: user.usuario,        nombre: user.nombre,
+        usuario: user.usuario, nombre: user.nombre,
         role: user.rol.nombre,
         estado: user.estado.nombre,
         campus: user.campus,
@@ -327,8 +328,8 @@ router.get('/:id', async (req, res, next) => {
         400,
         { field: "id", value: id }
       );
-    }    const user = await prisma.cuentas.findUnique({
-      where: { id: userId },      select: { // Selecciona solo los campos públicos que quieres mostrar
+    } const user = await prisma.cuentas.findUnique({
+      where: { id: userId }, select: { // Selecciona solo los campos públicos que quieres mostrar
         id: true,
         nombre: true,
         usuario: true, // Puedes decidir si mostrar el nombre de usuario
@@ -355,22 +356,25 @@ router.get('/:id', async (req, res, next) => {
       prisma.productos.count({
         where: { vendedorId: userId }
       }),
-      
+
       // Productos activos/disponibles
       prisma.productos.count({
-        where: { 
+        where: {
           vendedorId: userId,
           estadoId: 1, // Estado "Disponible"
-          visible: true 
+          visible: true
         }
       }),
-      
+
       // Total de ventas completadas
       prisma.transacciones.count({
-        where: { 
+        where: {
           vendedorId: userId,
-          estado: 'Completada'
+          estado: {
+            nombre: 'Completada'
+          }
         }
+
       })
     ]);    // Formatea la respuesta (opcional pero bueno)
     res.json({
@@ -383,7 +387,7 @@ router.get('/:id', async (req, res, next) => {
         reputacion: user.reputacion ? Number(user.reputacion) : 0.0,
         miembroDesde: user.fechaRegistro,
         fotoPerfilUrl: user.fotoPerfilUrl, // ✅ Incluir foto de perfil
-        
+
         // ✅ NUEVO: Estadísticas del vendedor
         estadisticas: {
           totalPublicaciones,
