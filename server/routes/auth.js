@@ -25,64 +25,63 @@ const handleValidationErrors = (req, res, next) => {
 };
 
 // ------------------- LOGIN -------------------
-router.post('/login', 
+router.post('/login',
   loginLimiter, // 🔒 Rate limiting para login
   [
     body('email').isEmail().normalizeEmail().withMessage('Email debe ser valido'),
     body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
     handleValidationErrors
-  ], 
+  ],
   async (req, res) => {
-  try {
-    const { email, password } = req.body;
+    try {
+      const { email, password } = req.body;
 
-    const user = await prisma.cuentas.findFirst({
-      where: { correo: email, estadoId: 1 },
-      include: { rol: true, estado: true }
-    });
+      const user = await prisma.cuentas.findFirst({
+        where: { correo: email, estadoId: 1 },
+        include: { rol: true, estado: true }
+      });
 
-    if (!user) {
-      return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
-    }
-
-    const passwordMatch = await bcrypt.compare(password, user.contrasena);
-    if (!passwordMatch) {
-      return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
-    }    // 🔒 Generar par de tokens (access + refresh)
-    const tokenPayload = { 
-      userId: user.id, 
-      email: user.correo, 
-      role: user.rol.nombre.toUpperCase() 
-    };
-    const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
-
-    secureLog.info('Usuario logueado exitosamente', {
-      userId: user.id,
-      email: user.correo,
-      role: user.rol.nombre
-    });
-
-    res.json({
-      ok: true,
-      message: 'Login exitoso',
-      token: accessToken, // Mantener compatibilidad
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.correo,
-        nombre: user.nombre,
-        apellido: user.apellido,
-        role: user.rol.nombre.toUpperCase(),
-        campus: user.campus,
-        reputacion: user.reputacion
+      if (!user) {
+        return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
       }
-    });
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
-  }
-});
+
+      const passwordMatch = await bcrypt.compare(password, user.contrasena);
+      if (!passwordMatch) {
+        return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
+      }    // 🔒 Generar par de tokens (access + refresh)
+      const tokenPayload = {
+        userId: user.id,
+        email: user.correo,
+        role: user.rol.nombre.toUpperCase()
+      };
+      const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+
+      secureLog.info('Usuario logueado exitosamente', {
+        userId: user.id,
+        email: user.correo,
+        role: user.rol.nombre
+      });
+
+      res.json({
+        ok: true,
+        message: 'Login exitoso',
+        token: accessToken, // Mantener compatibilidad
+        accessToken,
+        refreshToken,
+        user: {
+          id: user.id,
+          email: user.correo,
+          nombre: user.nombre,
+          role: user.rol.nombre.toUpperCase(),
+          campus: user.campus,
+          reputacion: user.reputacion
+        }
+      });
+    } catch (error) {
+      console.error('Error en login:', error);
+      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+    }
+  });
 
 // ------------------- REGISTER -------------------
 router.post('/register',
@@ -109,72 +108,70 @@ router.post('/register',
       .isLength({ min: 3, max: 30 }).withMessage('Usuario debe tener entre 3 y 30 caracteres')
       .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Usuario solo debe contener letras, números, _ y -'),
     handleValidationErrors
-  ], 
+  ],
   async (req, res) => {
-  try {
-    const { email, password, nombre, usuario } = req.body;
+    try {
+      const { email, password, nombre, usuario } = req.body;
 
-    const existingUser = await prisma.cuentas.findFirst({
-      where: { OR: [{ correo: email }, { usuario: usuario }] }
-    });
+      const existingUser = await prisma.cuentas.findFirst({
+        where: { OR: [{ correo: email }, { usuario: usuario }] }
+      });
 
-    if (existingUser) {
-      const campo = existingUser.correo === email ? 'correo' : 'usuario';
-      return res.status(409).json({ ok: false, message: `El ${campo} ya esta en uso` });
+      if (existingUser) {
+        const campo = existingUser.correo === email ? 'correo' : 'usuario';
+        return res.status(409).json({ ok: false, message: `El ${campo} ya esta en uso` });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+      const rolId = email.endsWith('@uct.cl') ? 2 : 3;
+
+      const newUser = await prisma.cuentas.create({
+        data: {
+          correo: email,
+          contrasena: hashedPassword,
+          nombre,
+          usuario,
+          rolId,
+          estadoId: 1,
+          campus: 'Campus Temuco'
+        },
+        include: { rol: true, estado: true }
+      });
+
+      await prisma.resumenUsuario.create({
+        data: {
+          usuarioId: newUser.id,
+          totalProductos: 0,
+          totalVentas: 0,
+          totalCompras: 0,
+          promedioCalificacion: 0.0
+        }
+      });
+
+      const token = jwt.sign(
+        { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase() },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+
+      res.status(201).json({
+        ok: true,
+        message: 'Usuario registrado exitosamente',
+        token,
+        user: {
+          id: newUser.id,
+          correo: newUser.correo,
+          usuario: newUser.usuario,
+          nombre: newUser.nombre,
+          role: newUser.rol.nombre.toUpperCase(),
+          campus: newUser.campus
+        }
+      });
+    } catch (error) {
+      console.error('Error en registro:', error);
+      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
     }
-
-    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
-    const rolId = email.endsWith('@uct.cl') ? 2 : 3;
-
-    const newUser = await prisma.cuentas.create({
-      data: {
-        correo: email,
-        contrasena: hashedPassword,
-        nombre,
-        usuario,
-        apellido: '',
-        rolId,
-        estadoId: 1,
-        campus: 'Campus Temuco'
-      },
-      include: { rol: true, estado: true }
-    });
-
-    await prisma.resumenUsuario.create({
-      data: {
-        usuarioId: newUser.id,
-        totalProductos: 0,
-        totalVentas: 0,
-        totalCompras: 0,
-        promedioCalificacion: 0.0
-      }
-    });
-
-    const token = jwt.sign(
-      { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase() },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    res.status(201).json({
-      ok: true,
-      message: 'Usuario registrado exitosamente',
-      token,
-      user: {
-        id: newUser.id,
-        correo: newUser.correo,
-        usuario: newUser.usuario,
-        nombre: newUser.nombre,
-        apellido: newUser.apellido,
-        role: newUser.rol.nombre.toUpperCase(),
-        campus: newUser.campus
-      }
-    });
-  } catch (error) {
-    console.error('Error en registro:', error);
-    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
-  }
-});
+  });
 
 // ------------------- GOOGLE LOGIN -------------------
 router.post('/google', [
@@ -205,7 +202,6 @@ router.post('/google', [
           contrasena: '',
           nombre: name,
           usuario,
-          apellido: '',
           rolId,
           estadoId: 1,
           campus: 'Campus Temuco'
@@ -236,12 +232,11 @@ router.post('/google', [
         id: user.id,
         correo: user.correo,        // 🔒 Solo lectura (viene de Google)
         nombre: user.nombre,        // 🔒 Solo lectura (viene de Google)
-        apellido: user.apellido || '',    // ✏️ Editable por el usuario
         usuario: user.usuario,      // ✏️ Editable por el usuario
         campus: user.campus || 'Campus Temuco',  // ✏️ Editable por el usuario
         role: user.rol.nombre.toUpperCase(),
         // Campos editables disponibles para actualizar después:
-        editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
+        editableFields: ['usuario', 'campus', 'telefono', 'direccion']
       }
     });
     console.log(token)
@@ -338,29 +333,29 @@ router.post('/refresh', [
 ], async (req, res) => {
   try {
     const { refreshToken } = req.body;
-    
+
     // Verificar refresh token
     const payload = verifyRefreshToken(refreshToken);
-    
+
     // Verificar que el usuario aún existe y está activo
     const user = await prisma.cuentas.findFirst({
-      where: { 
-        id: payload.userId, 
-        estadoId: 1 
+      where: {
+        id: payload.userId,
+        estadoId: 1
       },
       include: { rol: true }
     });
-    
+
     if (!user) {
-      secureLog.warn('Intento de refresh con usuario inválido', { 
-        userId: payload.userId 
+      secureLog.warn('Intento de refresh con usuario inválido', {
+        userId: payload.userId
       });
-      return res.status(401).json({ 
-        ok: false, 
-        message: 'Usuario no encontrado o inactivo' 
+      return res.status(401).json({
+        ok: false,
+        message: 'Usuario no encontrado o inactivo'
       });
     }
-    
+
     // Generar nuevos tokens
     const newTokenPayload = {
       userId: user.id,
@@ -368,12 +363,12 @@ router.post('/refresh', [
       role: user.rol.nombre.toUpperCase()
     };
     const { accessToken, refreshToken: newRefreshToken } = generateTokenPair(newTokenPayload);
-    
+
     secureLog.info('Tokens renovados exitosamente', {
       userId: user.id,
       email: user.correo
     });
-    
+
     res.json({
       ok: true,
       message: 'Tokens renovados exitosamente',
@@ -381,12 +376,12 @@ router.post('/refresh', [
       refreshToken: newRefreshToken,
       token: accessToken // Mantener compatibilidad
     });
-    
+
   } catch (error) {
     secureLog.error('Error en refresh token', error);
-    res.status(403).json({ 
-      ok: false, 
-      message: 'Refresh token inválido o expirado' 
+    res.status(403).json({
+      ok: false,
+      message: 'Refresh token inválido o expirado'
     });
   }
 });
