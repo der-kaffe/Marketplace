@@ -1144,8 +1144,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                     }
 
                                     final isFavorite = _favoriteProductIds
-                                        .contains(product.id);
-                                    return ProductCard(
+                                        .contains(product.id);                                    return ProductCard(
                                       title: product.title,
                                       description: product.description,
                                       price: product.price,
@@ -1156,6 +1155,10 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                                       isAvailable: product.isAvailable,
                                       estadoProducto: product.estadoProducto,
                                       tiempoUso: product.tiempoUso,
+                                      // 👤 Información del vendedor
+                                      sellerId: product.sellerId,
+                                      sellerName: product.sellerName,
+                                      sellerAvatar: product.sellerAvatar,
                                       onToggleVisibility: () =>
                                           _toggleProductVisibility(product),
                                       onToggleFavorite: () =>
