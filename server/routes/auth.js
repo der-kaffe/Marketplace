@@ -48,7 +48,9 @@ router.post('/login',
       const passwordMatch = await bcrypt.compare(password, user.contrasena);
       if (!passwordMatch) {
         return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
-      }    // 🔒 Generar par de tokens (access + refresh)
+      }
+
+      // 🔒 Generar par de tokens (access + refresh)
       const tokenPayload = {
         userId: user.id,
         email: user.correo,
@@ -67,7 +69,8 @@ router.post('/login',
         message: 'Login exitoso',
         token: accessToken, // Mantener compatibilidad
         accessToken,
-        refreshToken, user: {
+        refreshToken,
+        user: {
           id: user.id,
           email: user.correo,
           nombre: user.nombre,
@@ -75,44 +78,15 @@ router.post('/login',
           campus: user.campus,
           reputacion: user.reputacion
         }
+      });
 
-      const passwordMatch = await bcrypt.compare(password, user.contrasena);
-        if(!passwordMatch) {
-          return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
-        }    // 🔒 Generar par de tokens (access + refresh)
-      const tokenPayload = {
-          userId: user.id,
-          email: user.correo,
-          role: user.rol.nombre.toUpperCase()
-        };
-        const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+      // --- AQUÍ HABÍA CÓDIGO DUPLICADO (YA ELIMINADO) ---
 
-        secureLog.info('Usuario logueado exitosamente', {
-          userId: user.id,
-          email: user.correo,
-          role: user.rol.nombre
-        });
-
-        res.json({
-          ok: true,
-          message: 'Login exitoso',
-          token: accessToken, // Mantener compatibilidad
-          accessToken,
-          refreshToken,
-          user: {
-            id: user.id,
-            email: user.correo,
-            nombre: user.nombre,
-            role: user.rol.nombre.toUpperCase(),
-            campus: user.campus,
-            reputacion: user.reputacion
-          }
-        });
-      } catch (error) {
-        console.error('Error en login:', error);
-        res.status(500).json({ ok: false, message: 'Error interno del servidor' });
-      }
-    });
+    } catch (error) {
+      console.error('Error en login:', error);
+      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+    }
+  });
 
 // ------------------- REGISTER -------------------
 router.post('/register',
@@ -203,54 +177,7 @@ router.post('/register',
       res.status(500).json({ ok: false, message: 'Error interno del servidor' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
-    const rolId = email.endsWith('@uct.cl') ? 2 : 3;
-
-    const newUser = await prisma.cuentas.create({
-      data: {
-        correo: email,
-        contrasena: hashedPassword, nombre,
-        usuario,
-        rolId,
-        estadoId: 1,
-        campus: 'Campus Temuco'
-      },
-      include: { rol: true, estado: true }
-    });
-
-    await prisma.resumenUsuario.create({
-      data: {
-        usuarioId: newUser.id,
-        totalProductos: 0,
-        totalVentas: 0,
-        totalCompras: 0,
-        promedioCalificacion: 0.0
-      }
-    });
-
-    const token = jwt.sign(
-      { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase() },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-
-    res.status(201).json({
-      ok: true,
-      message: 'Usuario registrado exitosamente',
-      token,
-      user: {
-        id: newUser.id, correo: newUser.correo,
-        usuario: newUser.usuario,
-        nombre: newUser.nombre,
-        role: newUser.rol.nombre.toUpperCase(),
-        campus: newUser.campus
-      }
-    });
-  } catch (error) {
-    console.error('Error en registro:', error);
-    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
-  }
-});
+  });
 
 // ------------------- GOOGLE LOGIN -------------------
 router.post('/google', [
@@ -269,14 +196,18 @@ router.post('/google', [
     let user = await prisma.cuentas.findFirst({
       where: { correo: email, estadoId: 1 },
       include: { rol: true, estado: true }
-    }); if (!user) {
-      // Todos los usuarios de Google son "Cliente" por defecto (ID 3)
+    });
+
+    // Si el usuario no existe, se crea
+    if (!user) {
       const rolId = 3; // Cliente
       const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
-      const usuario = `${baseUsuario}_${Date.now()}`; user = await prisma.cuentas.create({
+      const usuario = `${baseUsuario}_${Date.now()}`;
+
+      user = await prisma.cuentas.create({
         data: {
           correo: email,
-          contrasena: '',
+          contrasena: '', // No se guarda contraseña para login de Google
           nombre: name,
           usuario,
           rolId,
@@ -286,6 +217,7 @@ router.post('/google', [
         include: { rol: true, estado: true }
       });
 
+      // Crear el resumen de usuario asociado
       await prisma.resumenUsuario.create({
         data: {
           usuarioId: user.id,
@@ -297,11 +229,14 @@ router.post('/google', [
       });
     }
 
+    // Generar token para el usuario (existente o nuevo)
     const token = jwt.sign(
       { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase() },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    ); res.json({
+    );
+
+    res.json({
       ok: true,
       message: '¡Cuenta creada/actualizada en base de datos!',
       token,
@@ -312,13 +247,23 @@ router.post('/google', [
         usuario: user.usuario,      // ✏️ Editable por el usuario
         campus: user.campus || 'Campus Temuco',  // ✏️ Editable por el usuario
         role: user.rol.nombre.toUpperCase(),
-        // Campos editables disponibles para actualizar después:
         editableFields: ['usuario', 'campus', 'telefono', 'direccion']
       }
     });
-    console.log(token)
+
+    console.log(token);
+
   } catch (error) {
     console.error('Error en login Google:', error);
+    // Verificar si es el error de 'apellido' que vimos antes
+    if (error.code === 'P2002' && error.meta?.target?.includes('usuario')) {
+      return res.status(409).json({ ok: false, message: 'Error al generar nombre de usuario, intenta de nuevo.' });
+    }
+    // Manejo del error de Prisma por campo desconocido (como 'apellido' si volviera a aparecer)
+    if (error.message && error.message.includes("Unknown argument")) {
+      console.error("Error de Prisma: " + error.message);
+      return res.status(500).json({ ok: false, message: 'Error de validación del servidor.' });
+    }
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });
@@ -327,12 +272,6 @@ router.post('/google', [
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const { include } = req.query;
-    // Ejemplos de uso:
-    // /me                          -> trae todo
-    // /me?include=perfil           -> solo datos básicos
-    // /me?include=notificaciones
-    // /me?include=productos,seguidores
-    // /me?include=todo             -> todo explícitamente
 
     // Todas las relaciones disponibles
     const relacionesDisponibles = {
@@ -363,23 +302,19 @@ router.get('/me', authenticateToken, async (req, res) => {
     let includeOptions = {};
 
     if (!include || include === "todo") {
-      // Si no se pide nada o se pide "todo", incluir todo
       includeOptions = relacionesDisponibles;
     } else if (include === "perfil") {
-      // Solo perfil básico, sin relaciones pesadas
       includeOptions = {
         rol: true,
         estado: true,
       };
     } else {
-      // Se pidió algo específico, ejemplo: ?include=notificaciones,productos
       const partes = include.split(",");
       for (const key of partes) {
         if (relacionesDisponibles[key]) {
           includeOptions[key] = relacionesDisponibles[key];
         }
       }
-      // Siempre incluir lo básico
       includeOptions.rol = true;
       includeOptions.estado = true;
     }
@@ -411,10 +346,8 @@ router.post('/refresh', [
   try {
     const { refreshToken } = req.body;
 
-    // Verificar refresh token
     const payload = verifyRefreshToken(refreshToken);
 
-    // Verificar que el usuario aún existe y está activo
     const user = await prisma.cuentas.findFirst({
       where: {
         id: payload.userId,
@@ -433,7 +366,6 @@ router.post('/refresh', [
       });
     }
 
-    // Generar nuevos tokens
     const newTokenPayload = {
       userId: user.id,
       email: user.correo,
