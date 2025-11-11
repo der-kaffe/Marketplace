@@ -67,8 +67,7 @@ router.post('/login',
         message: 'Login exitoso',
         token: accessToken, // Mantener compatibilidad
         accessToken,
-        refreshToken,
-        user: {
+        refreshToken, user: {
           id: user.id,
           email: user.correo,
           nombre: user.nombre,
@@ -76,12 +75,44 @@ router.post('/login',
           campus: user.campus,
           reputacion: user.reputacion
         }
-      });
-    } catch (error) {
-      console.error('Error en login:', error);
-      res.status(500).json({ ok: false, message: 'Error interno del servidor' });
-    }
-  });
+
+      const passwordMatch = await bcrypt.compare(password, user.contrasena);
+        if(!passwordMatch) {
+          return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
+        }    // 🔒 Generar par de tokens (access + refresh)
+      const tokenPayload = {
+          userId: user.id,
+          email: user.correo,
+          role: user.rol.nombre.toUpperCase()
+        };
+        const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
+
+        secureLog.info('Usuario logueado exitosamente', {
+          userId: user.id,
+          email: user.correo,
+          role: user.rol.nombre
+        });
+
+        res.json({
+          ok: true,
+          message: 'Login exitoso',
+          token: accessToken, // Mantener compatibilidad
+          accessToken,
+          refreshToken,
+          user: {
+            id: user.id,
+            email: user.correo,
+            nombre: user.nombre,
+            role: user.rol.nombre.toUpperCase(),
+            campus: user.campus,
+            reputacion: user.reputacion
+          }
+        });
+      } catch (error) {
+        console.error('Error en login:', error);
+        res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+      }
+    });
 
 // ------------------- REGISTER -------------------
 router.post('/register',
@@ -171,7 +202,55 @@ router.post('/register',
       console.error('Error en registro:', error);
       res.status(500).json({ ok: false, message: 'Error interno del servidor' });
     }
-  });
+
+    const hashedPassword = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
+    const rolId = email.endsWith('@uct.cl') ? 2 : 3;
+
+    const newUser = await prisma.cuentas.create({
+      data: {
+        correo: email,
+        contrasena: hashedPassword, nombre,
+        usuario,
+        rolId,
+        estadoId: 1,
+        campus: 'Campus Temuco'
+      },
+      include: { rol: true, estado: true }
+    });
+
+    await prisma.resumenUsuario.create({
+      data: {
+        usuarioId: newUser.id,
+        totalProductos: 0,
+        totalVentas: 0,
+        totalCompras: 0,
+        promedioCalificacion: 0.0
+      }
+    });
+
+    const token = jwt.sign(
+      { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase() },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    res.status(201).json({
+      ok: true,
+      message: 'Usuario registrado exitosamente',
+      token,
+      user: {
+        id: newUser.id, correo: newUser.correo,
+        usuario: newUser.usuario,
+        nombre: newUser.nombre,
+        role: newUser.rol.nombre.toUpperCase(),
+        campus: newUser.campus
+      }
+    });
+  } catch (error) {
+    console.error('Error en registro:', error);
+    res.status(500).json({ ok: false, message: 'Error interno del servidor' });
+  }
+});
 
 // ------------------- GOOGLE LOGIN -------------------
 router.post('/google', [
@@ -194,9 +273,7 @@ router.post('/google', [
       // Todos los usuarios de Google son "Cliente" por defecto (ID 3)
       const rolId = 3; // Cliente
       const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
-      const usuario = `${baseUsuario}_${Date.now()}`;
-
-      user = await prisma.cuentas.create({
+      const usuario = `${baseUsuario}_${Date.now()}`; user = await prisma.cuentas.create({
         data: {
           correo: email,
           contrasena: '',

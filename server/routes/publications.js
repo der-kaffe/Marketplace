@@ -22,10 +22,9 @@ router.get('/', async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const publications = await prisma.publicaciones.findMany({
-      where,
-      include: {
+      where,      include: {
         usuario: {
-          select: { id: true, nombre: true, apellido: true, usuario: true }
+          select: { id: true, nombre: true, usuario: true }
         }
       },
       orderBy: { fecha: 'desc' },
@@ -83,9 +82,8 @@ router.post(
           estado: estado || 'Activo',
           usuarioId: req.user.userId
         },
-        include: {
-          usuario: {
-            select: { id: true, nombre: true, apellido: true, usuario: true }
+        include: {        usuario: {
+            select: { id: true, nombre: true, usuario: true }
           }
         }
       });

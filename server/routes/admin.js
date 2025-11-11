@@ -11,11 +11,9 @@ router.get('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const users = await prisma.cuentas.findMany({
       //orderBy: { fechaRegistro: 'desc' },
-      orderBy: { id: 'asc' },
-      select: {
+      orderBy: { id: 'asc' },      select: {
         id: true,
         nombre: true,
-        apellido: true,
         correo: true,
         usuario: true,
         rolId: true,
@@ -202,18 +200,15 @@ router.get('/metrics', authenticateToken, requireAdmin, async (req, res) => {
 // Crear un nuevo usuario (solo admin)
 router.post('/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { nombre, apellido, correo, usuario, contrasena, rolId, campus } = req.body;
+    const { nombre, correo, usuario, contrasena, rolId, campus } = req.body;
 
     if (!nombre || !correo || !usuario || !contrasena) {
       return res.status(400).json({ ok: false, message: 'Faltan datos obligatorios.' });
     }
 
-    const hashedPassword = await bcrypt.hash(contrasena, 10);
-
-    const nuevoUsuario = await prisma.cuentas.create({
+    const hashedPassword = await bcrypt.hash(contrasena, 10);    const nuevoUsuario = await prisma.cuentas.create({
       data: {
         nombre,
-        apellido,
         correo,
         usuario,
         contrasena: hashedPassword,
@@ -235,7 +230,7 @@ router.post('/users', authenticateToken, requireAdmin, async (req, res) => {
 router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, apellido, correo, usuario, rolId, campus, estadoId } = req.body;
+    const { nombre, correo, usuario, rolId, campus, estadoId } = req.body;
 
     // Validar que el usuario exista
     const existingUser = await prisma.cuentas.findUnique({ where: { id: parseInt(id) } });
@@ -244,10 +239,8 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     const updatedUser = await prisma.cuentas.update({
-      where: { id: parseInt(id) },
-      data: {
+      where: { id: parseInt(id) },      data: {
         nombre,
-        apellido,
         correo,
         usuario,
         rolId: rolId || existingUser.rolId,

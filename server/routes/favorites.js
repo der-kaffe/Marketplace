@@ -31,7 +31,7 @@ router.get('/', authenticateToken, async (req, res) => {
         include: {
           producto: {
             include: {
-              vendedor: { select: { id: true, nombre: true, apellido: true, correo: true } },
+              vendedor: { select: { id: true, nombre: true, correo: true } },
               categoria: true,
               estado: true,
               imagenes: true,

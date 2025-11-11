@@ -126,7 +126,7 @@ router.get('/purchases', authenticateToken, async (req, res, next) => {
                 where: { compradorId: userId },
                 include: {
                     producto: { select: { id: true, nombre: true, imagenes: { take: 1, select: { urlImagen: true } } } }, // Incluir info básica del producto e imagen
-                    vendedor: { select: { id: true, nombre: true, apellido: true, usuario: true } }, // Info del vendedor
+                    vendedor: { select: { id: true, nombre: true, usuario: true } }, // Info del vendedor
                     estado: { select: { nombre: true } } // Nombre del estado
                 },
                 orderBy: { fecha: 'desc' },
@@ -151,10 +151,9 @@ router.get('/purchases', authenticateToken, async (req, res, next) => {
                     nombre: p.producto.nombre,
                     // TODO: Manejar URL de imagen si 'imagenes' contiene URLs
                     // imageUrl: p.producto.imagenes.length > 0 ? p.producto.imagenes[0].urlImagen : null
-                },
-                vendedor: {
+                },                vendedor: {
                     id: p.vendedor.id,
-                    nombreCompleto: `${p.vendedor.nombre || ''} ${p.vendedor.apellido || ''}`.trim(),
+                    nombreCompleto: p.vendedor.nombre || 'Vendedor',
                     usuario: p.vendedor.usuario,
                 }
             })),
@@ -185,7 +184,7 @@ router.get('/sales', authenticateToken, async (req, res, next) => {
                 where: { vendedorId: userId },
                 include: {
                     producto: { select: { id: true, nombre: true, imagenes: { take: 1, select: { urlImagen: true } } } },
-                    comprador: { select: { id: true, nombre: true, apellido: true, usuario: true } },
+                    comprador: { select: { id: true, nombre: true, usuario: true } },
                     estado: { select: { nombre: true } }
                 },
                 orderBy: { fecha: 'desc' },
@@ -209,10 +208,9 @@ router.get('/sales', authenticateToken, async (req, res, next) => {
                     id: s.producto.id,
                     nombre: s.producto.nombre,
                     // imageUrl: s.producto.imagenes.length > 0 ? s.producto.imagenes[0].urlImagen : null
-                },
-                comprador: {
+                },                comprador: {
                     id: s.comprador.id,
-                    nombreCompleto: `${s.comprador.nombre || ''} ${s.comprador.apellido || ''}`.trim(),
+                    nombreCompleto: s.comprador.nombre || 'Comprador',
                     usuario: s.comprador.usuario,
                 }
             })),
