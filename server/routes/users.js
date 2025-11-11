@@ -27,13 +27,11 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
         { field: "id" }
       );
     }    res.json({
-      success: true,
-      data: {
+      success: true,      data: {
         id: user.id,
         correo: user.correo,
         usuario: user.usuario,
         nombre: user.nombre,
-        apellido: user.apellido,
         role: user.rol.nombre,
         estado: user.estado.nombre,
         campus: user.campus,
@@ -99,11 +97,9 @@ router.put('/profile', authenticateToken, async (req, res, next) => {
     });    res.json({
       ok: true,
       message: 'Perfil actualizado correctamente',
-      user: {
-        id: updatedUser.id,
+      user: {        id: updatedUser.id,
         correo: updatedUser.correo,
         nombre: updatedUser.nombre,
-        apellido: updatedUser.apellido || '',
         usuario: updatedUser.usuario,
         campus: updatedUser.campus || 'Campus Temuco',
         telefono: updatedUser.telefono,
@@ -146,9 +142,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
       data: users.map(user => ({
         id: user.id,
         correo: user.correo,
-        usuario: user.usuario,
-        nombre: user.nombre,
-        apellido: user.apellido,
+        usuario: user.usuario,        nombre: user.nombre,
         role: user.rol.nombre,
         estado: user.estado.nombre,
         campus: user.campus,
@@ -334,11 +328,9 @@ router.get('/:id', async (req, res, next) => {
         { field: "id", value: id }
       );
     }    const user = await prisma.cuentas.findUnique({
-      where: { id: userId },
-      select: { // Selecciona solo los campos públicos que quieres mostrar
+      where: { id: userId },      select: { // Selecciona solo los campos públicos que quieres mostrar
         id: true,
         nombre: true,
-        apellido: true,
         usuario: true, // Puedes decidir si mostrar el nombre de usuario
         campus: true,
         reputacion: true,
@@ -385,9 +377,7 @@ router.get('/:id', async (req, res, next) => {
       success: true,
       data: {
         id: user.id,
-        nombre: user.nombre, // ✅ AGREGADO: Nombre individual
-        apellido: user.apellido, // ✅ AGREGADO: Apellido individual  
-        nombreCompleto: `${user.nombre || ''} ${user.apellido || ''}`.trim(),
+        nombre: user.nombre, // ✅ AGREGADO: Nombre individual        nombreCompleto: user.nombre || 'Usuario',
         usuario: user.usuario,
         campus: user.campus,
         reputacion: user.reputacion ? Number(user.reputacion) : 0.0,

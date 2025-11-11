@@ -67,12 +67,10 @@ router.post('/login',
       message: 'Login exitoso',
       token: accessToken, // Mantener compatibilidad
       accessToken,
-      refreshToken,
-      user: {
+      refreshToken,      user: {
         id: user.id,
         email: user.correo,
         nombre: user.nombre,
-        apellido: user.apellido,
         role: user.rol.nombre.toUpperCase(),
         campus: user.campus,
         reputacion: user.reputacion
@@ -129,10 +127,8 @@ router.post('/register',
     const newUser = await prisma.cuentas.create({
       data: {
         correo: email,
-        contrasena: hashedPassword,
-        nombre,
+        contrasena: hashedPassword,        nombre,
         usuario,
-        apellido: '',
         rolId,
         estadoId: 1,
         campus: 'Campus Temuco'
@@ -161,11 +157,9 @@ router.post('/register',
       message: 'Usuario registrado exitosamente',
       token,
       user: {
-        id: newUser.id,
-        correo: newUser.correo,
+        id: newUser.id,        correo: newUser.correo,
         usuario: newUser.usuario,
         nombre: newUser.nombre,
-        apellido: newUser.apellido,
         role: newUser.rol.nombre.toUpperCase(),
         campus: newUser.campus
       }
@@ -197,15 +191,12 @@ router.post('/google', [
       // Todos los usuarios de Google son "Cliente" por defecto (ID 3)
       const rolId = 3; // Cliente
       const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
-      const usuario = `${baseUsuario}_${Date.now()}`;
-
-      user = await prisma.cuentas.create({
+      const usuario = `${baseUsuario}_${Date.now()}`;      user = await prisma.cuentas.create({
         data: {
           correo: email,
           contrasena: '',
           nombre: name,
           usuario,
-          apellido: '',
           rolId,
           estadoId: 1,
           campus: 'Campus Temuco'
@@ -232,16 +223,14 @@ router.post('/google', [
       ok: true,
       message: '¡Cuenta creada/actualizada en base de datos!',
       token,
-      user: {
-        id: user.id,
+      user: {        id: user.id,
         correo: user.correo,        // 🔒 Solo lectura (viene de Google)
         nombre: user.nombre,        // 🔒 Solo lectura (viene de Google)
-        apellido: user.apellido || '',    // ✏️ Editable por el usuario
         usuario: user.usuario,      // ✏️ Editable por el usuario
         campus: user.campus || 'Campus Temuco',  // ✏️ Editable por el usuario
         role: user.rol.nombre.toUpperCase(),
         // Campos editables disponibles para actualizar después:
-        editableFields: ['apellido', 'usuario', 'campus', 'telefono', 'direccion']
+        editableFields: ['usuario', 'campus', 'telefono', 'direccion']
       }
     });
     console.log(token)

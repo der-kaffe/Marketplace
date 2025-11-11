@@ -95,9 +95,7 @@ router.get('/', async (req, res) => {
       whereClause.vendedorId = user.userId;
     } else if (user.role === "ADMIN") {
       // Admin ve todo
-    }
-
-    // Obtener productos con información del vendedor y categoría
+    }    // Obtener productos con información del vendedor y categoría
     const products = await prisma.productos.findMany({
       where: whereClause,
       include: {
@@ -105,7 +103,6 @@ router.get('/', async (req, res) => {
           select: {
             id: true,
             nombre: true,
-            apellido: true,
             correo: true,
             campus: true,
             reputacion: true
@@ -152,11 +149,9 @@ router.get('/', async (req, res) => {
       // 👇 Nuevos campos
       informacionTecnica: product.informacionTecnica,
       estadoProducto: product.estadoProducto,
-      tiempoUso: product.tiempoUso,
-      vendedor: {
+      tiempoUso: product.tiempoUso,      vendedor: {
         id: product.vendedor.id,
         nombre: product.vendedor.nombre,
-        apellido: product.vendedor.apellido,
         correo: product.vendedor.correo,
         campus: product.vendedor.campus,
         // ✅ Conversión segura de reputación
@@ -205,9 +200,8 @@ router.get('/my-products', authenticateToken, async (req, res) => {
         include: {
           categoria: true,
           estado: true,
-          imagenes: true,
-          vendedor: {
-            select: { id: true, nombre: true, apellido: true }
+          imagenes: true,          vendedor: {
+            select: { id: true, nombre: true }
           }
         },
         orderBy: { fechaAgregado: 'desc' },
@@ -274,12 +268,10 @@ router.get('/:id', async (req, res) => {
       where: { 
         id: parseInt(id)
       },
-      include: {
-        vendedor: {
+      include: {        vendedor: {
           select: {
             id: true,
             nombre: true,
-            apellido: true,
             correo: true,
             campus: true,
             reputacion: true
@@ -440,14 +432,12 @@ router.post('/', authenticateToken, [
         informacionTecnica: informacionTecnica || null,
         estadoProducto: estadoProducto || null, // 'nuevo' o 'usado'
         tiempoUso: tiempoUso || null
-      },
-      include: {
+      },    include: {
         categoria: true,
         vendedor: {
           select: {
             id: true,
             nombre: true,
-            apellido: true,
             correo: true,
             usuario: true
           }
@@ -714,14 +704,12 @@ router.put('/:id', authenticateToken, [
     // ✅ PASO 5: Actualizar producto
     const productoActualizado = await prisma.productos.update({
       where: { id: parseInt(id) },
-      data: updateData,
-      include: {
+      data: updateData,      include: {
         categoria: true,
         vendedor: {
           select: {
             id: true,
             nombre: true,
-            apellido: true,
             correo: true,
             usuario: true
           }

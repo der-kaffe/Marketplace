@@ -134,10 +134,8 @@ async function main() {
     
     
     const adminPassword = await bcrypt.hash('admin123', 12);
-    const admin = await prisma.cuentas.create({
-      data: {
-        nombre: 'Administrador',
-        apellido: 'Sistema',
+    const admin = await prisma.cuentas.create({      data: {
+        nombre: 'Administrador Sistema',
         correo: 'admin@uct.cl',
         usuario: 'admin_uct',
         contrasena: adminPassword,
@@ -149,10 +147,8 @@ async function main() {
     });
     
     const vendorPassword = await bcrypt.hash('vendor123', 12);
-    const vendor = await prisma.cuentas.create({
-      data: {
-        nombre: 'Juan',
-        apellido: 'Pérez',
+    const vendor = await prisma.cuentas.create({      data: {
+        nombre: 'Juan Pérez',
         correo: 'vendedor@uct.cl',
         usuario: 'juan_perez',
         contrasena: vendorPassword,
@@ -164,10 +160,8 @@ async function main() {
     });
     
     const clientPassword = await bcrypt.hash('client123', 12);
-    const client = await prisma.cuentas.create({
-      data: {
-        nombre: 'María',
-        apellido: 'González',
+    const client = await prisma.cuentas.create({      data: {
+        nombre: 'María González',
         correo: 'cliente@alu.uct.cl',
         usuario: 'maria_gonzalez',
         contrasena: clientPassword,
@@ -273,10 +267,8 @@ async function main() {
     // Crear 50 usuarios de prueba @alu.uct.cl
     const usuariosDePrueba = [];
     for (let i = 1; i <= 50; i++) {
-      const password = await bcrypt.hash('test1234', 12);
-      usuariosDePrueba.push({
-        nombre: `Usuario${i}`,
-        apellido: `Apellido${i}`,
+      const password = await bcrypt.hash('test1234', 12);      usuariosDePrueba.push({
+        nombre: `Usuario${i} Apellido${i}`,
         correo: `usuario${i}@alu.uct.cl`,
         usuario: `usuario${i}`,
         contrasena: password,

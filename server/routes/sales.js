@@ -40,12 +40,10 @@ router.get('/', authenticateToken, async (req, res) => {
               select: { nombre: true }
             }
           }
-        },
-        comprador: {
+        },        comprador: {
           select: {
             id: true,
             nombre: true,
-            apellido: true,
             correo: true,
             usuario: true,
             campus: true
@@ -134,9 +132,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
         },
         comprador: {
           select: {
-            id: true,
-            nombre: true,
-            apellido: true,
+            id: true,            nombre: true,
             correo: true,
             usuario: true,
             campus: true,
@@ -144,12 +140,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
             direccion: true,
             reputacion: true
           }
-        },
-        vendedor: {
+        },        vendedor: {
           select: {
             id: true,
             nombre: true,
-            apellido: true,
             correo: true,
             usuario: true
           }
