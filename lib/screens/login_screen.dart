@@ -39,7 +39,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile', 'openid'],
     clientId: kIsWeb
@@ -94,21 +95,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
+              content:
+                  Text('Solo se permiten correos de @uct.cl o @alu.uct.cl.'),
               backgroundColor: Colors.red,
             ),
           );
         }
         return setState(() => _isLoading = false);
-      }      final googleAuth = await googleUser.authentication;
-        // Debug información
+      }
+      final googleAuth = await googleUser.authentication;
+      // Debug información
       print('🔍 Debug Google Auth:');
-      print('  - Email: ${googleUser.email}');
-      print('  - Name: ${googleUser.displayName}');
-      print('  - Photo URL: ${googleUser.photoUrl}');
-      print('  - ID Token: ${googleAuth.idToken != null ? "✅ Disponible" : "❌ Null"}');
-      print('  - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');      final authService = AuthService();
-      
+      print('   - Email: ${googleUser.email}');
+      print('   - Name: ${googleUser.displayName}');
+      print('   - Photo URL: ${googleUser.photoUrl}');
+      print(
+          '   - ID Token: ${googleAuth.idToken != null ? "✅ Disponible" : "❌ Null"}');
+      print(
+          '   - Access Token: ${googleAuth.accessToken != null ? "✅ Disponible" : "❌ Null"}');
+      final authService = AuthService();
+
       // 🔄 LOGIN SOLO CON BACKEND Y POSTGRESQL
       final result = await authService.loginWithGoogleBackend(
         idToken: googleAuth.idToken,
@@ -126,16 +132,19 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
             duration: const Duration(seconds: 3),
           ),
         );
-        
-        print('✅ Login exitoso - Token: ${result['token'].toString().substring(0, 50)}...');
+
+        print(
+            '✅ Login exitoso - Token: ${result['token'].toString().substring(0, 50)}...');
         print('👤 Usuario guardado en PostgreSQL');
-        
+
         context.go('/home');
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error: ${e.toString()}'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -143,11 +152,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
-  void _loginAsGuest() async {
-    final authService = AuthService();
-    await authService.saveToken('guest_user_token');
-    if (mounted) context.go('/home');
-  }
+  // --- Función _loginAsGuest eliminada ---
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +175,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     fit: StackFit.expand,
                     children: [
                       Image.asset('assets/universidad.jpg', fit: BoxFit.cover),
-                      Container(color: const Color(0xFF005A8A).withOpacity(0.6)),
+                      Container(
+                          color: const Color(0xFF005A8A).withOpacity(0.6)),
                     ],
                   ),
                 ),
@@ -205,7 +211,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.grey),
                                   ),
                                 )
                               : Image.network(
@@ -213,7 +220,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   height: 20,
                                 ),
                           label: Text(
-                            _isLoading ? 'Signing in...' : 'Continue with Google',
+                            _isLoading
+                                ? 'Signing in...'
+                                : 'Continue with Google',
                             style: const TextStyle(
                               fontSize: 16,
                               color: Color(0xFF3A3A3A),
@@ -229,28 +238,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             elevation: 2,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Invitado & Admin Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _isLoading ? null : _loginAsGuest,
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: AppColors.amarilloPrimario),
-                                foregroundColor: AppColors.amarilloPrimario,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              child: const Text('Invitado', style: TextStyle(fontSize: 12)),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
                       ),
                       const SizedBox(height: 20),
                     ],
