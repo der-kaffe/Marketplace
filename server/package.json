@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "node prisma/seed.js",
     "db:seed:categories": "node prisma/seed_categories.js",
-    "db:studio": "prisma studio",    "db:reset": "prisma migrate reset",
+    "db:studio": "prisma studio",
+    "db:reset": "prisma migrate reset",
     "verify": "node verify-setup.js",
     "setup": "node setup-postgresql.js",
     "security:generate-secrets": "node scripts/generate-jwt-secrets.js",
@@ -28,6 +29,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
+    "profanities": "^3.0.1",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
