@@ -144,7 +144,6 @@ class AuthService {
         'email': _currentUser!.email,
         'name': _currentUser!.name,
         'role': _currentUser!.role,
-        'apellido': _currentUser!.apellido,
         'usuario': _currentUser!.usuario,
         'campus': _currentUser!.campus,
         'telefono': _currentUser!.telefono,

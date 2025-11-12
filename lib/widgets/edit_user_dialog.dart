@@ -16,7 +16,6 @@ class EditUserDialog extends StatefulWidget {
 class _EditUserDialogState extends State<EditUserDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nombreCtrl;
-  late TextEditingController _apellidoCtrl;
   late TextEditingController _correoCtrl;
   late TextEditingController _campusCtrl;
   late TextEditingController _usuarioCtrl;
@@ -27,7 +26,6 @@ class _EditUserDialogState extends State<EditUserDialog> {
   void initState() {
     super.initState();
     _nombreCtrl = TextEditingController(text: widget.user.nombre);
-    _apellidoCtrl = TextEditingController(text: widget.user.apellido);
     _correoCtrl = TextEditingController(text: widget.user.correo);
     _usuarioCtrl = TextEditingController(text: widget.user.usuario); 
     _campusCtrl = TextEditingController(text: widget.user.campus);
@@ -57,10 +55,6 @@ class _EditUserDialogState extends State<EditUserDialog> {
                 controller: _nombreCtrl,
                 decoration: const InputDecoration(labelText: 'Nombre'),
                 validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
-              ),
-              TextFormField(
-                controller: _apellidoCtrl,
-                decoration: const InputDecoration(labelText: 'Apellido'),
               ),
               TextFormField(
                 controller: _correoCtrl,
@@ -116,7 +110,6 @@ class _EditUserDialogState extends State<EditUserDialog> {
       },
       body: jsonEncode({
         'nombre': _nombreCtrl.text,
-        'apellido': _apellidoCtrl.text,
         'correo': _correoCtrl.text,
         'usuario': _usuarioCtrl.text,
         'rolId': rolId,

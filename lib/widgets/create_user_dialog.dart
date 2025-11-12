@@ -13,7 +13,6 @@ class CreateUserDialog extends StatefulWidget {
 class _CreateUserDialogState extends State<CreateUserDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nombreCtrl = TextEditingController();
-  final _apellidoCtrl = TextEditingController();
   final _correoCtrl = TextEditingController();
   final _usuarioCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -33,10 +32,6 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
                 controller: _nombreCtrl,
                 decoration: const InputDecoration(labelText: 'Nombre'),
                 validator: (v) => v!.isEmpty ? 'Campo requerido' : null,
-              ),
-              TextFormField(
-                controller: _apellidoCtrl,
-                decoration: const InputDecoration(labelText: 'Apellido'),
               ),
               TextFormField(
                 controller: _correoCtrl,
@@ -93,7 +88,6 @@ class _CreateUserDialogState extends State<CreateUserDialog> {
       },
       body: jsonEncode({
         'nombre': _nombreCtrl.text,
-        'apellido': _apellidoCtrl.text,
         'correo': _correoCtrl.text,
         'usuario': _usuarioCtrl.text,
         'contrasena': _passwordCtrl.text,

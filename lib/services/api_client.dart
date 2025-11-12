@@ -833,7 +833,6 @@ class User {
   final String name;
   final int? rolId;
   final String? role;
-  final String? apellido;
   final String? usuario;
   final String? campus;  final String? telefono;
   final String? direccion;
@@ -845,7 +844,6 @@ class User {
     required this.name,
     this.rolId,
     this.role,
-    this.apellido,
     this.usuario,
     this.campus,
     this.telefono,
@@ -860,7 +858,6 @@ class User {
       name: json['nombre'] ?? json['name'] ?? '',
       rolId: json['rolId'] ?? json['rol_id'],
       role: json['rol']?['nombre'] ?? json['role'], // ✅ soporta backend Prisma
-      apellido: json['apellido'],
       usuario: json['usuario'],      campus: json['campus'],
       telefono: json['telefono'],
       direccion: json['direccion'],
@@ -874,7 +871,6 @@ class User {
         'nombre': name,
         'rolId': rolId,
         'role': role,
-        'apellido': apellido,
         'usuario': usuario,
         'campus': campus,
         'telefono': telefono,
@@ -1117,7 +1113,7 @@ class ProductFromDB {
       isAvailable: this.visible ?? true, 
       cantidad: cantidad ?? 0,
       sellerId: vendedor.id.toString(),
-      sellerName: '${vendedor.nombre} ${vendedor.apellido ?? ''}'.trim(), // Trim para quitar espacios extra
+      sellerName: '${vendedor.nombre}',
       sellerAvatar: vendedor.avatarUrl, // ✅ Usar el avatar del vendedor si existe
       sellerEmail: vendedor.correo,
       // 👇 Nuevos campos
@@ -1158,7 +1154,6 @@ class ProductFromDB {
 class VendedorFromDB {
   final int id;
   final String nombre;
-  final String? apellido;
   final String correo;
   final String? campus;
   final double reputacion;
@@ -1167,7 +1162,6 @@ class VendedorFromDB {
   VendedorFromDB({
     required this.id,
     required this.nombre,
-    this.apellido,
     required this.correo,
     this.campus,
     required this.reputacion,
@@ -1199,7 +1193,6 @@ class VendedorFromDB {
     return VendedorFromDB(
       id: safeToInt(json['id']),
       nombre: json['nombre']?.toString() ?? '',
-      apellido: json['apellido']?.toString(),
       correo: json['correo']?.toString() ?? '',
       campus: json['campus']?.toString(),
       reputacion: safeToDouble(json['reputacion']),
@@ -1311,19 +1304,16 @@ class ProductReportInfo {
 class UserReportInfo {
   final int id;
   final String nombre;
-  final String? apellido;
 
   UserReportInfo({
     required this.id,
     required this.nombre,
-    this.apellido,
   });
 
   factory UserReportInfo.fromJson(Map<String, dynamic> json) {
     return UserReportInfo(
       id: json['id'],
       nombre: json['nombre'] ?? '',
-      apellido: json['apellido'],
     );
   }
 }

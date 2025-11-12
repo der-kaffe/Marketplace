@@ -242,7 +242,6 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
                         select: {
                             id: true,
                             nombre: true,
-                            apellido: true,
                             correo: true,
                         },
                     },
@@ -257,7 +256,6 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
                         select: {
                             id: true,
                             nombre: true,
-                            apellido: true,
                             correo: true,
                         },
                     },
@@ -312,7 +310,6 @@ router.get('/my-reports', authenticateToken, async (req, res) => {
                         select: {
                             id: true,
                             nombre: true,
-                            apellido: true,
                         },
                     },
                     estado: true,
@@ -394,7 +391,6 @@ router.patch(
                         select: {
                             id: true,
                             nombre: true,
-                            apellido: true,
                         },
                     },
                     producto: {
@@ -407,7 +403,6 @@ router.patch(
                         select: {
                             id: true,
                             nombre: true,
-                            apellido: true,
                         },
                     },
                     estado: true,
@@ -474,7 +469,6 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
                     select: {
                         id: true,
                         nombre: true,
-                        apellido: true,
                         correo: true,
                     },
                 },
@@ -482,7 +476,6 @@ router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
                     select: {
                         id: true,
                         nombre: true,
-                        apellido: true,
                         correo: true,
                     },
                 },
