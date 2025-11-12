@@ -453,3 +453,4 @@ model Favoritos {
   @@unique([usuarioId, productoId]) // evita duplicados
   @@map("favoritos")
 }
+

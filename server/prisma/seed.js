@@ -262,13 +262,12 @@ async function main() {
       }
     });
 
-    console.log('✅ Resúmenes de usuario creados');
-
-    // Crear 50 usuarios de prueba @alu.uct.cl
+    console.log('✅ Resúmenes de usuario creados');    // Crear 50 usuarios de prueba @alu.uct.cl
     const usuariosDePrueba = [];
     for (let i = 1; i <= 50; i++) {
-      const password = await bcrypt.hash('test1234', 12);      usuariosDePrueba.push({
-        nombre: `Usuario${i} Apellido${i}`,
+      const password = await bcrypt.hash('test1234', 12);
+      usuariosDePrueba.push({
+        nombre: `Usuario${i} Testeo`,
         correo: `usuario${i}@alu.uct.cl`,
         usuario: `usuario${i}`,
         contrasena: password,
