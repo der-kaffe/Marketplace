@@ -274,16 +274,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               children: [
                 Row(
                   children: [
-                    Flexible( // 1. Añadido para que el texto no empuje al badge
-                      child: Text(
-                        "${user.nombre} ${user.apellido}",
-                        style: TextStyle(
-                          color: user.isBanned ? Colors.red : const Color(0xFF0078A8),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                        overflow: TextOverflow.ellipsis, // 2. Añadido para cortar texto
-                        maxLines: 1,                      // 3. Añadido para una línea
+                    Text(
+                      "${user.nombre} ${user.apellido}",
+                      style: TextStyle(
+                        color: user.isBanned ? Colors.red : const Color(0xFF0078A8),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
                     ),
                     if (user.isBanned)
@@ -378,26 +374,13 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
                 onRefresh: _refreshUsers,
-                // 1. Cambiamos ListView por ListView.builder
-                child: ListView.builder(
-                  // 2. Sumamos 3 items fijos (header, divider, title) al total
-                  itemCount: _users.length + 3,
-                  itemBuilder: (context, index) {
-                    // 3. Dibujamos los items fijos primero
-                    if (index == 0) {
-                      return _buildHeader(context);
-                    }
-                    if (index == 1) {
-                      return const Divider(height: 0, thickness: 0.5);
-                    }
-                    if (index == 2) {
-                      return _buildTitle();
-                    }
-                    // 4. Calculamos el índice real del usuario (restando los 3 fijos)
-                    final userIndex = index - 3;
-                    final user = _users[userIndex];
-                    return _buildUserCard(user);
-                  },
+                child: ListView(
+                  children: [
+                    _buildHeader(context),
+                    const Divider(height: 0, thickness: 0.5),
+                    _buildTitle(),
+                    ..._users.map((u) => _buildUserCard(u)).toList(),
+                  ],
                 ),
               ),
       ),
