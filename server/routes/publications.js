@@ -1,15 +1,10 @@
+//publications.js
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
-// 🚫 1. IMPORTA TU NUEVA FUNCIÓN (la ruta '../utils/' puede cambiar)
-const { tienePalabrasProhibidas } = require('../utils/profanityFilter');
-
 const router = express.Router();
-
-// 🚫 (Ya no necesitamos las listas de palabras aquí)
-
 
 // ---------------- GET /api/publications ----------------
 router.get('/', async (req, res) => {
@@ -27,8 +22,7 @@ router.get('/', async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const publications = await prisma.publicaciones.findMany({
-      where,
-      include: {
+      where,      include: {
         usuario: {
           select: { id: true, nombre: true, usuario: true }
         }
@@ -81,23 +75,14 @@ router.post(
 
       const { titulo, cuerpo, estado } = req.body;
 
-      // 🚫 2. LA VALIDACIÓN SIGUE FUNCIONANDO IGUAL
-      if (tienePalabrasProhibidas(titulo) || tienePalabrasProhibidas(cuerpo)) {
-        return res.status(400).json({
-          ok: false,
-          message: 'Tu publicación contiene texto no permitido y ha sido bloqueada.'
-        });
-      }
-
       const newPublication = await prisma.publicaciones.create({
         data: {
-          titulo: titulo.trim(),
-          cuerpo: cuerpo.trim(),
+          titulo,
+          cuerpo,
           estado: estado || 'Activo',
           usuarioId: req.user.userId
         },
-        include: {
-          usuario: {
+        include: {        usuario: {
             select: { id: true, nombre: true, usuario: true }
           }
         }
@@ -149,21 +134,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { titulo, cuerpo, estado } = req.body;
 
-    // 🚫 3. LA VALIDACIÓN FUNCIONA AQUÍ TAMBIÉN
-    if (tienePalabrasProhibidas(titulo) || tienePalabrasProhibidas(cuerpo)) {
-      return res.status(400).json({
-        ok: false,
-        message: 'Tu actualización contiene texto no permitido y ha sido bloqueada.'
-      });
-    }
-
     const updated = await prisma.publicaciones.update({
       where: { id: parseInt(req.params.id) },
-      data: {
-        titulo: titulo.trim(),
-        cuerpo: cuerpo.trim(),
-        estado
-      }
+      data: { titulo, cuerpo, estado }
     });
 
     res.json({ ok: true, message: 'Publicación actualizada', updated });
@@ -175,23 +148,27 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 
 // ---------------- GET /api/publications/get_categorias ----------------
+
 router.get('/get_categorias', async (req, res) => {
   try {
+    // Obtener todas las categorías
     const categories = await prisma.categorias.findMany({
       orderBy: { nombre: 'asc' },
     });
 
+    // Organizar jerárquicamente
     const categoriasMap = {};
+
+    // Crear mapa base
     categories.forEach(cat => {
       categoriasMap[cat.id] = { ...cat, subcategorias: [] };
     });
 
+    // Agrupar subcategorías
     const rootCategorias = [];
     categories.forEach(cat => {
       if (cat.categoriaPadreId) {
-        if (categoriasMap[cat.categoriaPadreId]) {
-          categoriasMap[cat.categoriaPadreId].subcategorias.push(categoriasMap[cat.id]);
-        }
+        categoriasMap[cat.categoriaPadreId]?.subcategorias.push(categoriasMap[cat.id]);
       } else {
         rootCategorias.push(categoriasMap[cat.id]);
       }
@@ -207,5 +184,9 @@ router.get('/get_categorias', async (req, res) => {
     res.status(500).json({ ok: false, message: 'Error interno del servidor' });
   }
 });
+
+
+
+
 
 module.exports = router;

@@ -9,8 +9,9 @@ import '../services/product_service.dart';
 import '../models/product_model.dart' as ProductModel;
 
 class NewPostScreen extends StatefulWidget {
+
   const NewPostScreen({
-    super.key,
+    super.key, 
   });
 
   @override
@@ -27,15 +28,14 @@ class _NewPostScreenState extends State<NewPostScreen> {
   final _informacionTecnicaCtrl = TextEditingController();
   final _tiempoUsoCtrl = TextEditingController();
   final ProductService _productService = ProductService();
-  final AuthService _authService = AuthService();
-  final ImagePicker _picker = ImagePicker();
+  final AuthService _authService = AuthService();  final ImagePicker _picker = ImagePicker();
 
   int? _selectedCategoryId;
   String? _estadoProducto; // 'nuevo' o 'usado'
   bool _isLoading = false;
   List<ProductModel.ApiCategory> _categories = [];
   bool _isLoadingCategories = true;
-
+  
   // 🖼️ Múltiples imágenes
   List<File> _selectedImageFiles = [];
   bool _isUploadingImage = false;
@@ -75,18 +75,17 @@ class _NewPostScreenState extends State<NewPostScreen> {
     _tiempoUsoCtrl.dispose();
     super.dispose();
   }
-
   // 🖼️ Seleccionar múltiples imágenes
   Future<void> _pickImages() async {
-    if (_isLoading || _isUploadingImage) return;
-
+    if(_isLoading || _isUploadingImage) return;
+    
     try {
       final List<XFile> pickedFiles = await _picker.pickMultiImage(
         imageQuality: 70,
         maxWidth: 1024,
         maxHeight: 1024,
       );
-
+      
       if (pickedFiles.isNotEmpty) {
         // Validar que no se excedan las imágenes máximas
         if (_selectedImageFiles.length + pickedFiles.length > _maxImages) {
@@ -98,10 +97,9 @@ class _NewPostScreenState extends State<NewPostScreen> {
           );
           return;
         }
-
+        
         setState(() {
-          _selectedImageFiles
-              .addAll(pickedFiles.map((xFile) => File(xFile.path)));
+          _selectedImageFiles.addAll(pickedFiles.map((xFile) => File(xFile.path)));
         });
       }
     } catch (e) {
@@ -127,11 +125,11 @@ class _NewPostScreenState extends State<NewPostScreen> {
     try {
       final token = await _authService.getToken();
       if (token == null) throw Exception('Usuario no autenticado');
-
+      
       // Leer archivo como bytes y convertir a base64
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
-
+      
       // Determinar MIME type
       String mimeType = 'image/jpeg';
       final extension = imageFile.path.toLowerCase().split('.').last;
@@ -148,21 +146,22 @@ class _NewPostScreenState extends State<NewPostScreen> {
         default:
           mimeType = 'image/jpeg';
       }
-
+      
       // Crear data URL con base64
       imageDataBase64 = 'data:$mimeType;base64,$base64Image';
+      
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al procesar imagen: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      if(mounted){
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error al procesar imagen: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isUploadingImage = false);
+      if(mounted){
+          setState(() => _isUploadingImage = false);
       }
     }
     return imageDataBase64;
@@ -176,11 +175,9 @@ class _NewPostScreenState extends State<NewPostScreen> {
         const SnackBar(content: Text('Selecciona una categoría')),
       );
       return;
-    }
-    if (_selectedImageFiles.isEmpty) {
+    }    if (_selectedImageFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Selecciona al menos una imagen para el producto')),
+        const SnackBar(content: Text('Selecciona al menos una imagen para el producto')),
       );
       return;
     }
@@ -196,7 +193,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
           imagenesBase64.add(imageDataBase64);
         }
       }
-
+      
       if (imagenesBase64.isEmpty) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,8 +203,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
       }
 
       final precio = double.parse(_priceCtrl.text.replaceAll(',', '.'));
-      final cantidad = int.tryParse(_quantityCtrl.text) ??
-          1; // Enviar múltiples imágenes como base64 para que se guarden en BD
+      final cantidad = int.tryParse(_quantityCtrl.text) ?? 1;      // Enviar múltiples imágenes como base64 para que se guarden en BD
       await _productService.createProductWithMultipleImages(
         nombre: _titleCtrl.text.trim(),
         descripcion: _descCtrl.text.trim(),
@@ -215,12 +211,12 @@ class _NewPostScreenState extends State<NewPostScreen> {
         categoriaId: _selectedCategoryId!,
         cantidad: cantidad,
         imagenes: imagenesBase64, // Lista de imágenes en base64
-        informacionTecnica: _informacionTecnicaCtrl.text.trim().isNotEmpty
-            ? _informacionTecnicaCtrl.text.trim()
+        informacionTecnica: _informacionTecnicaCtrl.text.trim().isNotEmpty 
+            ? _informacionTecnicaCtrl.text.trim() 
             : null,
         estadoProducto: _estadoProducto,
-        tiempoUso: _tiempoUsoCtrl.text.trim().isNotEmpty
-            ? _tiempoUsoCtrl.text.trim()
+        tiempoUso: _tiempoUsoCtrl.text.trim().isNotEmpty 
+            ? _tiempoUsoCtrl.text.trim() 
             : null,
       );
 
@@ -257,8 +253,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (dialogContext) {
-        // <-- 1. Obtenemos el dialogContext
+      builder: (dialogContext) { // <-- 1. Obtenemos el dialogContext
         return WillPopScope(
           onWillPop: () async => false,
           child: Padding(
@@ -284,21 +279,19 @@ class _NewPostScreenState extends State<NewPostScreen> {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () {
-                          Navigator.pop(dialogContext, false);
-                          _formKey.currentState?.reset();
+                          Navigator.pop(dialogContext, false);                          _formKey.currentState?.reset();
                           _titleCtrl.clear();
                           _descCtrl.clear();
                           _priceCtrl.clear();
                           _quantityCtrl.text = '1';
                           _imageUrlCtrl.clear();
-
+                          
                           // Limpiar imágenes seleccionadas
                           setState(() {
                             _selectedImageFiles.clear();
                           });
                           _informacionTecnicaCtrl.clear();
-                          _tiempoUsoCtrl.clear();
-                          setState(() {
+                          _tiempoUsoCtrl.clear();                          setState(() {
                             _selectedCategoryId = null;
                             _estadoProducto = null;
                           });
@@ -340,8 +333,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  children: [
-                    // 🖼️ Galería de múltiples imágenes
+                  children: [                    // 🖼️ Galería de múltiples imágenes
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -357,15 +349,14 @@ class _NewPostScreenState extends State<NewPostScreen> {
                             ),
                             if (_selectedImageFiles.length < _maxImages)
                               TextButton.icon(
-                                onPressed:
-                                    _isUploadingImage ? null : _pickImages,
+                                onPressed: _isUploadingImage ? null : _pickImages,
                                 icon: const Icon(Icons.add_photo_alternate),
                                 label: const Text('Agregar'),
                               ),
                           ],
                         ),
                         const SizedBox(height: 8),
-
+                        
                         // Grid de imágenes seleccionadas
                         _selectedImageFiles.isEmpty
                             ? Container(
@@ -373,10 +364,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                                 width: double.infinity,
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                      color: AppColors.grisClaro,
-                                      width: 2,
-                                      style: BorderStyle.solid),
+                                  border: Border.all(color: AppColors.grisClaro, width: 2, style: BorderStyle.solid),
                                   color: Colors.grey.shade50,
                                 ),
                                 child: InkWell(
@@ -385,13 +373,11 @@ class _NewPostScreenState extends State<NewPostScreen> {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(Icons.add_photo_alternate_outlined,
-                                          size: 48,
-                                          color: AppColors.grisPrimario),
+                                          size: 48, color: AppColors.grisPrimario),
                                       SizedBox(height: 8),
                                       Text(
                                         'Toca para agregar imágenes',
-                                        style: TextStyle(
-                                            color: AppColors.grisPrimario),
+                                        style: TextStyle(color: AppColors.grisPrimario),
                                       ),
                                       Text(
                                         'Máximo 5 imágenes',
@@ -415,14 +401,12 @@ class _NewPostScreenState extends State<NewPostScreen> {
                                       margin: const EdgeInsets.only(right: 8),
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                            color: AppColors.grisClaro),
+                                        border: Border.all(color: AppColors.grisClaro),
                                       ),
                                       child: Stack(
                                         children: [
                                           ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(8),
                                             child: Image.file(
                                               _selectedImageFiles[index],
                                               width: 120,
@@ -436,8 +420,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                                             child: GestureDetector(
                                               onTap: () => _removeImage(index),
                                               child: Container(
-                                                padding:
-                                                    const EdgeInsets.all(4),
+                                                padding: const EdgeInsets.all(4),
                                                 decoration: const BoxDecoration(
                                                   color: Colors.red,
                                                   shape: BoxShape.circle,
@@ -516,7 +499,8 @@ class _NewPostScreenState extends State<NewPostScreen> {
                       validator: (v) {
                         if (v == null || v.trim().isEmpty)
                           return 'Ingresa un precio';
-                        final parsed = double.tryParse(v.replaceAll(',', '.'));
+                        final parsed =
+                            double.tryParse(v.replaceAll(',', '.'));
                         if (parsed == null || parsed <= 0)
                           return 'Precio inválido';
                         return null;
@@ -562,8 +546,9 @@ class _NewPostScreenState extends State<NewPostScreen> {
                             onChanged: (value) {
                               setState(() => _selectedCategoryId = value);
                             },
-                            validator: (v) =>
-                                v == null ? 'Selecciona una categoría' : null,
+                            validator: (v) => v == null
+                                ? 'Selecciona una categoría'
+                                : null,
                           ),
 
                     const SizedBox(height: 16),
@@ -573,8 +558,7 @@ class _NewPostScreenState extends State<NewPostScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Estado del producto',
                         border: OutlineInputBorder(),
-                        helperText:
-                            'Selecciona si el producto es nuevo o usado',
+                        helperText: 'Selecciona si el producto es nuevo o usado',
                       ),
                       value: _estadoProducto,
                       items: const [
