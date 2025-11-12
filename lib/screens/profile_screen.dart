@@ -599,7 +599,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             name: currentUser.name,
             rolId: currentUser.rolId,
             role: currentUser.role,
-            apellido: currentUser.apellido,
             usuario: currentUser.usuario,
             campus: currentUser.campus,
             telefono: currentUser.telefono,

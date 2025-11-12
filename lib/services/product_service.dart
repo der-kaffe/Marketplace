@@ -279,8 +279,9 @@ class ProductService {
         // Normalizar campos posibles - usar nombreCompleto si está disponible
         final name = userJson['nombreCompleto'] ?? 
             ((userJson['nombre'] != null)
-                ? '${userJson['nombre']}${userJson['apellido'] != null ? ' ${userJson['apellido']}' : ''}'
-                : (userJson['name'] ?? 'Vendedor'));        final avatar = userJson['fotoPerfilUrl']; // Usar directamente fotoPerfilUrl del backend
+                ? '${userJson['nombre']}'
+                : (userJson['name'] ?? 'Vendedor'));
+        final avatar = userJson['fotoPerfilUrl']; // Usar directamente fotoPerfilUrl del backend
         final campus = userJson['campus'] ?? 'Desconocido';
         print('✅ Procesando avatar: $avatar');
         print('✅ Nombre procesado: $name');

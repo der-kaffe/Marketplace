@@ -255,11 +255,9 @@ router.post('/google', [
 
   } catch (error) {
     console.error('Error en login Google:', error);
-    // Verificar si es el error de 'apellido' que vimos antes
     if (error.code === 'P2002' && error.meta?.target?.includes('usuario')) {
       return res.status(409).json({ ok: false, message: 'Error al generar nombre de usuario, intenta de nuevo.' });
     }
-    // Manejo del error de Prisma por campo desconocido (como 'apellido' si volviera a aparecer)
     if (error.message && error.message.includes("Unknown argument")) {
       console.error("Error de Prisma: " + error.message);
       return res.status(500).json({ ok: false, message: 'Error de validación del servidor.' });
