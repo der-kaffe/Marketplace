@@ -1,5 +1,5 @@
 const modismosChilenos = [
-    //agregar insultos aca
+    // ... TU LISTA CHILENA COMPLETA ...
     'weon', 'weona', 'wn', 'wna', 'aweonao', 'aweona', 'weonaje',
     'agueonao', 'ahueonao', 'ahuevonado', 'hueon', 'hueonaje', 'weón', 'weona', 'hueona',
     'ctm', 'conchetumare', 'chucha', 'concha', 'chuchetumare', 'chuchatumare',
@@ -42,7 +42,7 @@ function normalizarTexto(texto) {
         t = t.split(original).join(reemplazo);
     }
 
-
+    // Elimina todo lo que no sea a-z
     t = t.replace(/[^a-z]/g, '');
 
     return t;
@@ -50,31 +50,43 @@ function normalizarTexto(texto) {
 
 
 async function cargarListaDeBloqueo() {
+    // Si ya está cargada en memoria, la devolvemos
     if (listaBloqueoCompleta) {
         return listaBloqueoCompleta;
     }
 
+    let listaProfanities = [];
+
     try {
+        // Importamos el paquete
         const profanitiesModule = await import('profanities');
-        const profanitiesES = profanitiesModule.es;
-        if (!Array.isArray(profanitiesES)) {
-            throw new Error("No se pudo encontrar la lista 'es' en el módulo 'profanities'");
+
+        // Intentamos extraer la lista (suele venir en 'default' o directamente en el módulo)
+        if (Array.isArray(profanitiesModule.default)) {
+            listaProfanities = profanitiesModule.default;
+        } else if (Array.isArray(profanitiesModule)) {
+            listaProfanities = profanitiesModule;
+        } else {
+            console.warn("Advertencia: No se pudo extraer array de 'profanities'. Usando solo lista manual.");
         }
 
-        const listaGlobalNormalizada = profanitiesES.map(p => normalizarTexto(p));
-        const listaChilenaNormalizada = modismosChilenos.map(p => normalizarTexto(p));
-
-        listaBloqueoCompleta = [...new Set([...listaGlobalNormalizada, ...listaChilenaNormalizada])];
-        listaBloqueoCompleta = listaBloqueoCompleta.filter(p => p.length > 1); // Evita coincidencias vacías
-
-        return listaBloqueoCompleta;
-
     } catch (error) {
-        console.error("Error: No se pudo cargar la lista externa 'profanities'. Usando solo lista chilena.", error.message);
-        listaBloqueoCompleta = [...new Set(modismosChilenos.map(p => normalizarTexto(p)))];
-        listaBloqueoCompleta = listaBloqueoCompleta.filter(p => p.length > 1);
-        return listaBloqueoCompleta;
+        console.error("Error cargando librería profanities (usando fallback):", error.message);
     }
+
+    // UNIFICACIÓN: Juntamos lista inglés (profanities) + lista chilena (modismosChilenos)
+    const listaTotal = [...listaProfanities, ...modismosChilenos];
+
+    // NORMALIZACIÓN: Aplicamos tu función normalizarTexto a TODO
+    const listaNormalizada = listaTotal.map(p => normalizarTexto(p));
+
+    // LIMPIEZA: Quitamos duplicados y palabras muy cortas (menores a 3 letras)
+    // para evitar bloquear cosas como 'as', 'in', 'on' que a veces vienen en listas gringas.
+    listaBloqueoCompleta = [...new Set(listaNormalizada)].filter(p => p.length > 2);
+
+    console.log(`Filtro cargado con ${listaBloqueoCompleta.length} palabras prohibidas.`);
+
+    return listaBloqueoCompleta;
 }
 
 
@@ -84,6 +96,7 @@ async function tienePalabrasProhibidas(texto) {
     const lista = await cargarListaDeBloqueo();
     const textoNormalizado = normalizarTexto(texto);
 
+    // Verificamos si el texto normalizado contiene alguna de las palabras prohibidas
     return lista.some(palabraNormalizada =>
         textoNormalizado.includes(palabraNormalizada)
     );
@@ -92,6 +105,6 @@ async function tienePalabrasProhibidas(texto) {
 // Exportar funciones
 module.exports = {
     tienePalabrasProhibidas,
-    cargarListaDeBloqueo, // Útil para "calentar" la caché al iniciar la app
-    normalizarTexto       // Útil para pruebas unitarias
+    cargarListaDeBloqueo,
+    normalizarTexto
 };
