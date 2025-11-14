@@ -474,12 +474,12 @@ class ApiClient {
         'precioAnterior': precioAnterior,
         'cantidad': cantidad ?? 1,
       };
-      
+
       // Soporte para imagen única (compatibilidad)
       if (imageUrl != null) {
         body['imageUrl'] = imageUrl;
       }
-      
+
       // Nuevos campos
       if (informacionTecnica != null && informacionTecnica.isNotEmpty) {
         body['informacionTecnica'] = informacionTecnica;
@@ -490,12 +490,12 @@ class ApiClient {
       if (tiempoUso != null && tiempoUso.isNotEmpty) {
         body['tiempoUso'] = tiempoUso;
       }
-      
+
       // Múltiples imágenes
       if (imagenes != null && imagenes.isNotEmpty) {
         body['imagenes'] = imagenes;
       }
-      
+
       final response = await http.post(
         Uri.parse('$baseUrl/api/products'),
         headers: _headers,
@@ -527,7 +527,6 @@ class ApiClient {
       print('   -> Respuesta: ${response.statusCode}');
       // Usamos _handleResponse que ya maneja errores 4xx/5xx
       return _handleResponse(response);
-
     } catch (e) {
       print('❌ Excepción en createTransaction: $e');
       // Re-lanzar como ApiException si no lo es ya
@@ -541,7 +540,8 @@ class ApiClient {
   // --- MÉTODOS PARA TRANSACCIONES Y CONFIRMACIÓN ---
 
   /// Obtiene la lista de compras del usuario actual
-  Future<TransactionListResponse> getMyPurchases({int page = 1, int limit = 10}) async {
+  Future<TransactionListResponse> getMyPurchases(
+      {int page = 1, int limit = 10}) async {
     try {
       final uri = Uri.parse('$baseUrl/api/transactions/purchases').replace(
         queryParameters: {'page': page.toString(), 'limit': limit.toString()},
@@ -558,17 +558,18 @@ class ApiClient {
   }
 
   /// Obtiene la lista de ventas del usuario actual
-  Future<TransactionListResponse> getMySales({int page = 1, int limit = 10}) async {
+  Future<TransactionListResponse> getMySales(
+      {int page = 1, int limit = 10}) async {
     try {
-       final uri = Uri.parse('$baseUrl/api/transactions/sales').replace(
+      final uri = Uri.parse('$baseUrl/api/transactions/sales').replace(
         queryParameters: {'page': page.toString(), 'limit': limit.toString()},
       );
       print('💰 Obteniendo mis ventas: GET $uri');
       final response = await http.get(uri, headers: _headers);
-       final data = _handleResponse(response);
+      final data = _handleResponse(response);
       return TransactionListResponse.fromJsonSales(data);
     } catch (e) {
-       print('❌ Excepción en getMySales: $e');
+      print('❌ Excepción en getMySales: $e');
       if (e is ApiException) rethrow;
       throw ApiException(message: 'Error de conexión al obtener ventas: $e');
     }
@@ -577,7 +578,8 @@ class ApiClient {
   /// Vendedor confirma la entrega de una transacción
   Future<Map<String, dynamic>> confirmDelivery(int transactionId) async {
     try {
-      final uri = Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-delivery');
+      final uri = Uri.parse(
+          '$baseUrl/api/transactions/$transactionId/confirm-delivery');
       print('🚚 Confirmando entrega (Vendedor): PATCH $uri');
       final response = await http.patch(uri, headers: _headers);
       print('   -> Respuesta: ${response.statusCode}');
@@ -591,8 +593,9 @@ class ApiClient {
 
   /// Comprador confirma el recibo de una transacción
   Future<Map<String, dynamic>> confirmReceipt(int transactionId) async {
-     try {
-      final uri = Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-receipt');
+    try {
+      final uri =
+          Uri.parse('$baseUrl/api/transactions/$transactionId/confirm-receipt');
       print('🤝 Confirmando recibo (Comprador): PATCH $uri');
       final response = await http.patch(uri, headers: _headers);
       print('   -> Respuesta: ${response.statusCode}');
@@ -609,18 +612,18 @@ class ApiClient {
     try {
       final uri = Uri.parse('$baseUrl/api/upload/profile-photo');
       final request = http.MultipartRequest('POST', uri);
-      
+
       // Agregar headers de autorización
       if (_token != null) {
         request.headers['Authorization'] = 'Bearer $_token';
       }
-      
+
       // Agregar la imagen
       request.files.add(await http.MultipartFile.fromPath('photo', imagePath));
-      
+
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
-      
+
       return _handleResponse(response);
     } catch (e) {
       throw ApiException(message: 'Error subiendo foto de perfil: $e');
@@ -659,7 +662,8 @@ class ApiClient {
   Future<Map<String, dynamic>> getUserById(int userId) async {
     try {
       final uri = Uri.parse('$baseUrl/api/users/$userId');
-      final response = await http.get(uri, headers: _headers);      if (response.statusCode == 200) {
+      final response = await http.get(uri, headers: _headers);
+      if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         // Extraer solo la data del usuario, no toda la respuesta
         if (responseData['success'] == true && responseData['data'] != null) {
@@ -795,11 +799,10 @@ class ApiClient {
 String getDefaultBaseUrl() {
   if (kIsWeb) {
     // Para web: usar localhost
-    return 'http://localhost:3001';
+    return 'http://186.64.113.170:3001';
   } else {
-    // Para Android emulador: usar 10.0.2.2
     // Para dispositivo físico: usar la IP de tu computadora
-    return 'http://10.0.2.2:3001';
+    return 'http://186.64.113.170:3001';
   }
 }
 
@@ -834,7 +837,8 @@ class User {
   final int? rolId;
   final String? role;
   final String? usuario;
-  final String? campus;  final String? telefono;
+  final String? campus;
+  final String? telefono;
   final String? direccion;
   final String? fotoPerfilUrl;
 
@@ -858,7 +862,7 @@ class User {
       name: json['nombre'] ?? json['name'] ?? '',
       rolId: json['rolId'] ?? json['rol_id'],
       role: json['rol']?['nombre'] ?? json['role'], // ✅ soporta backend Prisma
-      usuario: json['usuario'],      campus: json['campus'],
+      usuario: json['usuario'], campus: json['campus'],
       telefono: json['telefono'],
       direccion: json['direccion'],
       fotoPerfilUrl: json['fotoPerfilUrl'],
@@ -954,7 +958,8 @@ class ProductFromDB {
   final double? precioAnterior;
   final double? precioActual;
   final String? categoria; // Campo de categoría (nombre)
-  final String? categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
+  final String?
+      categoriaId; // Campo de categoría (ID) - Añadir si la API lo devuelve
   final double? calificacion;
   final int? cantidad;
   final String estado;
@@ -962,7 +967,7 @@ class ProductFromDB {
   final List<dynamic> imagenes; // Bytes de imágenes
   final VendedorFromDB vendedor;
   final bool? visible; // ✅ Añadido campo visible
-  
+
   // 👇 Nuevos campos
   final String? informacionTecnica;
   final String? estadoProducto; // 'nuevo' o 'usado'
@@ -1042,7 +1047,6 @@ class ProductFromDB {
     // Si la API envía 'categoriaId' directamente, úsalo como fallback si no lo obtuvimos del objeto anidado
     categoriaIdStr ??= json['categoriaId']?.toString();
 
-
     String estadoNombre = '';
     dynamic estadoJson = json['estado'];
     if (estadoJson is Map) {
@@ -1072,7 +1076,7 @@ class ProductFromDB {
       imagenes: json['imagenes'] ?? [],
       vendedor: VendedorFromDB.fromJson(json['vendedor'] ?? {}),
       visible: safeToBool(json['visible'], defaultValue: true),
-      
+
       // 👇 Nuevos campos
       informacionTecnica: json['informacionTecnica']?.toString(),
       estadoProducto: json['estadoProducto']?.toString(),
@@ -1095,8 +1099,7 @@ class ProductFromDB {
         ? categoriaId.toString()
         : (categoria ?? 'Sin categoría');
     print(
-        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})'
-    );
+        'CategoryIdentifier asignado: $categoryIdentifier (tipo: ${categoryIdentifier.runtimeType})');
 
     print('IMAGENES para producto $id:');
     print(imagenes);
@@ -1108,13 +1111,14 @@ class ProductFromDB {
       price: precioActual ?? 0.0,
       imageUrl: _getImageUrl(),
       rating: calificacion ?? 0.0,
-      reviewCount: 0, 
+      reviewCount: 0,
       category: categoryIdentifier,
-      isAvailable: this.visible ?? true, 
+      isAvailable: this.visible ?? true,
       cantidad: cantidad ?? 0,
       sellerId: vendedor.id.toString(),
       sellerName: '${vendedor.nombre}',
-      sellerAvatar: vendedor.avatarUrl, // ✅ Usar el avatar del vendedor si existe
+      sellerAvatar:
+          vendedor.avatarUrl, // ✅ Usar el avatar del vendedor si existe
       sellerEmail: vendedor.correo,
       // 👇 Nuevos campos
       informacionTecnica: informacionTecnica,
@@ -1127,7 +1131,9 @@ class ProductFromDB {
   String? _getImageUrl() {
     if (imagenes.isNotEmpty) {
       final img = imagenes.first;
-      if (img is Map && img['urlImagen'] != null && img['urlImagen'].toString().isNotEmpty) {
+      if (img is Map &&
+          img['urlImagen'] != null &&
+          img['urlImagen'].toString().isNotEmpty) {
         return img['urlImagen'];
       }
       if (img is String && img.isNotEmpty) {
@@ -1141,7 +1147,9 @@ class ProductFromDB {
     if (imagenes.isEmpty) return [];
     final List<String> urls = [];
     for (var img in imagenes) {
-      if (img is Map && img['urlImagen'] != null && img['urlImagen'].toString().isNotEmpty) {
+      if (img is Map &&
+          img['urlImagen'] != null &&
+          img['urlImagen'].toString().isNotEmpty) {
         urls.add(img['urlImagen']);
       } else if (img is String && img.isNotEmpty) {
         urls.add(img);
@@ -1432,7 +1440,8 @@ class TransactionProductInfo {
   final String nombre;
   final String? imageUrl; // Placeholder
 
-  TransactionProductInfo({required this.id, required this.nombre, this.imageUrl});
+  TransactionProductInfo(
+      {required this.id, required this.nombre, this.imageUrl});
 
   factory TransactionProductInfo.fromJson(Map<String, dynamic> json) {
     return TransactionProductInfo(
@@ -1449,7 +1458,8 @@ class TransactionUserInfo {
   final String nombreCompleto;
   final String? usuario;
 
-  TransactionUserInfo({required this.id, required this.nombreCompleto, this.usuario});
+  TransactionUserInfo(
+      {required this.id, required this.nombreCompleto, this.usuario});
 
   factory TransactionUserInfo.fromJson(Map<String, dynamic> json) {
     return TransactionUserInfo(
@@ -1482,7 +1492,7 @@ class TransactionListResponse {
       pagination: PaginationInfo.fromJson(json['pagination'] ?? {}),
     );
   }
-   factory TransactionListResponse.fromJsonSales(Map<String, dynamic> json) {
+  factory TransactionListResponse.fromJsonSales(Map<String, dynamic> json) {
     return TransactionListResponse(
       ok: json['ok'] ?? false,
       transactions: (json['sales'] as List<dynamic>?)

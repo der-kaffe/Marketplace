@@ -22,7 +22,7 @@ class UserItem {
     required this.nombre,
     required this.apellido,
     required this.correo,
-    required this.usuario, 
+    required this.usuario,
     required this.rolId,
     required this.estadoId,
     required this.campus,
@@ -35,7 +35,7 @@ class UserItem {
       nombre: json['nombre'] ?? '',
       apellido: json['apellido'] ?? '',
       correo: json['correo'] ?? '',
-      usuario: json['usuario'] ?? '', 
+      usuario: json['usuario'] ?? '',
       rolId: json['rolId'] ?? 0,
       estadoId: json['estadoId'] ?? 0,
       campus: json['campus'] ?? '',
@@ -63,7 +63,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       final token = await authService.getToken();
 
       final response = await http.get(
-        Uri.parse("http://10.0.2.2:3001/api/admin/users"),
+        Uri.parse("http://186.64.113.170:3001/api/admin/users"),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -119,8 +119,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         title: const Text('Confirmar eliminación'),
         content: Text('¿Eliminar al usuario "${user.nombre}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Eliminar')),
         ],
       ),
     );
@@ -132,8 +136,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       final token = await authService.getToken();
 
       final response = await http.delete(
-        Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}"),
-        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token",},
+        Uri.parse("http://186.64.113.170:3001/api/admin/users/${user.id}"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
       );
 
       if (response.statusCode == 200) {
@@ -165,7 +172,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
 
       final response = await http.patch(
         Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}/ban"),
-        headers: {"Content-Type": "application/json", "Authorization": "Bearer $token",},
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
         body: jsonEncode({"banned": newStatus}),
       );
 
@@ -177,14 +187,17 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              newStatus ? 'Usuario baneado correctamente' : 'Usuario desbaneado',
+              newStatus
+                  ? 'Usuario baneado correctamente'
+                  : 'Usuario desbaneado',
             ),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al actualizar estado (${response.statusCode})'),
+            content:
+                Text('Error al actualizar estado (${response.statusCode})'),
           ),
         );
       }
@@ -227,7 +240,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               ),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.blue.withAlpha(31), width: 1.5),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+              ],
             ),
             child: Center(
               child: Column(
@@ -235,7 +251,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                 children: [
                   Text(
                     '$userCount',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0078A8)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Color(0xFF0078A8)),
                   ),
                   const SizedBox(height: 4),
                   const Text(
@@ -259,13 +278,16 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       decoration: BoxDecoration(
         color: const Color(0xFFEFFCFB),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
+        ],
       ),
       child: Row(
         children: [
           CircleAvatar(
             backgroundColor: Colors.white,
-            child: Icon(Icons.person, color: user.isBanned ? Colors.red : const Color(0xFF00A8E8)),
+            child: Icon(Icons.person,
+                color: user.isBanned ? Colors.red : const Color(0xFF00A8E8)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -274,29 +296,37 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               children: [
                 Row(
                   children: [
-                    Flexible( // 1. Añadido para que el texto no empuje al badge
+                    Flexible(
+                      // 1. Añadido para que el texto no empuje al badge
                       child: Text(
                         "${user.nombre} ${user.apellido}",
                         style: TextStyle(
-                          color: user.isBanned ? Colors.red : const Color(0xFF0078A8),
+                          color: user.isBanned
+                              ? Colors.red
+                              : const Color(0xFF0078A8),
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
-                        overflow: TextOverflow.ellipsis, // 2. Añadido para cortar texto
-                        maxLines: 1,                      // 3. Añadido para una línea
+                        overflow: TextOverflow
+                            .ellipsis, // 2. Añadido para cortar texto
+                        maxLines: 1, // 3. Añadido para una línea
                       ),
                     ),
                     if (user.isBanned)
                       Container(
                         margin: const EdgeInsets.only(left: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.red[300],
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
                           'VETADO',
-                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                   ],

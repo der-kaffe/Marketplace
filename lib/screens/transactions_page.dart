@@ -25,7 +25,8 @@ class _TransactionsPageState extends State<TransactionsPage>
   }
 
   Future<void> _loadAll() async {
-    await Future.wait([_fetchTransactions('purchases'), _fetchTransactions('sales')]);
+    await Future.wait(
+        [_fetchTransactions('purchases'), _fetchTransactions('sales')]);
   }
 
   Future<void> _fetchTransactions(String type) async {
@@ -36,7 +37,7 @@ class _TransactionsPageState extends State<TransactionsPage>
       final token = await authService.getToken();
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2:3001/api/transactions/$type'),
+        Uri.parse('http://186.64.113.170:3001/api/transactions/$type'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -68,7 +69,7 @@ class _TransactionsPageState extends State<TransactionsPage>
 
     try {
       final response = await http.patch(
-        Uri.parse('http://10.0.2.2:3001/api/transactions/$id/$action'),
+        Uri.parse('http://186.64.113.170:3001/api/transactions/$id/$action'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -113,20 +114,19 @@ class _TransactionsPageState extends State<TransactionsPage>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(producto,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
             Text('Fecha: $fecha', style: const TextStyle(fontSize: 13)),
             Text('Cantidad: $cantidad | Total: \$$total'),
             const SizedBox(height: 8),
-            Text(isSeller
-                ? 'Comprador: $comprador'
-                : 'Vendedor: $vendedor'),
+            Text(isSeller ? 'Comprador: $comprador' : 'Vendedor: $vendedor'),
             const SizedBox(height: 8),
             if (completada)
               const Text(
                 '✅ Transacción completada',
-                style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                style:
+                    TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
               )
             else
               Row(
@@ -165,9 +165,8 @@ class _TransactionsPageState extends State<TransactionsPage>
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
-        children: data
-            .map((tx) => _buildTransactionCard(tx, isSeller))
-            .toList(),
+        children:
+            data.map((tx) => _buildTransactionCard(tx, isSeller)).toList(),
       ),
     );
   }

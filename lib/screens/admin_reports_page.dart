@@ -27,7 +27,8 @@ class ReportItem {
       title = json['producto']['nombre'] ?? 'Producto reportado';
       description = json['motivo'] ?? '';
     } else if (json['usuarioReportado'] != null) {
-      title = '${json['usuarioReportado']['nombre']} ${json['usuarioReportado']['apellido']}';
+      title =
+          '${json['usuarioReportado']['nombre']} ${json['usuarioReportado']['apellido']}';
       description = json['motivo'] ?? '';
     } else {
       title = 'Reporte';
@@ -68,7 +69,7 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
   bool _isLoading = false;
   final AuthService _authService = AuthService();
 
-  final String apiBaseUrl = 'http://10.0.2.2:3001/api/reports';
+  final String apiBaseUrl = 'http://186.64.113.170:3001/api/reports';
 
   @override
   void initState() {
@@ -98,11 +99,14 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
         final List<dynamic> reportsJson = data['reportes'] ?? [];
 
         setState(() {
-          _reports = reportsJson.map((json) => ReportItem.fromJson(json)).toList();
+          _reports =
+              reportsJson.map((json) => ReportItem.fromJson(json)).toList();
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar reportes: ${response.statusCode}')),
+          SnackBar(
+              content:
+                  Text('Error al cargar reportes: ${response.statusCode}')),
         );
       }
     } catch (e) {
@@ -181,7 +185,10 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
               ),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.red.withAlpha(31), width: 1.5),
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))],
+              boxShadow: const [
+                BoxShadow(
+                    color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+              ],
             ),
             child: Center(
               child: Column(
@@ -190,7 +197,9 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
                   Text(
                     '${_reports.length}',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18, color: Colors.red),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.red),
                   ),
                   const SizedBox(height: 4),
                   const Text(
@@ -285,7 +294,8 @@ class _AdminReportsPageState extends State<AdminReportsPage> {
                       child: Center(
                         child: Text(
                           'Lista de reportes',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
