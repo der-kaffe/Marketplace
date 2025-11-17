@@ -291,11 +291,20 @@ io.on('connection', (socket) => {
           // 2. Si tiene token, envía la notificación
           if (destinatario && destinatario.fcm_token) {
             console.log(`🔔 Enviando notificación de CHAT a ${destinatario.fcm_token}`);
+            let notificationBody;
+
+            if (tipo === 'imagen') {
+              notificationBody = 'Te ha enviado una imagen 📷';
+            } else {
+              notificationBody = contenido; // El mensaje de texto normal
+            }
+
             await admin.messaging().send({
               token: destinatario.fcm_token,
               notification: {
                 title: `Nuevo mensaje de ${socket.userName} 💬`, // socket.userName viene del middleware
-                body: contenido
+                body: contenido,
+                body: notificationBody,
               },
               data: {
                 screen: 'chat', // Para abrir la pantalla de chat
@@ -395,7 +404,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', (reason) => {
     console.log(`🔌 Usuario desconectado: ${socket.userName} (ID: ${socket.userId})`);
     console.log(`🔌 Razón de desconexión: ${reason}`);
-    
+
     // Solo eliminar del mapa si el socket desconectado es el que está registrado
     const currentSocketId = connectedUsers.get(socket.userId);
     if (currentSocketId === socket.id) {
