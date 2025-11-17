@@ -51,7 +51,7 @@ class StartupScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Lorem ipsum dolor sit amet consectetur.\nLorem id sit',
+                        'Una plataforma para comprar y vender productos entre estudiantes de la universidad.',
                         style: TextStyle(
                           fontFamily: 'sans-serif',
                           fontSize: 16,

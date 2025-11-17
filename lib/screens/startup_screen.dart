@@ -14,7 +14,7 @@ class StartupScreen extends StatelessWidget {
       body: Column(
         children: [
           SizedBox(
-            height: screenHeight * 0.65,
+            height: screenHeight * 0.90,
             child: ClipPath(
               clipper: WaveClipper(),
               child: Stack(
@@ -51,7 +51,7 @@ class StartupScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Lorem ipsum dolor sit amet consectetur.\nLorem id sit',
+                        'Una plataforma para comprar y vender productos entre estudiantes de la universidad.',
                         style: TextStyle(
                           fontFamily: 'sans-serif',
                           fontSize: 16,
@@ -105,34 +105,33 @@ class StartupScreen extends StatelessWidget {
   }
 }
 
-class WaveClipper extends CustomClipper<Path> {
-  @override
+class WaveClipper extends CustomClipper<Path> {  @override
   Path getClip(Size size) {
     final path = Path()
       ..lineTo(
         0,
-        size.height * 0.82,
-      ); // Punto de inicio ajustado para que sea un poco más bajo, preparando el "valle"
+        size.height * 0.92,
+      ); // Punto de inicio más bajo para extender la sección azul
 
     // Primera curva: crea el "valle" a la izquierda
-    // Los puntos de control se ajustan para bajar la curva
+    // Los puntos de control se ajustan para bajar la curva más
     path.quadraticBezierTo(
       size.width * 0.3, // Punto de control X
-      size.height * 0.70, // Punto de control Y (más bajo para el valle)
+      size.height * 0.85, // Punto de control Y (más bajo para el valle)
       size.width * 0.6, // Punto final X
       size.height *
-          0.85, // Punto final Y (altura intermedia antes de la cresta)
+          0.95, // Punto final Y (más bajo, casi al final de la pantalla)
     );
 
     // Segunda curva: crea la "cresta" a la derecha
-    // Los puntos de control se ajustan para elevar la curva
+    // Los puntos de control se ajustan para que la cresta también esté más baja
     path.quadraticBezierTo(
       size.width *
-          0.85, // Punto de control X (cerca del final, empuja la cresta hacia arriba)
-      size.height * 0.98, // Punto de control Y (más alto para la cresta)
+          0.85, // Punto de control X (cerca del final)
+      size.height * 1.05, // Punto de control Y (incluso más alto para mantener la cresta)
       size.width, // Llega al borde derecho
       size.height *
-          0.85, // Punto final Y (altura final para cerrar la onda, similar al inicio)
+          0.92, // Punto final Y (más bajo para cerrar la onda)
     );
 
     path
