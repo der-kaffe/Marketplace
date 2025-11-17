@@ -52,7 +52,8 @@ router.post('/login',
       const tokenPayload = {
         userId: user.id,
         email: user.correo,
-        role: user.rol.nombre.toUpperCase()
+        role: user.rol.nombre.toUpperCase(),
+        nombre: user.nombre,
       };
       const { accessToken, refreshToken } = generateTokenPair(tokenPayload);
 
@@ -147,7 +148,7 @@ router.post('/register',
       });
 
       const token = jwt.sign(
-        { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase() },
+        { userId: newUser.id, email: newUser.correo, role: newUser.rol.nombre.toUpperCase(), nombre: newUser.nombre },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
@@ -216,7 +217,7 @@ router.post('/google', [
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase() },
+      { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase(), nombre: user.nombre },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     ); res.json({
@@ -362,7 +363,8 @@ router.post('/refresh', [
     const newTokenPayload = {
       userId: user.id,
       email: user.correo,
-      role: user.rol.nombre.toUpperCase()
+      role: user.rol.nombre.toUpperCase(),
+      nombre: user.nombre
     };
     const { accessToken, refreshToken: newRefreshToken } = generateTokenPair(newTokenPayload);
 
