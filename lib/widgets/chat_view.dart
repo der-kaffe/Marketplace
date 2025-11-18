@@ -8,6 +8,7 @@ import '../theme/app_colors.dart';
 import '../services/chat_service.dart';
 import '../services/auth_service.dart';
 import '../services/image_upload_service.dart';
+import 'product_detail_modal.dart'; // Para usar FullScreenImageViewer
 
 class ChatView extends StatefulWidget {
   final int destinatarioId;
@@ -382,17 +383,23 @@ class _ChatViewState extends State<ChatView> {
 
       print('✅ Bytes decodificados exitosamente: ${bytes.length} bytes');
 
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Image.memory(
-          bytes,
-          width: 220,
-          height: 200,
-          fit: BoxFit.cover,
-          gaplessPlayback: true, // Evitar parpadeo
-          errorBuilder: (context, error, stackTrace) {
-            return _buildImageErrorWidget('Error renderizando imagen');
-          },
+      // Convertir bytes a data URL para el visor
+      final dataUrl = 'data:image/png;base64,${base64Encode(bytes)}';
+
+      return GestureDetector(
+        onTap: () => _openImageFullScreen(dataUrl),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Image.memory(
+            bytes,
+            width: 220,
+            height: 200,
+            fit: BoxFit.cover,
+            gaplessPlayback: true, // Evitar parpadeo
+            errorBuilder: (context, error, stackTrace) {
+              return _buildImageErrorWidget('Error renderizando imagen');
+            },
+          ),
         ),
       );
     } catch (e) {
@@ -656,27 +663,29 @@ class _ChatViewState extends State<ChatView> {
                                 imageUrl = 'http://localhost:3001$imageContent';
                               }
                             }
-
-                            content = ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                imageUrl,
-                                width: 220,
-                                height: 200,
-                                fit: BoxFit.cover,
-                                gaplessPlayback: true, // Evitar parpadeo
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return _buildCustomLoadingWidget(
-                                    message: 'Cargando imagen...',
-                                    size: 50,
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return _buildImageErrorWidget(
-                                      'Error cargando imagen');
-                                },
+                            content = GestureDetector(
+                              onTap: () => _openImageFullScreen(imageUrl),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: Image.network(
+                                  imageUrl,
+                                  width: 220,
+                                  height: 200,
+                                  fit: BoxFit.cover,
+                                  gaplessPlayback: true, // Evitar parpadeo
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return _buildCustomLoadingWidget(
+                                      message: 'Cargando imagen...',
+                                      size: 50,
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _buildImageErrorWidget(
+                                        'Error cargando imagen');
+                                  },
+                                ),
                               ),
                             );
                           } else if (imageContent.startsWith('data:image')) {
@@ -840,6 +849,19 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
       ],
+    );
+  }
+
+  // 📱 Abrir visor de pantalla completa para imágenes del chat
+  void _openImageFullScreen(String imageUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(
+          imageUrls: [imageUrl],
+          initialIndex: 0,
+        ),
+        fullscreenDialog: true,
+      ),
     );
   }
 }
