@@ -15,7 +15,7 @@ class _AdminMetricsPageState extends State<AdminMetricsPage> {
   final AuthService _auth = AuthService();
   bool _loading = true;
   Map<String, dynamic>? _metrics;
-  final String apiUrl = 'http://10.0.2.2:3001/api/admin/metrics';
+  final String apiUrl = 'http://186.64.113.170:3001/api/admin/metrics';
 
   @override
   void initState() {
@@ -38,7 +38,8 @@ class _AdminMetricsPageState extends State<AdminMetricsPage> {
       } else {
         debugPrint('Metrics error: ${resp.body}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cargando métricas (${resp.statusCode})')),
+          SnackBar(
+              content: Text('Error cargando métricas (${resp.statusCode})')),
         );
       }
     } catch (e) {
@@ -51,7 +52,8 @@ class _AdminMetricsPageState extends State<AdminMetricsPage> {
     }
   }
 
-  Widget _metricCard(String title, String value, {IconData? icon, Color? color}) {
+  Widget _metricCard(String title, String value,
+      {IconData? icon, Color? color}) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -67,9 +69,13 @@ class _AdminMetricsPageState extends State<AdminMetricsPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                Text(title,
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.black54)),
                 const SizedBox(height: 6),
-                Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(value,
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
               ],
             )
           ],
@@ -114,17 +120,33 @@ class _AdminMetricsPageState extends State<AdminMetricsPage> {
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        _metricCard('Usuarios totales', '${_metrics?['totalUsers'] ?? '-'}', icon: Icons.people, color: Colors.blue),
-                        _metricCard('Usuarios activos 30d', '${_metrics?['activeUsers30d'] ?? '-'}', icon: Icons.flash_on, color: Colors.teal),
-                        _metricCard('Productos', '${_metrics?['totalProducts'] ?? '-'}', icon: Icons.shopping_bag, color: Colors.purple),
-                        _metricCard('Publicaciones', '${_metrics?['totalPublications'] ?? '-'}', icon: Icons.post_add, color: Colors.indigo),
-                        _metricCard('Reportes abiertos', '${_metrics?['openReports'] ?? '-'}', icon: Icons.report, color: Colors.red),
-                        _metricCard('Transacciones completadas', '${_metrics?['completedTransactions'] ?? '-'}', icon: Icons.check_circle, color: Colors.green),
-                        _metricCard('Mensajes 7d', '${_metrics?['messagesLast7d'] ?? '-'}', icon: Icons.message, color: Colors.orange),
+                        _metricCard('Usuarios totales',
+                            '${_metrics?['totalUsers'] ?? '-'}',
+                            icon: Icons.people, color: Colors.blue),
+                        _metricCard('Usuarios activos 30d',
+                            '${_metrics?['activeUsers30d'] ?? '-'}',
+                            icon: Icons.flash_on, color: Colors.teal),
+                        _metricCard(
+                            'Productos', '${_metrics?['totalProducts'] ?? '-'}',
+                            icon: Icons.shopping_bag, color: Colors.purple),
+                        _metricCard('Publicaciones',
+                            '${_metrics?['totalPublications'] ?? '-'}',
+                            icon: Icons.post_add, color: Colors.indigo),
+                        _metricCard('Reportes abiertos',
+                            '${_metrics?['openReports'] ?? '-'}',
+                            icon: Icons.report, color: Colors.red),
+                        _metricCard('Transacciones completadas',
+                            '${_metrics?['completedTransactions'] ?? '-'}',
+                            icon: Icons.check_circle, color: Colors.green),
+                        _metricCard('Mensajes 7d',
+                            '${_metrics?['messagesLast7d'] ?? '-'}',
+                            icon: Icons.message, color: Colors.orange),
                       ],
                     ),
                     const SizedBox(height: 18),
-                    const Text('Nuevos usuarios (últimos 7 días)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text('Nuevos usuarios (últimos 7 días)',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     _buildNewUsersList(_metrics?['newUsersByDay'] ?? []),
                   ],

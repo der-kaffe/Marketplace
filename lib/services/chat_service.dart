@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/widgets.dart'; // ✨ 1. AÑADIR ESTA IMPORTACIÓN
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'websocket_service.dart';
 import 'network_config.dart';
 
-class ChatService {
+// ✨ 2. AÑADIR "with WidgetsBindingObserver"
+class ChatService with WidgetsBindingObserver {
   static final ChatService _instance = ChatService._internal();
   factory ChatService() => _instance;
   ChatService._internal();
@@ -23,8 +25,10 @@ class ChatService {
   bool get isConnected => _wsService.isConnected;
 
   Future<void> initialize() async {
-    try {
+    // ✨ 3. REGISTRAR EL OBSERVADOR
+    WidgetsBinding.instance.addObserver(this);
 
+    try {
       // Primero verificar conectividad HTTP
       await _testHttpConnectivity();
 
@@ -38,7 +42,6 @@ class ChatService {
 
       if (_wsService.isConnected) {
       } else {
-
         // Intentar reconectar una vez más
         await _wsService.connect();
         await Future.delayed(const Duration(milliseconds: 2000));
@@ -67,10 +70,8 @@ class ChatService {
       );
 
       if (response.statusCode == 200) {
-      } else {
-      }
-    } catch (e) {
-    }
+      } else {}
+    } catch (e) {}
   }
 
   Future<Map<String, String>> _getAuthHeaders() async {
@@ -91,17 +92,14 @@ class ChatService {
         headers: headers,
       );
 
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['ok']) {
           final conversations =
               List<Map<String, dynamic>>.from(data['conversaciones']);
           return conversations;
-        } else {
-        }
-      } else {
-      }
+        } else {}
+      } else {}
       return [];
     } catch (e) {
       return [];
@@ -130,7 +128,8 @@ class ChatService {
   }
 
   // Comunidad UCT: obtener historial
-  Future<List<Map<String, dynamic>>> getCommunityMessages({int limit = 50}) async {
+  Future<List<Map<String, dynamic>>> getCommunityMessages(
+      {int limit = 50}) async {
     try {
       final headers = await _getAuthHeaders();
       final response = await http.get(
@@ -156,7 +155,6 @@ class ChatService {
     required String contenido,
     String tipo = 'texto',
   }) async {
-
     // Verificar si WebSocket está conectado
     if (!_wsService.isConnected) {
       await initialize();
@@ -291,7 +289,6 @@ class ChatService {
     final usuario = conversation['usuario'] ?? {};
     final isMe = ultimoMensaje['remitenteId'] == currentUserId;
 
-
     // Formatear el último mensaje
     String lastMessageText = ultimoMensaje['contenido'] ?? '';
     String tipo = ultimoMensaje['tipo'] ?? 'texto';
@@ -349,7 +346,37 @@ class ChatService {
     }
   }
 
+  // ✨ 4. AÑADIR ESTE MÉTODO COMPLETO
+  // Este método se llama automáticamente cuando la app cambia de estado
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Si el socket no está conectado, no hagas nada
+    if (!_wsService.isConnected) return;
+
+    switch (state) {
+      case AppLifecycleState.resumed:
+        // La app está en primer plano
+        print('🔵 APP STATE: foreground');
+        _wsService.sendAppState('foreground');
+        break;
+
+      // 👇 --- AÑADIR .hidden AQUÍ --- 👇
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        // La app se va a segundo plano o se cierra
+        print('⚫️ APP STATE: background');
+        _wsService.sendAppState('background');
+        break;
+    }
+  }
+
   void dispose() {
+    // ✨ 5. QUITAR EL OBSERVADOR
+    WidgetsBinding.instance.removeObserver(this);
     _wsService.dispose();
   }
 }

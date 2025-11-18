@@ -28,7 +28,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
 
   Future<void> _fetchReport() async {
     final token = await _authService.getToken();
-    final url = Uri.parse('http://10.0.2.2:3001/api/reports/${widget.reportId}');
+    final url =
+        Uri.parse('http://186.64.113.170:3001/api/reports/${widget.reportId}');
 
     try {
       final response = await http.get(url, headers: {
@@ -98,9 +99,7 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                 child: Row(
                   children: [
                     Icon(
-                      producto != null
-                          ? Icons.shopping_cart
-                          : Icons.person,
+                      producto != null ? Icons.shopping_cart : Icons.person,
                       size: 32,
                       color: Colors.white,
                     ),
@@ -138,10 +137,14 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
                     const Divider(),
                     InfoRow(
                         label: 'Reportado por',
-                        value: '${reportante['nombre']} ${reportante['apellido']}',
+                        value:
+                            '${reportante['nombre']} ${reportante['apellido']}',
                         icon: Icons.person),
                     const Divider(),
-                    InfoRow(label: 'Fecha', value: fecha.substring(0, 10), icon: Icons.calendar_today),
+                    InfoRow(
+                        label: 'Fecha',
+                        value: fecha.substring(0, 10),
+                        icon: Icons.calendar_today),
                     const Divider(),
                     if (producto != null)
                       InfoRow(
@@ -211,7 +214,8 @@ class _ReportDetailPageState extends State<ReportDetailPage> {
     final nuevoEstadoId = reportStatus == 'Pendiente' ? 2 : 1;
     final token = await _authService.getToken();
 
-    final url = Uri.parse('http://10.0.2.2:3001/api/reports/${widget.reportId}');
+    final url =
+        Uri.parse('http://186.64.113.170:3001/api/reports/${widget.reportId}');
 
     try {
       final response = await http.patch(

@@ -636,9 +636,7 @@ router.put('/:id', authenticateToken, [
         message: 'Datos de entrada inválidos',
         errors: errors.array()
       });
-    }
-
-    const { id } = req.params;
+    }    const { id } = req.params;
     const { 
       nombre, 
       descripcion, 
@@ -646,8 +644,17 @@ router.put('/:id', authenticateToken, [
       precioActual,
       categoriaId,
       cantidad,
-      estadoId
+      estadoId,
+      imagenes // ✅ Agregar manejo de imágenes
     } = req.body;
+    
+    // 🔍 Debug: Ver qué se recibe
+    console.log(`🔍 PUT /api/products/${id} - Imágenes recibidas:`, imagenes ? imagenes.length : 0);
+    if (imagenes && Array.isArray(imagenes)) {
+      imagenes.forEach((img, i) => {
+        console.log(`🔍 Imagen ${i}: ${typeof img}, ${img.substring(0, 50)}...`);
+      });
+    }
 
     // ✅ PASO 1: Verificar que el producto existe
     const productoExistente = await prisma.productos.findUnique({
@@ -699,9 +706,7 @@ router.put('/:id', authenticateToken, [
           message: 'Categoría no encontrada'
         });
       }
-    }
-
-    // ✅ PASO 5: Actualizar producto
+    }    // ✅ PASO 5: Actualizar producto
     const productoActualizado = await prisma.productos.update({
       where: { id: parseInt(id) },
       data: updateData,      include: {
@@ -717,6 +722,65 @@ router.put('/:id', authenticateToken, [
         estado: true
       }
     });
+
+    // 🖼️ PASO 6: Actualizar imágenes si se proporcionaron
+    if (imagenes && Array.isArray(imagenes)) {
+      console.log(`📷 Actualizando ${imagenes.length} imagen(es) para producto ${productoActualizado.id}`);
+      
+      // Eliminar todas las imágenes anteriores
+      await prisma.imagenesProducto.deleteMany({
+        where: { productoId: parseInt(id) }
+      });
+      
+      // Agregar nuevas imágenes
+      for (let i = 0; i < imagenes.length; i++) {
+        const imagenItem = imagenes[i];
+        
+        try {
+          if (typeof imagenItem === 'string') {
+            if (imagenItem.startsWith('data:image')) {
+              // 📸 Procesar imagen base64
+              const base64Match = imagenItem.match(/^data:([^;]+);base64,(.+)$/);
+              if (base64Match) {
+                const mimeType = base64Match[1];
+                const base64Data = base64Match[2];
+                const imageBuffer = Buffer.from(base64Data, 'base64');
+                
+                // Validar tamaño de imagen (máx 10MB)
+                if (imageBuffer.length > 10 * 1024 * 1024) {
+                  console.warn(`⚠️ Imagen ${i+1} muy grande: ${imageBuffer.length} bytes`);
+                  continue;
+                }
+                
+                await prisma.imagenesProducto.create({
+                  data: {
+                    productoId: parseInt(id),
+                    imagenData: imageBuffer,
+                    mimeType: mimeType,
+                    urlImagen: null
+                  }
+                });
+                
+                console.log(`✅ Imagen ${i+1} actualizada: ${mimeType}, ${imageBuffer.length} bytes`);
+              }
+            } else if (imagenItem.startsWith('http')) {
+              // 🔗 URL existente del servidor (mantener)
+              await prisma.imagenesProducto.create({
+                data: {
+                  productoId: parseInt(id),
+                  urlImagen: imagenItem,
+                  imagenData: null,
+                  mimeType: null
+                }
+              });
+              console.log(`✅ Imagen ${i+1} URL mantenida: ${imagenItem}`);
+            }
+          }
+        } catch (imgError) {
+          console.error(`❌ Error procesando imagen ${i+1}:`, imgError);
+        }
+      }
+    }
 
     res.json({
       ok: true,

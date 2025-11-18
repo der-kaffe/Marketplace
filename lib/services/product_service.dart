@@ -156,12 +156,40 @@ class ProductService {
       if (nombre != null) data['nombre'] = nombre;
       if (descripcion != null) data['descripcion'] = descripcion;
       if (precioActual != null) data['precioActual'] = precioActual;
+      if (categoriaId != null) data['categoriaId'] = categoriaId;      final result = await _apiClient.updateProduct(productId, data);
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error al actualizar producto: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ NUEVO: Actualizar producto con imágenes
+  Future<Map<String, dynamic>> updateProductWithImages({
+    required int productId,
+    String? nombre,
+    String? descripcion,
+    double? precioActual,
+    int? categoriaId,
+    List<String>? imagenes,
+  }) async {
+    try {
+      final token = await _auth_service_token_or_throw();
+      _apiClient.setToken(token);
+
+      final Map<String, dynamic> data = {};
+      if (nombre != null) data['nombre'] = nombre;
+      if (descripcion != null) data['descripcion'] = descripcion;
+      if (precioActual != null) data['precioActual'] = precioActual;
       if (categoriaId != null) data['categoriaId'] = categoriaId;
+      if (imagenes != null && imagenes.isNotEmpty) {
+        data['imagenes'] = imagenes;
+      }
 
       final result = await _apiClient.updateProduct(productId, data);
       return result;
     } catch (e) {
-      debugPrint('❌ Error al actualizar producto: $e');
+      debugPrint('❌ Error al actualizar producto con imágenes: $e');
       rethrow;
     }
   }
