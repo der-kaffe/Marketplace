@@ -24,28 +24,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _loadNotifications();
   }
 
-  // Cargar datos del backend simulado
+// Cargar datos del backend simulado
   Future<void> _loadNotifications() async {
     setState(() => _isLoading = true);
+
     try {
-      // Usando tu ApiClient existente dentro de AuthService
-      final response = await _authService.apiClient
-          .getNotifications(); // Asegúrate que tu ApiClient tenga método GET genérico o crea uno específico
+      // Llamada a la API
+      final response = await _authService.apiClient.getNotifications();
 
-      // Si tu ApiClient no tiene método .get genérico y retorna dynamic, ajusta esta línea.
-      // Ejemplo si devuelve http.Response: jsonDecode(response.body)
-
-      if (response != null && response['ok'] == true) {
+      if (response['ok'] == true) {
         if (mounted) {
           setState(() {
-            _notifications = response['notificaciones'];
-            _isLoading = false;
+            _notifications = response['notificaciones'] ?? [];
           });
         }
+      } else {
+        // Si ok es false (ej: error servidor), imprimimos el error
+        print("⚠️ Error al cargar: ${response['message'] ?? 'Desconocido'}");
       }
     } catch (e) {
-      print('Error cargando notificaciones: $e');
-      if (mounted) setState(() => _isLoading = false);
+      print('❌ Excepción cargando notificaciones: $e');
+    } finally {
+      // ✨ CORRECCIÓN 2: El bloque 'finally' se ejecuta SIEMPRE.
+      // Esto garantiza que el círculo de carga desaparezca.
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

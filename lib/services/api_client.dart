@@ -159,11 +159,10 @@ class ApiClient {
 
 // 👇 AÑADE ESTO EN ApiClient
 // En lib/services/api_client.dart
-
   Future<Map<String, dynamic>> getNotifications() async {
     try {
-      // Asegúrate de que la ruta coincida con tu backend (/users/notifications)
-      final uri = Uri.parse('$baseUrl/users/notifications');
+      // ✨ CORRECCIÓN: Agregamos '/api' antes de '/users'
+      final uri = Uri.parse('$baseUrl/api/users/notifications');
 
       final headers = {
         'Content-Type': 'application/json',
@@ -175,11 +174,11 @@ class ApiClient {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print("Error API: ${response.statusCode} - ${response.body}");
+        print("⚠️ Error Servidor: ${response.statusCode}");
         return {'ok': false};
       }
     } catch (e) {
-      print("Excepción API: $e");
+      print("❌ Error Conexión: $e");
       return {'ok': false};
     }
   }
