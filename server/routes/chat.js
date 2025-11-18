@@ -129,6 +129,7 @@ router.get('/conversaciones', authenticateToken, async (req, res) => {
         };
 
         console.log(`👤 Conversación con ${otroUsuario.nombre}: último mensaje "${msg.contenido}", no leídos: ${unreadCount}`);
+        
       }
     });
 
