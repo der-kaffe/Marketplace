@@ -1357,19 +1357,28 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                               }                              // ✅ CORREGIDO: Mapear correctamente a los campos del modelo Seller existente
                               final sellerData = snapshot.data!;
                               print('🔍 Datos del vendedor recibidos: $sellerData'); // Debug
+                              // ✅ Extraer estadísticas correctamente desde el objeto 'estadisticas'
+                              final estadisticas = sellerData['estadisticas'] ?? {};
+                              print('📊 Estadísticas extraídas: $estadisticas'); // Debug
+                              print('📊 publicacionesActivas: ${estadisticas['publicacionesActivas']}'); // Debug
+                              print('📊 tipo publicacionesActivas: ${estadisticas['publicacionesActivas'].runtimeType}'); // Debug
+                              
+                              final activeListingsValue = (estadisticas['publicacionesActivas'] as num?)?.toInt() ?? 0;
+                              print('📊 activeListingsValue después de conversión: $activeListingsValue'); // Debug
                               
                               final sellerObject = Seller(
                                 id: sellerData['id']?.toString() ??
                                     widget.product.sellerId,
-                                name: sellerData['name'] ?? 'Vendedor',
+                                name: sellerData['name'] ?? sellerData['nombre'] ?? 'Vendedor',
                                 email: sellerData['correo'] ?? sellerData['email'],
-                                avatar: sellerData['avatar'],
-                                location: sellerData['campus'] ?? 'Desconocido',
-                                reputation: sellerData['reputacion']?.toDouble() ?? 0.0,
+                                avatar: sellerData['avatar'] ?? sellerData['fotoPerfilUrl'],
+                                location: sellerData['campus'] ?? 'Desconocido',                                reputation: (sellerData['reputacion'] is num) 
+                                    ? (sellerData['reputacion'] as num).toDouble() 
+                                    : 0.0,
                                 // ✅ USAR ESTADÍSTICAS REALES del backend con conversión segura
-                                totalSales: (sellerData['totalVentas'] as num?)?.toInt() ?? 0,
-                                activeListings: (sellerData['publicacionesActivas'] as num?)?.toInt() ?? 0,
-                                soldListings: (sellerData['totalVentas'] as num?)?.toInt() ?? 0, // Ventas = productos vendidos
+                                totalSales: (estadisticas['totalVentas'] as num?)?.toInt() ?? 0,
+                                activeListings: activeListingsValue,
+                                soldListings: (estadisticas['totalVentas'] as num?)?.toInt() ?? 0,
                                 memberSince: sellerData['miembroDesde'] != null 
                                     ? DateTime.tryParse(sellerData['miembroDesde'].toString()) 
                                     : null,

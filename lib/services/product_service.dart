@@ -243,39 +243,45 @@ class ProductService {
       rethrow;
     }
   }
-
   /// ✅ Obtener info del vendedor. Intenta endpoint /api/users/:id, si no funciona devuelve fallback
   Future<Map<String, dynamic>> getSellerInfo(String sellerId) async {
-    try {      if (sellerId.isEmpty) {
+    try {
+      print('🔍 getSellerInfo llamado con sellerId: "$sellerId"'); // Debug
+        if (sellerId.isEmpty) {
         return {
           'name': 'Vendedor desconocido',
-          'avatar': null, // Usar null para mejor manejo en UI
+          'avatar': null,
           'campus': 'Desconocido',
           'reputacion': 0.0,
           'id': null,
-          // ✅ Agregar estadísticas en fallback de sellerId vacío
-          'totalPublicaciones': 0,
-          'publicacionesActivas': 0,
-          'totalVentas': 0,
+          'estadisticas': {
+            'totalPublicaciones': 0,
+            'publicacionesActivas': 0,
+            'totalVentas': 0,
+          },
         };
       }
 
-      final idInt = int.tryParse(sellerId);      if (idInt == null) {        // no es numérico -> devolver fallback
+      final idInt = int.tryParse(sellerId);      if (idInt == null) {
         return {
           'name': sellerId,
-          'avatar': null, // Usar null para mejor manejo en UI
+          'avatar': null,
           'campus': 'Desconocido',
           'reputacion': 0.0,
           'id': null,
-          // ✅ Agregar estadísticas en fallback de ID no numérico
-          'totalPublicaciones': 0,
-          'publicacionesActivas': 0,
-          'totalVentas': 0,
+          'estadisticas': {
+            'totalPublicaciones': 0,
+            'publicacionesActivas': 0,
+            'totalVentas': 0,
+          },
         };
-      }// Intenta obtener del endpoint
-      try {        final userJson = await _apiClient.getUserById(idInt);
-        print('🔍 Datos del vendedor desde backend: $userJson');
-        print('🔍 fotoPerfilUrl específica: ${userJson['fotoPerfilUrl']}');
+      }
+
+      // Intenta obtener del endpoint
+      try {
+        final userJson = await _apiClient.getUserById(idInt);
+        // print('🔍 Datos del vendedor desde backend: $userJson');
+        // print('🔍 fotoPerfilUrl específica: ${userJson['fotoPerfilUrl']}');
         // Normalizar campos posibles - usar nombreCompleto si está disponible
         final name = userJson['nombreCompleto'] ?? 
             ((userJson['nombre'] != null)
@@ -283,18 +289,14 @@ class ProductService {
                 : (userJson['name'] ?? 'Vendedor'));
         final avatar = userJson['fotoPerfilUrl']; // Usar directamente fotoPerfilUrl del backend
         final campus = userJson['campus'] ?? 'Desconocido';
-        print('✅ Procesando avatar: $avatar');
-        print('✅ Nombre procesado: $name');
+        // print('✅ Procesando avatar: $avatar');
+        // print('✅ Nombre procesado: $name');
         final reputacion = (userJson['reputacion'] != null)
             ? double.tryParse(userJson['reputacion'].toString()) ?? 0.0
-            : 0.0;
-          // ✅ NUEVO: Extraer estadísticas del vendedor
+            : 0.0;          // ✅ NUEVO: Extraer estadísticas del vendedor
         final estadisticas = userJson['estadisticas'] ?? {};
-        final totalPublicaciones = estadisticas['totalPublicaciones'] ?? 0;
-        final publicacionesActivas = estadisticas['publicacionesActivas'] ?? 0;
-        final totalVentas = estadisticas['totalVentas'] ?? 0;
         
-        print('🔍 Estadísticas extraídas: totalPub=$totalPublicaciones, activas=$publicacionesActivas, ventas=$totalVentas');
+        // print('🔍 Estadísticas extraídas del backend: $estadisticas');
         
         return {
           'name': name,
@@ -302,35 +304,36 @@ class ProductService {
           'campus': campus,
           'reputacion': reputacion,
           'id': idInt,
-          // ✅ NUEVO: Agregar estadísticas
-          'totalPublicaciones': totalPublicaciones,
-          'publicacionesActivas': publicacionesActivas,
-          'totalVentas': totalVentas,
-        };      } catch (e) {        // Si falla la request (endpoint puede no existir), devolvemos fallback razonable
+          'correo': userJson['correo'],
+          'miembroDesde': userJson['fechaRegistro'],
+          // ✅ DEVOLVER estadísticas como objeto completo (igual que el backend)
+          'estadisticas': estadisticas,
+        };      } catch (e) {
         debugPrint('⚠️ getUserById falló, usando fallback: $e');
         return {
           'name': 'Vendedor #$sellerId',
-          'avatar': null, // Usar null para mejor manejo en UI
+          'avatar': null,
           'campus': 'Desconocido',
           'reputacion': 0.0,
           'id': idInt,
-          // ✅ Agregar estadísticas en fallback
-          'totalPublicaciones': 0,
-          'publicacionesActivas': 0,
-          'totalVentas': 0,
+          'estadisticas': {
+            'totalPublicaciones': 0,
+            'publicacionesActivas': 0,
+            'totalVentas': 0,
+          },
         };
       }    } catch (e) {
       debugPrint('❌ Error en getSellerInfo: $e');
       return {
-        'name': 'Vendedor desconocido',
-        'avatar': null, // Usar null para mejor manejo en UI
+        'name': 'Vendedor desconocido',        'avatar': null,
         'campus': 'Desconocido',
         'reputacion': 0.0,
         'id': null,
-        // ✅ Agregar estadísticas en fallback de error
-        'totalPublicaciones': 0,
-        'publicacionesActivas': 0,
-        'totalVentas': 0,
+        'estadisticas': {
+          'totalPublicaciones': 0,
+          'publicacionesActivas': 0,
+          'totalVentas': 0,
+        },
       };
     }
   }

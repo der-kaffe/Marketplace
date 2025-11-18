@@ -663,16 +663,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildInfoSection(
                   title: 'Información Personal',                  items: [
                     _buildInfoItem(Icons.person, 'Nombre completo', _userName),
-                    _buildInfoItem(Icons.email, 'Email', _userEmail),
-                    _buildSwitchItem(
+                    _buildInfoItem(Icons.email, 'Email', _userEmail),                    _buildSwitchItem(
                       icon: Icons.lock_clock,
                       title: 'Mantener sesión iniciada',
                       subtitle: 'La sesión no se cerrará automáticamente',
                       value: _keepSessionActive,
                       onChanged: _toggleKeepSession,
                     ),
-                    _buildEditableInfoItem(Icons.account_circle, 'Usuario',
-                        _usuario, () => _editField('usuario')),
+                    _buildInfoItem(Icons.account_circle, 'Usuario', _usuario),
                     _buildEditableInfoItem(Icons.school, 'Campus', _campus,
                         () => _editField('campus')),
                     _buildEditableInfoItem(
@@ -1035,7 +1033,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
-
   Widget _buildInfoItem(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1050,21 +1047,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Icon(icon, size: 20, color: AppColors.azulPrimario),
           ),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 14, color: AppColors.textoSecundario)),
+                const SizedBox(height: 4),
+                Text(
+                  value,
                   style: const TextStyle(
-                      fontSize: 14, color: AppColors.textoSecundario)),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textoOscuro),
-              ),
-            ],
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textoOscuro),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1346,14 +1347,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Text(label,
                       style: const TextStyle(
-                          fontSize: 14, color: AppColors.textoSecundario)),
-                  const SizedBox(height: 4),
+                          fontSize: 14, color: AppColors.textoSecundario)),                  const SizedBox(height: 4),
                   Text(
                     value,
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textoOscuro),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
                   ),
                 ],
               ),
@@ -1362,12 +1364,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  } // Método auxiliar para obtener el valor actual de un campo
+    );  }
+
+  // Método auxiliar para obtener el valor actual de un campo
   String _getCurrentValue(String fieldType) {
     switch (fieldType) {
-      case 'usuario':
-        return _usuario;
       case 'campus':
         return _campus;
       case 'teléfono':
@@ -1427,24 +1428,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-              ],
-              TextField(
+              ],              TextField(
                 controller: controller,
                 decoration: InputDecoration(
-                  border: const OutlineInputBorder(),                  labelText: fieldType == 'teléfono'
+                  border: const OutlineInputBorder(),
+                  labelText: fieldType == 'teléfono'
                       ? 'Número de teléfono'
-                      : fieldType == 'usuario'
-                          ? 'Nombre de usuario'
-                          : fieldType == 'campus'
-                              ? 'Campus'
-                              : 'Dirección',
-                  hintText: fieldType == 'teléfono'
+                      : fieldType == 'campus'
+                          ? 'Campus'
+                          : 'Dirección',                  hintText: fieldType == 'teléfono'
                       ? '+56 9 1234 5678'
-                      : fieldType == 'usuario'
-                          ? 'Ej: juan_garcia'
-                          : fieldType == 'campus'
-                              ? 'Campus Temuco'
-                              : 'Ej: Av. Alemania 0211, Temuco',
+                      : fieldType == 'campus'
+                          ? 'Campus Temuco'
+                          : 'Ej: Av. Alemania 0211, Temuco',
                 ),
                 keyboardType: fieldType == 'teléfono'
                     ? TextInputType.phone
@@ -1509,9 +1505,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final apiClient = authService.apiClient;      // Crear el objeto de actualización con solo el campo que cambió
       Map<String, String?> updateParams = {};
       switch (fieldType) {
-        case 'usuario':
-          updateParams['usuario'] = newValue;
-          break;
         case 'campus':
           updateParams['campus'] = newValue;
           break;
@@ -1528,14 +1521,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         direccion: updateParams['direccion'],
       );
 
-      print('✅ Respuesta del servidor: $response');
-
-      // Solo actualizar localmente si la llamada al backend fue exitosa
-      if (mounted) {        setState(() {
+      print('✅ Respuesta del servidor: $response');      // Solo actualizar localmente si la llamada al backend fue exitosa
+      if (mounted) {
+        setState(() {
           switch (fieldType) {
-            case 'usuario':
-              _usuario = newValue;
-              break;
             case 'campus':
               _campus = newValue;
               break;
@@ -1572,14 +1561,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             duration: const Duration(seconds: 4),
           ),
         );
-      }
-    }
+      }    }
   }
+
   // Función para generar mensajes específicos de actualización
   String _getUpdateMessage(String fieldType, String newValue) {
     switch (fieldType) {
-      case 'usuario':
-        return 'Nombre de usuario actualizado a: $newValue';
       case 'campus':
         return 'Campus actualizado a: $newValue';
       case 'teléfono':
@@ -1594,12 +1581,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return '$fieldType actualizado correctamente';
     }
   }
-
   // Función para generar mensajes de error más claros
   String _getErrorMessage(String error) {
-    if (error.contains('USERNAME_TAKEN')) {
-      return 'El nombre de usuario ya está en uso';
-    } else if (error.contains('TOKEN_INVALID') ||
+    if (error.contains('TOKEN_INVALID') ||
         error.contains('TOKEN_REQUIRED')) {
       return 'Sesión expirada. Por favor, inicia sesión nuevamente';
     } else if (error.contains('Connection refused') ||

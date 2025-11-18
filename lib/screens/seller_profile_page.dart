@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import '../models/seller_model.dart';
 import '../theme/app_colors.dart';
 import '../services/api_client.dart';
+import '../widgets/product_detail_modal.dart'; // Para usar FullScreenImageViewer
 
-class SellerProfilePage extends StatelessWidget {
+class SellerProfilePage extends StatefulWidget {
   final Seller seller;
 
   const SellerProfilePage({super.key, required this.seller});
+
+  @override
+  State<SellerProfilePage> createState() => _SellerProfilePageState();
+}
+
+class _SellerProfilePageState extends State<SellerProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,12 +45,11 @@ class SellerProfilePage extends StatelessWidget {
                   bottomRight: Radius.circular(24),
                 ),
               ),
-              child: Column(
-                children: [
+              child: Column(                children: [
                   _buildProfileAvatar(),
                   const SizedBox(height: 12),
                   Text(
-                    seller.name,
+                    widget.seller.name,
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -52,7 +58,7 @@ class SellerProfilePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    seller.location,
+                    widget.seller.location,
                     style: const TextStyle(fontSize: 16, color: Colors.white70),
                   ),
                 ],
@@ -71,15 +77,15 @@ class SellerProfilePage extends StatelessWidget {
                     _buildStatBadge(
                       Icons.star_rounded, 
                       "Reputación", 
-                      seller.reputation > 0 ? seller.reputation.toStringAsFixed(1) : "Nuevo",
-                      color: seller.reputation >= 4.0 ? Colors.green : 
-                             seller.reputation >= 3.0 ? Colors.orange : 
-                             seller.reputation > 0 ? Colors.red : Colors.grey
+                      widget.seller.reputation > 0 ? widget.seller.reputation.toStringAsFixed(1) : "Nuevo",
+                      color: widget.seller.reputation >= 4.0 ? Colors.green : 
+                             widget.seller.reputation >= 3.0 ? Colors.orange : 
+                             widget.seller.reputation > 0 ? Colors.red : Colors.grey
                     ),
                     _buildStatBadge(
                       Icons.trending_up, 
                       "Ventas Totales", 
-                      seller.totalSales.toString(),
+                      widget.seller.totalSales.toString(),
                       color: AppColors.azulPrimario
                     ),
                   ]),
@@ -90,13 +96,13 @@ class SellerProfilePage extends StatelessWidget {
                     _buildStatBadge(
                       Icons.inventory_2_outlined, 
                       "Activas", 
-                      seller.activeListings.toString(),
+                      widget.seller.activeListings.toString(),
                       color: Colors.green
                     ),
                     _buildStatBadge(
                       Icons.schedule, 
                       "Miembro desde", 
-                      _formatMemberSince(seller.memberSince),
+                      _formatMemberSince(widget.seller.memberSince),
                       color: Colors.indigo
                     ),
                   ]),
@@ -199,65 +205,72 @@ class SellerProfilePage extends StatelessWidget {
       ),
     );
   }
-
   // 📸 Avatar del vendedor con manejo mejorado de imágenes
   Widget _buildProfileAvatar() {
     String? avatarUrl;
     
     // Construir URL completa si es necesario
-    if (seller.avatar != null && seller.avatar!.isNotEmpty) {
-      if (seller.avatar!.startsWith('http')) {
+    if (widget.seller.avatar != null && widget.seller.avatar!.isNotEmpty) {
+      if (widget.seller.avatar!.startsWith('http')) {
         // URL completa
-        avatarUrl = seller.avatar!;
+        avatarUrl = widget.seller.avatar!;
       } else {
         // URL relativa - construir URL completa
-        avatarUrl = '${getDefaultBaseUrl()}${seller.avatar!}';
+        avatarUrl = '${getDefaultBaseUrl()}${widget.seller.avatar!}';
       }
     }
 
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        color: AppColors.blanco,
-        shape: BoxShape.circle,
-        border: Border.all(color: AppColors.blanco, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.2 * 255).toInt()),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(50),
-        child: avatarUrl != null
-            ? Image.network(
-                avatarUrl,
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return _buildFallbackAvatar();
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey.shade100,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+    return GestureDetector(
+      onTap: () {
+        // Abrir visor de pantalla completa solo si hay una imagen válida
+        if (avatarUrl != null && avatarUrl.isNotEmpty) {
+          _openAvatarFullScreen(avatarUrl);
+        }
+      },
+      child: Container(
+        width: 100,
+        height: 100,
+        decoration: BoxDecoration(
+          color: AppColors.blanco,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppColors.blanco, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha((0.2 * 255).toInt()),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: avatarUrl != null
+              ? Image.network(
+                  avatarUrl,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return _buildFallbackAvatar();
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: Colors.grey.shade100,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
                       ),
-                    ),
-                  );
-                },
-              )
-            : _buildFallbackAvatar(),
+                    );
+                  },
+                )
+              : _buildFallbackAvatar(),
+        ),
       ),
     );
   }
@@ -332,15 +345,15 @@ class SellerProfilePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           
-          _buildInfoRow(Icons.school, 'Campus', seller.location),
+          _buildInfoRow(Icons.school, 'Campus', widget.seller.location),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.person, 'Usuario', '@${seller.id}'),
-          if (seller.memberSince != null) ...[
+          _buildInfoRow(Icons.person, 'Usuario', '@${widget.seller.id}'),
+          if (widget.seller.memberSince != null) ...[
             const SizedBox(height: 12),
             _buildInfoRow(
               Icons.calendar_today, 
               'Miembro desde', 
-              '${seller.memberSince!.day}/${seller.memberSince!.month}/${seller.memberSince!.year}'
+              '${widget.seller.memberSince!.day}/${widget.seller.memberSince!.month}/${widget.seller.memberSince!.year}'
             ),
           ],
         ],
@@ -385,10 +398,22 @@ class SellerProfilePage extends StatelessWidget {
             ),
             textAlign: TextAlign.end,
             overflow: TextOverflow.ellipsis,
-            maxLines: 2,
-          ),
+            maxLines: 2,          ),
         ),
       ],
+    );
+  }
+
+  // 🖼️ Abrir avatar en pantalla completa
+  void _openAvatarFullScreen(String avatarUrl) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => FullScreenImageViewer(
+          imageUrls: [avatarUrl],
+          initialIndex: 0,
+        ),
+        fullscreenDialog: true,
+      ),
     );
   }
 }

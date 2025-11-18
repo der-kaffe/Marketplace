@@ -381,13 +381,15 @@ class _ChatViewState extends State<ChatView> {
         throw Exception('Los bytes no corresponden a una imagen válida');
       }
 
-      print('✅ Bytes decodificados exitosamente: ${bytes.length} bytes');
-
-      // Convertir bytes a data URL para el visor
+      print('✅ Bytes decodificados exitosamente: ${bytes.length} bytes');      // Convertir bytes a data URL para el visor
       final dataUrl = 'data:image/png;base64,${base64Encode(bytes)}';
 
       return GestureDetector(
-        onTap: () => _openImageFullScreen(dataUrl),
+        onTap: () {
+          print('🖼️ Imagen base64 tocada');
+          _openImageFullScreen(dataUrl);
+        },
+        behavior: HitTestBehavior.opaque,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(14),
           child: Image.memory(
@@ -662,9 +664,12 @@ class _ChatViewState extends State<ChatView> {
                               } else {
                                 imageUrl = 'http://localhost:3001$imageContent';
                               }
-                            }
-                            content = GestureDetector(
-                              onTap: () => _openImageFullScreen(imageUrl),
+                            }                            content = GestureDetector(
+                              onTap: () {
+                                print('🖼️ Imagen tocada: $imageUrl');
+                                _openImageFullScreen(imageUrl);
+                              },
+                              behavior: HitTestBehavior.opaque,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(14),
                                 child: Image.network(
@@ -839,8 +844,7 @@ class _ChatViewState extends State<ChatView> {
         if (_isUploadingImage)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.3),
-              child: Center(
+              color: Colors.black.withOpacity(0.3),              child: Center(
                 child: _buildCustomLoadingWidget(
                   message: 'Subiendo imagen...',
                   size: 100,
