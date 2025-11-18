@@ -225,6 +225,8 @@ io.on('connection', (socket) => {
     try {
       console.log('📨 Evento send_message recibido:', data);
       console.log('👤 Usuario remitente:', socket.userId, socket.userName);
+      console.log('PAYLOAD DEL TOKEN RECIBIDO:', decoded);
+
 
       const { destinatarioId, contenido, tipo = 'texto' } = data;
 
