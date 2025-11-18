@@ -105,7 +105,7 @@ flutter:
 
 flutter_native_splash:
   color: "#FFFFFF" # Color del splash
-  image: assets/logoMarket.png # Logo
+  image: assets/logoMarketSquare.png # Logo
   android: true
   ios: true
   web: false
@@ -116,5 +116,8 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/logoMarket.png" # <-- Tu logo actual
+  image_path: "assets/logoMarketSquare.png"
   min_sdk_android: 21 # Opcional
+
+flutter_launcher_name:
+  name: "Micro-marketplace"
