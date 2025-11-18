@@ -219,6 +219,7 @@ io.on('connection', (socket) => {
   });
 
   // Manejar envío de mensajes
+  // Manejar envío de mensajes
   socket.on('send_message', async (data) => {
     try {
       console.log('📨 Evento send_message recibido:', data);
@@ -291,8 +292,9 @@ io.on('connection', (socket) => {
           // 2. Si tiene token, envía la notificación
           if (destinatario && destinatario.fcm_token) {
             console.log(`🔔 Enviando notificación de CHAT a ${destinatario.fcm_token}`);
-            let notificationBody;
 
+            // ✨ FIX 1: Determinar el body
+            let notificationBody;
             if (tipo === 'imagen') {
               notificationBody = 'Te ha enviado una imagen 📷';
             } else {
@@ -302,11 +304,16 @@ io.on('connection', (socket) => {
             await admin.messaging().send({
               token: destinatario.fcm_token,
               notification: {
-                // (Recomiendo añadir el respaldo para el nombre)
+                // ✨ FIX 2: Usar el nombre de respaldo (del token)
                 title: `Nuevo mensaje de ${socket.userName || 'un usuario'} 💬`,
-                // (Solo debe haber UNA línea 'body')
+                // ✨ FIX 3: Usar el body correcto
                 body: notificationBody
               },
+              // ✨ FIX 4: Incluir el 'data' para navegación
+              data: {
+                screen: 'chat', // Para abrir la pantalla de chat
+                senderId: socket.userId.toString() // Para saber con quién es el chat
+              }
             });
           }
         } catch (fcmError) {
