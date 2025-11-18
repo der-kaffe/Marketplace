@@ -364,12 +364,11 @@ router.get('/:id', async (req, res, next) => {
           visible: true 
         }
       }),
-      
-      // Total de ventas completadas
+        // Total de ventas completadas
       prisma.transacciones.count({
         where: { 
           vendedorId: userId,
-          estado: 'Completada'
+          estadoId: 2 // Estado "Completado"
         }
       })
     ]);    // Formatea la respuesta (opcional pero bueno)

@@ -659,7 +659,12 @@ class ApiClient {
   Future<Map<String, dynamic>> getUserById(int userId) async {
     try {
       final uri = Uri.parse('$baseUrl/api/users/$userId');
-      final response = await http.get(uri, headers: _headers);      if (response.statusCode == 200) {
+      print('🔍 Llamando API: $uri'); // Debug
+      final response = await http.get(uri, headers: _headers);
+      print('📡 Response status: ${response.statusCode}'); // Debug
+      print('📡 Response body: ${response.body}'); // Debug
+      
+      if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         // Extraer solo la data del usuario, no toda la respuesta
         if (responseData['success'] == true && responseData['data'] != null) {
