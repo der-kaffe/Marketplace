@@ -1,5 +1,6 @@
 // product_detail_modal.dart
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../models/product_model.dart';
@@ -46,9 +47,77 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
     _transformationController.dispose();
     super.dispose();
   }
-
   void _resetZoom() {
     _transformationController.value = Matrix4.identity();
+  }
+
+  // Construir imagen base64 para pantalla completa
+  Widget _buildBase64FullScreenImage(String base64Content) {
+    try {
+      // Extraer la parte base64 (después de la coma)
+      final parts = base64Content.split(',');
+      if (parts.length != 2) {
+        throw Exception('Formato base64 inválido');
+      }
+      
+      final base64Data = parts[1];
+      final bytes = base64Decode(base64Data);
+      
+      return Image.memory(
+        bytes,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey.shade900,
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.broken_image,
+                  size: 80,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Error al cargar imagen base64',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.grey.shade900,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.broken_image,
+              size: 80,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Error: ${e.toString()}',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -83,37 +152,41 @@ class _FullScreenImageViewerState extends State<FullScreenImageViewer> {
             _currentIndex = index;
           });
           _resetZoom(); // Reset zoom al cambiar de imagen
-        },
-        itemBuilder: (context, index) {
+        },        itemBuilder: (context, index) {
+          final imageUrl = widget.imageUrls[index];
+          final isBase64 = imageUrl.startsWith('data:image');
+          
           return Center(
             child: InteractiveViewer(
               transformationController: _transformationController,
               minScale: 0.5,
               maxScale: 4.0,
-              child: Image.network(
-                widget.imageUrls[index],
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.grey.shade900,
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.broken_image,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Error al cargar imagen',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 16,
-                          ),
-                        ),
+              child: isBase64 
+                ? _buildBase64FullScreenImage(imageUrl)
+                : Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        color: Colors.grey.shade900,
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.broken_image,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Error al cargar imagen',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 16,
+                              ),
+                            ),
                       ],
                     ),
                   );
