@@ -175,6 +175,7 @@ io.use((socket, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.userId = decoded.userId;
     socket.userName = decoded.nombre;
+    console.log('PAYLOAD DEL TOKEN RECIBIDO:', decoded);
     next();
   } catch (error) {
     next(new Error('Token inválido'));
