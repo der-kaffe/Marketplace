@@ -302,14 +302,11 @@ io.on('connection', (socket) => {
             await admin.messaging().send({
               token: destinatario.fcm_token,
               notification: {
-                title: `Nuevo mensaje de ${socket.userName} 💬`, // socket.userName viene del middleware
-                body: contenido,
-                body: notificationBody,
+                // (Recomiendo añadir el respaldo para el nombre)
+                title: `Nuevo mensaje de ${socket.userName || 'un usuario'} 💬`,
+                // (Solo debe haber UNA línea 'body')
+                body: notificationBody
               },
-              data: {
-                screen: 'chat', // Para abrir la pantalla de chat
-                senderId: socket.userId.toString() // socket.userId viene del middleware
-              }
             });
           }
         } catch (fcmError) {
