@@ -81,43 +81,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // Lógica de navegación al hacer click
-  void _handleTap(Map<String, dynamic> notif) {
-    final String type = notif['tipo'];
-    final Map<String, dynamic> data = notif['data'] ?? {};
-
-    switch (type) {
-      case 'mensaje':
-        // Navegar al chat
-        final int? chatId = data['chatId'];
-        final String nombre = data['nombre'] ?? 'Usuario';
-        if (chatId != null) {
-          // Usando tu router (ajusta la ruta según tu app_router.dart)
-          context.push('/chat/$chatId', extra: {'name': nombre});
-        }
-        break;
-
-      case 'valoracion':
-        // Ir a mi propio perfil para ver mis stats
-        // context.push('/profile');
-        break;
-
-      case 'reporte_recibido':
-        // Mostrar un diálogo de alerta o ir a pantalla de soporte
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Detalle del Reporte'),
-            content: Text(notif['mensaje']),
-            actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cerrar'))
-            ],
-          ),
-        );
-        break;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +140,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 ),
                               ],
                             ),
-                            onTap: () => _handleTap(notif),
+                            onTap: () => null,
                           ),
                         );
                       },
