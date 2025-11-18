@@ -31,8 +31,7 @@ class WebSocketService {
   bool get isConnected => _socket?.connected ?? false;
 
   // Método para verificar el estado de la conexión
-  void debugConnectionStatus() {
-  }
+  void debugConnectionStatus() {}
 
   // Método para forzar reconexión
   Future<void> forceReconnect() async {
@@ -46,7 +45,6 @@ class WebSocketService {
 
   Future<void> connect() async {
     try {
-
       final token = await _storage.read(key: 'session_token');
 
       if (token == null) {
@@ -58,7 +56,6 @@ class WebSocketService {
         }
         return;
       }
-
 
       // Desconectar socket anterior si existe y limpiar listeners
       if (_socket != null) {
@@ -85,7 +82,6 @@ class WebSocketService {
       );
 
       _setupEventListeners();
-
 
       // Forzar conexión manual si autoConnect no funciona
       _socket!.connect();
@@ -131,8 +127,7 @@ class WebSocketService {
     });
 
     // Escuchar errores de mensaje
-    _socket?.on('message_error', (data) {
-    });
+    _socket?.on('message_error', (data) {});
 
     // Escuchar indicadores de escritura
     _socket?.on('user_typing', (data) {
@@ -140,11 +135,9 @@ class WebSocketService {
     });
 
     // Escuchar usuarios online/offline
-    _socket?.on('user_online', (data) {
-    });
+    _socket?.on('user_online', (data) {});
 
-    _socket?.on('user_offline', (data) {
-    });
+    _socket?.on('user_offline', (data) {});
 
     // Mensajes de la comunidad
     _socket?.on('group_new_message', (data) {
@@ -165,7 +158,6 @@ class WebSocketService {
     required String contenido,
     String tipo = 'texto',
   }) {
-
     if (_socket?.connected != true) {
       connect(); // Intentar reconectar
       return;
@@ -212,6 +204,15 @@ class WebSocketService {
 
     _socket?.emit('send_group_message', messageData);
   }
+
+  // ✨ --- AÑADIR ESTE NUEVO MÉTODO --- ✨
+  /// Envía el estado actual de la app (foreground/background) al servidor.
+  void sendAppState(String state) {
+    if (_socket?.connected == true) {
+      _socket!.emit('app_state', state);
+    }
+  }
+  // ✨ --------------------------------- ✨
 
   void disconnect() {
     if (_socket != null) {
