@@ -1,8 +1,9 @@
-// En /lib/screens/notifications_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:go_router/go_router.dart'; // Asumo que usas go_router
+// Importa tus servicios
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+// Importa formateador de fecha si lo tienes, o usa uno simple
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -14,84 +15,185 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isLoading = true;
   List<dynamic> _notifications = [];
+  final AuthService _authService =
+      AuthService(); // Tu servicio de autenticación
 
   @override
   void initState() {
     super.initState();
+    _loadNotifications();
   }
 
-  IconData _getIconForType(String? type) {
-    switch (type) {
-      case 'valoracion':
-        return Icons.star; // ⭐
-      case 'mensaje':
-        return Icons.message; // 💬
-      case 'reporte_recibido': // 🚩 ¡Nuevo tipo!
-        return Icons.flag;
-      default:
-        return Icons.notifications_active; // 🔔
+  // Cargar datos del backend simulado
+  Future<void> _loadNotifications() async {
+    setState(() => _isLoading = true);
+    try {
+      // Usando tu ApiClient existente dentro de AuthService
+      final response = await _authService.apiClient
+          .getNotifications(); // Asegúrate que tu ApiClient tenga método GET genérico o crea uno específico
+
+      // Si tu ApiClient no tiene método .get genérico y retorna dynamic, ajusta esta línea.
+      // Ejemplo si devuelve http.Response: jsonDecode(response.body)
+
+      if (response != null && response['ok'] == true) {
+        if (mounted) {
+          setState(() {
+            _notifications = response['notificaciones'];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error cargando notificaciones: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-// comando
-  // --- 👇 AÑADE ESTA FUNCIÓN 👇 ---
-  String _getTitleForType(String? type) {
+  // Helpers visuales
+  IconData _getIconForType(String type) {
     switch (type) {
       case 'valoracion':
-        return '¡Nueva Valoración!';
+        return Icons.star_rounded;
       case 'mensaje':
-        return 'Nuevo Mensaje';
-      case 'reporte_recibido': // 🚩 ¡Nuevo tipo!
-        return 'Reporte Recibido';
+        return Icons.chat_bubble_outline;
+      case 'reporte_recibido':
+        return Icons.warning_amber_rounded;
       default:
-        return 'Notificación';
+        return Icons.notifications;
     }
   }
-  // ---
+
+  Color _getColorForType(String type) {
+    switch (type) {
+      case 'valoracion':
+        return Colors.amber;
+      case 'mensaje':
+        return AppColors.azulPrimario;
+      case 'reporte_recibido':
+        return Colors.redAccent;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Lógica de navegación al hacer click
+  void _handleTap(Map<String, dynamic> notif) {
+    final String type = notif['tipo'];
+    final Map<String, dynamic> data = notif['data'] ?? {};
+
+    switch (type) {
+      case 'mensaje':
+        // Navegar al chat
+        final int? chatId = data['chatId'];
+        final String nombre = data['nombre'] ?? 'Usuario';
+        if (chatId != null) {
+          // Usando tu router (ajusta la ruta según tu app_router.dart)
+          context.push('/chat/$chatId', extra: {'name': nombre});
+        }
+        break;
+
+      case 'valoracion':
+        // Ir a mi propio perfil para ver mis stats
+        // context.push('/profile');
+        break;
+
+      case 'reporte_recibido':
+        // Mostrar un diálogo de alerta o ir a pantalla de soporte
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Detalle del Reporte'),
+            content: Text(notif['mensaje']),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cerrar'))
+            ],
+          ),
+        );
+        break;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return _isLoading
-        ? Scaffold(/* ... Loading State ... */)
-        : Scaffold(
-            appBar: AppBar(/* ... AppBar ... */),
-            body: _notifications.isEmpty
-                ? const Center(child: Text('No tienes notificaciones nuevas.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _notifications.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final notif = _notifications[index];
-                      final String tipo = notif['tipo'] ?? 'general';
+    return Scaffold(
+      appBar: AppBar(
+        title:
+            const Text('Notificaciones', style: TextStyle(color: Colors.white)),
+        backgroundColor: AppColors.azulPrimario,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadNotifications,
+              child: _notifications.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _notifications.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final notif = _notifications[index];
+                        final bool leido = notif['leido'] ?? true;
 
-                      return Card(
-                        child: ListTile(
-                          // --- 👇 MODIFICADO leading y title 👇 ---
-                          leading: Icon(
-                            _getIconForType(tipo),
-                            // Cambia el color si es un reporte
-                            color: tipo == 'reporte_recibido'
-                                ? Colors
-                                    .redAccent.shade100 // Rojo para reportes
-                                : Colors.amber, // Amarillo para otros
-                          ),
-                          title: Text(_getTitleForType(
-                                  tipo) // Usa la función para el título
+                        return Card(
+                          elevation: leido ? 0 : 2, // Resaltar no leídos
+                          color: leido ? Colors.white : Colors.blue.shade50,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: _getColorForType(notif['tipo'])
+                                  .withOpacity(0.1),
+                              child: Icon(_getIconForType(notif['tipo']),
+                                  color: _getColorForType(notif['tipo'])),
+                            ),
+                            title: Text(
+                              notif['titulo'],
+                              style: TextStyle(
+                                fontWeight:
+                                    leido ? FontWeight.normal : FontWeight.bold,
                               ),
-                          // ---
-                          subtitle: Text(notif['mensaje'] ?? 'Sin mensaje'),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.check, color: Colors.green),
-                            onPressed: () {},
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(notif['mensaje'],
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis),
+                                const SizedBox(height: 6),
+                                Text(
+                                  // Aquí podrías usar una librería como timeago para "hace 5 min"
+                                  notif['fecha'].toString().split('T')[0],
+                                  style: TextStyle(
+                                      fontSize: 10, color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                            onTap: () => _handleTap(notif),
                           ),
-                          onTap: () {
-                            // TODO: Implementar navegación
-                          },
-                        ),
-                      );
-                    },
-                  ),
-          );
+                        );
+                      },
+                    ),
+            ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.notifications_off_outlined,
+              size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text('No tienes notificaciones recientes',
+              style: TextStyle(color: Colors.grey[600])),
+        ],
+      ),
+    );
   }
 }

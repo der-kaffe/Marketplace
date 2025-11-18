@@ -26,8 +26,8 @@ router.get('/profile', authenticateToken, async (req, res, next) => {
         404,
         { field: "id" }
       );
-    }    res.json({
-      success: true,      data: {
+    } res.json({
+      success: true, data: {
         id: user.id,
         correo: user.correo,
         usuario: user.usuario,
@@ -94,10 +94,11 @@ router.put('/profile', authenticateToken, async (req, res, next) => {
         rol: true,
         estado: true
       }
-    });    res.json({
+    }); res.json({
       ok: true,
       message: 'Perfil actualizado correctamente',
-      user: {        id: updatedUser.id,
+      user: {
+        id: updatedUser.id,
         correo: updatedUser.correo,
         nombre: updatedUser.nombre,
         usuario: updatedUser.usuario,
@@ -142,7 +143,7 @@ router.get('/', authenticateToken, async (req, res, next) => {
       data: users.map(user => ({
         id: user.id,
         correo: user.correo,
-        usuario: user.usuario,        nombre: user.nombre,
+        usuario: user.usuario, nombre: user.nombre,
         role: user.rol.nombre,
         estado: user.estado.nombre,
         campus: user.campus,
@@ -327,8 +328,8 @@ router.get('/:id', async (req, res, next) => {
         400,
         { field: "id", value: id }
       );
-    }    const user = await prisma.cuentas.findUnique({
-      where: { id: userId },      select: { // Selecciona solo los campos públicos que quieres mostrar
+    } const user = await prisma.cuentas.findUnique({
+      where: { id: userId }, select: { // Selecciona solo los campos públicos que quieres mostrar
         id: true,
         nombre: true,
         usuario: true, // Puedes decidir si mostrar el nombre de usuario
@@ -355,18 +356,18 @@ router.get('/:id', async (req, res, next) => {
       prisma.productos.count({
         where: { vendedorId: userId }
       }),
-      
+
       // Productos activos/disponibles
       prisma.productos.count({
-        where: { 
+        where: {
           vendedorId: userId,
           estadoId: 1, // Estado "Disponible"
-          visible: true 
+          visible: true
         }
       }),
-        // Total de ventas completadas
+      // Total de ventas completadas
       prisma.transacciones.count({
-        where: { 
+        where: {
           vendedorId: userId,
           estadoId: 2 // Estado "Completado"
         }
@@ -382,7 +383,7 @@ router.get('/:id', async (req, res, next) => {
         reputacion: user.reputacion ? Number(user.reputacion) : 0.0,
         miembroDesde: user.fechaRegistro,
         fotoPerfilUrl: user.fotoPerfilUrl, // ✅ Incluir foto de perfil
-        
+
         // ✅ NUEVO: Estadísticas del vendedor
         estadisticas: {
           totalPublicaciones,
@@ -399,6 +400,112 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ success: false, error: { code: error.code, message: error.message } });
     }
     next(error); // Otros errores van al errorHandler general
+  }
+});
+
+// ==========================================
+// GET /api/users/notifications - Notificaciones Simuladas
+// ==========================================
+router.get('/notifications', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+
+    // Ejecutamos 3 consultas en paralelo para ser eficientes
+    const [mensajes, calificaciones, reportes] = await Promise.all([
+
+      // 1. Mensajes Recibidos (Últimos 20)
+      prisma.mensajes.findMany({
+        where: { destinatarioId: userId },
+        orderBy: { fechaEnvio: 'desc' },
+        take: 20,
+        include: { remitente: { select: { usuario: true, nombre: true } } }
+      }),
+
+      // 2. Calificaciones Recibidas (Últimas 10)
+      prisma.calificaciones.findMany({
+        where: { calificadoId: userId },
+        orderBy: { fecha: 'desc' },
+        take: 10,
+        include: { calificador: { select: { usuario: true } } }
+      }),
+
+      // 3. Reportes Recibidos (Últimos 5)
+      prisma.reportes.findMany({
+        where: {
+          OR: [
+            { usuarioReportadoId: userId },
+            { producto: { vendedorId: userId } }
+          ]
+        },
+        orderBy: { fecha: 'desc' },
+        take: 5,
+        include: { producto: true } // Para saber qué producto reportaron
+      })
+    ]);
+
+    // --- Unificación de Datos ---
+    // Convertimos todo a un formato común: { tipo, titulo, mensaje, fecha, data }
+
+    const listaNotificaciones = [];
+
+    // A. Procesar Mensajes
+    mensajes.forEach(msg => {
+      listaNotificaciones.push({
+        id: `msg_${msg.id}`,
+        tipo: 'mensaje',
+        titulo: `Mensaje de ${msg.remitente.nombre}`,
+        mensaje: msg.contenido, // El texto del mensaje
+        fecha: msg.fechaEnvio,
+        leido: msg.leido,
+        data: {
+          chatId: msg.remitenteId, // ID para navegar al chat
+          nombre: msg.remitente.nombre
+        }
+      });
+    });
+
+    // B. Procesar Calificaciones
+    calificaciones.forEach(cal => {
+      listaNotificaciones.push({
+        id: `cal_${cal.id}`,
+        tipo: 'valoracion',
+        titulo: '¡Nueva calificación!',
+        mensaje: `@${cal.calificador.usuario} te calificó con ${cal.puntuacion} estrellas`,
+        fecha: cal.fecha,
+        leido: true, // Las asumimos leídas porque no tenemos campo 'visto' en calificaciones
+        data: {
+          sellerId: userId // Navegar a mi propio perfil
+        }
+      });
+    });
+
+    // C. Procesar Reportes
+    reportes.forEach(rep => {
+      const productoNombre = rep.producto ? rep.producto.nombre : 'tu cuenta';
+      listaNotificaciones.push({
+        id: `rep_${rep.id}`,
+        tipo: 'reporte_recibido',
+        titulo: '⚠️ Alerta de Reporte',
+        mensaje: `Se ha recibido un reporte sobre ${productoNombre}. Motivo: ${rep.motivo}`,
+        fecha: rep.fecha,
+        leido: false, // Siempre marcar como no leído para llamar la atención
+        data: {
+          reporteId: rep.id
+        }
+      });
+    });
+
+    // --- Ordenamiento Final ---
+    // Ordenar toda la lista mezclada por fecha (el más reciente primero)
+    listaNotificaciones.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    res.json({
+      ok: true,
+      notificaciones: listaNotificaciones
+    });
+
+  } catch (error) {
+    next(error);
   }
 });
 

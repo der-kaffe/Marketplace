@@ -157,6 +157,28 @@ class ApiClient {
     }
   }
 
+// 👇 AÑADE ESTO EN ApiClient
+  Future<Map<String, dynamic>> getNotifications() async {
+    try {
+      final uri = Uri.parse('$baseUrl/users/notifications');
+      final headers = {
+        'Content-Type': 'application/json',
+        if (_token != null) 'Authorization': 'Bearer $_token',
+      };
+
+      final response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        return {'ok': false, 'message': 'Error servidor'};
+      }
+    } catch (e) {
+      print('Error obteniendo notificaciones: $e');
+      return {'ok': false};
+    }
+  }
+
   // NUEVO: Obtener los productos del usuario autenticado
   Future<ProductsResponse> getMyProducts({
     int page = 1,
