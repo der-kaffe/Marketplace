@@ -171,7 +171,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       final token = await authService.getToken();
 
       final response = await http.patch(
-        Uri.parse("http://10.0.2.2:3001/api/admin/users/${user.id}/ban"),
+        Uri.parse("http://186.64.113.170:3001/api/admin/users/${user.id}/ban"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",

@@ -36,8 +36,9 @@ router.post('/login',
     try {
       const { email, password } = req.body;
 
+      // 1️⃣ CAMBIO: Buscamos el usuario sin filtrar por estado activo
       const user = await prisma.cuentas.findFirst({
-        where: { correo: email, estadoId: 1 },
+        where: { correo: email }, 
         include: { rol: true, estado: true }
       });
 
@@ -45,10 +46,20 @@ router.post('/login',
         return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
       }
 
+      // 2️⃣ CAMBIO: Verificamos explícitamente si está baneado
+      if (user.estadoId === 2) {
+        return res.status(403).json({ 
+          ok: false, 
+          message: 'Tu cuenta ha sido suspendida. Contacta a soporte.' 
+        });
+      }
+
       const passwordMatch = await bcrypt.compare(password, user.contrasena);
       if (!passwordMatch) {
         return res.status(401).json({ ok: false, message: 'Credenciales invalidas' });
-      }    // 🔒 Generar par de tokens (access + refresh)
+      }    
+      
+      // 🔒 Generar par de tokens (access + refresh)
       const tokenPayload = {
         userId: user.id,
         email: user.correo,
@@ -61,6 +72,15 @@ router.post('/login',
         userId: user.id,
         email: user.correo,
         role: user.rol.nombre
+      });
+
+      await prisma.actividadUsuario.create({
+        data: {
+          usuarioId: user.id,
+          accion: 'LOGIN',
+          detalles: 'Inicio de sesión con contraseña',
+          fecha: new Date() // Prisma lo pone automático, pero aseguramos
+        }
       });
 
       res.json({
@@ -185,14 +205,27 @@ router.post('/google', [
       return res.status(403).json({ ok: false, message: 'Solo se permiten correos de @uct.cl o @alu.uct.cl' });
     }
 
+    // 1️⃣ CAMBIO: Buscamos el usuario sin filtrar por estado activo
     let user = await prisma.cuentas.findFirst({
-      where: { correo: email, estadoId: 1 },
+      where: { correo: email },
       include: { rol: true, estado: true }
-    }); if (!user) {
+    }); 
+
+    // 2️⃣ CAMBIO: Verificamos si existe y está baneado antes de intentar crear nada
+    if (user && user.estadoId === 2) {
+      return res.status(403).json({ 
+        ok: false, 
+        message: 'Tu cuenta ha sido suspendida. Contacta a soporte.' 
+      });
+    }
+
+    if (!user) {
       // Todos los usuarios de Google son "Cliente" por defecto (ID 3)
       const rolId = 3; // Cliente
       const baseUsuario = name.toLowerCase().replace(/\s+/g, '_');
-      const usuario = `${baseUsuario}_${Date.now()}`; user = await prisma.cuentas.create({
+      const usuario = `${baseUsuario}_${Date.now()}`; 
+      
+      user = await prisma.cuentas.create({
         data: {
           correo: email,
           contrasena: '',
@@ -220,7 +253,17 @@ router.post('/google', [
       { userId: user.id, email: user.correo, role: user.rol.nombre.toUpperCase(), nombre: user.nombre },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    ); res.json({
+    ); 
+    
+    await prisma.actividadUsuario.create({
+      data: {
+        usuarioId: user.id,
+        accion: 'LOGIN_GOOGLE',
+        detalles: 'Inicio de sesión con Google',
+      }
+    });
+    
+    res.json({
       ok: true,
       message: '¡Cuenta creada/actualizada en base de datos!',
       token,
