@@ -74,6 +74,15 @@ router.post('/login',
         role: user.rol.nombre
       });
 
+      await prisma.actividadUsuario.create({
+        data: {
+          usuarioId: user.id,
+          accion: 'LOGIN',
+          detalles: 'Inicio de sesión con contraseña',
+          fecha: new Date() // Prisma lo pone automático, pero aseguramos
+        }
+      });
+
       res.json({
         ok: true,
         message: 'Login exitoso',
@@ -245,6 +254,14 @@ router.post('/google', [
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     ); 
+    
+    await prisma.actividadUsuario.create({
+      data: {
+        usuarioId: user.id,
+        accion: 'LOGIN_GOOGLE',
+        detalles: 'Inicio de sesión con Google',
+      }
+    });
     
     res.json({
       ok: true,
