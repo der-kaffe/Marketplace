@@ -189,48 +189,6 @@ async function main() {
     });
 
 
-    const productos = [
-      {
-        nombre: 'Laptop Dell Inspiron 15',
-        categoriaId: subComputadoras.id,
-        vendedorId: vendor.id,
-        precioAnterior: 900000,
-        precioActual: 850000,
-        descripcion: 'Laptop en excelente estado...',
-        calificacion: 4.5,
-        cantidad: 1,
-        estadoId: estadoDisponible.id
-      },
-      {
-        nombre: 'iPhone 12 64GB',
-        categoriaId: subSmartphones.id,
-        vendedorId: admin.id,
-        precioAnterior: 700000,
-        precioActual: 650000,
-        descripcion: 'iPhone 12 en muy buen estado...',
-        calificacion: 4.8,
-        cantidad: 1,
-        estadoId: estadoDisponible.id
-      },
-      {
-        nombre: 'Cálculo: Una Variable - James Stewart',
-        categoriaId: subAcademicos.id,
-        vendedorId: vendor.id,
-        precioAnterior: 50000,
-        precioActual: 45000,
-        descripcion: 'Libro de cálculo en excelente estado...',
-        calificacion: 4.2,
-        cantidad: 1,
-        estadoId: estadoDisponible.id
-      }
-    ];
-
-    for (const producto of productos) {
-      await prisma.productos.create({ data: producto });
-    }
-
-    console.log('✅ Productos de ejemplo creados');
-
     // Crear resúmenes de usuario
     await prisma.resumenUsuario.create({
       data: {
