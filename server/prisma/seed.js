@@ -291,6 +291,10 @@ async function main() {
       select: { id: true }
     });
 
+    // Eliminar publicaciones por defecto antes de crear nuevas publicaciones
+    await prisma.publicaciones.deleteMany();
+    console.log('✅ Publicaciones por defecto eliminadas');
+
     const publicaciones = [];
     for (let i = 1; i <= 100; i++) {
       const randomUser = usuarios[Math.floor(Math.random() * usuarios.length)];
