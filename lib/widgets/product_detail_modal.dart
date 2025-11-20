@@ -598,15 +598,34 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                         ],
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
+                  ),                  const SizedBox(height: 12),
                   TextField(
                     controller: reasonController,
                     maxLines: 3,
+                    maxLength: 500, // Límite máximo
                     decoration: const InputDecoration(
-                      hintText: "Motivo del reporte",
+                      hintText: "Motivo del reporte (mínimo 10 caracteres)",
+                      helperText: "Describe detalladamente el motivo del reporte",
                       border: OutlineInputBorder(),
+                      counterText: '', // Mostrar contador de caracteres
                     ),
+                  ),
+                  // Mostrar contador personalizado
+                  ValueListenableBuilder(
+                    valueListenable: reasonController,
+                    builder: (context, value, child) {
+                      final charCount = value.text.trim().length;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '$charCount/500 caracteres (mínimo 10)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: charCount < 10 ? Colors.red : Colors.grey,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -619,13 +638,24 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,
                     foregroundColor: Colors.white,
-                  ),
-                  onPressed: () async {
+                  ),                  onPressed: () async {
                     final reason = reasonController.text.trim();
+                    
+                    // ✅ Validar que el motivo no esté vacío
                     if (reason.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text("Por favor ingresa un motivo.")),
+                      );
+                      return;
+                    }
+                    
+                    // ✅ Validar que el motivo tenga al menos 10 caracteres
+                    if (reason.length < 10) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text("El motivo debe tener al menos 10 caracteres."),
+                            backgroundColor: Colors.orange),
                       );
                       return;
                     }
@@ -639,6 +669,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                           SnackBar(
                             content: Text(
                                 "Reporte enviado correctamente para el producto ${widget.product.title}."),
+                            backgroundColor: Colors.green,
                           ),
                         );
                       } else {
@@ -649,6 +680,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                           SnackBar(
                             content: Text(
                                 "Reporte enviado correctamente para el usuario ${widget.product.sellerName}."),
+                            backgroundColor: Colors.green,
                           ),
                         );
                       }
@@ -658,6 +690,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                         SnackBar(
                           content: Text(
                               "Error al enviar el reporte: ${e.toString()}"),
+                          backgroundColor: Colors.red,
                         ),
                       );
                     }
