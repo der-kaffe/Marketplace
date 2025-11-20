@@ -244,7 +244,7 @@ async function checkAndUpdateCompletionStatus(transactionId, tx) {
     return null; // No necesita actualización de estado
 }
 
-// PATCH /api/transactions/:id/confirm-seller - Vendedor confirma/acepta la venta
+// PATCH /api/transactions/:id/confirm-seller - Vendedor ACEPTA la venta y marca como entregada en un solo paso
 router.patch('/:id/confirm-seller', authenticateToken, async (req, res, next) => {
     try {
         const transactionId = parseInt(req.params.id);
@@ -264,31 +264,34 @@ router.patch('/:id/confirm-seller', authenticateToken, async (req, res, next) =>
                 throw new AppError('Transacción no encontrada', 'TRANSACTION_NOT_FOUND', 404);
             }
             if (transaccion.vendedorId !== userId) {
-                throw new AppError('No tienes permiso para confirmar esta venta', 'FORBIDDEN', 403);
+                throw new AppError('No tienes permiso para aceptar esta venta', 'FORBIDDEN', 403);
             }
             if (transaccion.confirmacionVendedor) {
-                throw new AppError('Esta venta ya fue confirmada', 'ALREADY_CONFIRMED', 400);
-            }
-            if (transaccion.estadoId === ESTADO_CANCELADO) {
-                throw new AppError('Esta transacción fue cancelada', 'TRANSACTION_CANCELLED', 400);
+                throw new AppError('Esta venta ya fue aceptada', 'ALREADY_ACCEPTED', 400);
             }
 
-            // 2. Confirmar la venta
+            // 2. ✅ Aceptar la venta = marcar confirmacionVendedor (el vendedor está de acuerdo)
             const confirmed = await tx.transacciones.update({
                 where: { id: transactionId },
-                data: { confirmacionVendedor: true },
+                data: { 
+                    confirmacionVendedor: true, // Vendedor acepta y se compromete a entregar
+                },
+                select: { confirmacionComprador: true, confirmacionVendedor: true }
             });
 
-            console.log(`✅ Vendedor ${userId} confirmó la venta de transacción ${transactionId}`);
+            // 3. ✅ Verificar si ahora está completada (si comprador ya había confirmado)
+            await checkAndUpdateCompletionStatus(transactionId, tx);
+
+            console.log(`✅ Vendedor ${userId} ACEPTÓ la venta de transacción ${transactionId}`);
 
             return confirmed;
         });
 
         res.json({
             ok: true,
-            message: '¡Venta confirmada exitosamente! El comprador ha sido notificado.',
+            message: '¡Venta aceptada! Coordina con el comprador para la entrega.',
             transaction: {
-                id: updatedTransaction.id,
+                id: parseInt(req.params.id),
                 confirmacionVendedor: updatedTransaction.confirmacionVendedor,
             }
         });

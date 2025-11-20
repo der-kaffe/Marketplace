@@ -296,14 +296,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     }
-  }
-  /// ✅ NUEVO: Confirmar/aceptar venta (confirmación inicial del vendedor)
+  }  /// ✅ Confirmar/aceptar venta (usa el mismo endpoint que confirmDelivery)
   Future<void> _confirmSale(int transactionId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Aceptar Venta'),
-        content: const Text('¿Deseas aceptar esta venta? El comprador será notificado.'),
+        content: const Text('¿Deseas aceptar esta venta y confirmar que puedes entregarla? El comprador será notificado.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -312,7 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Aceptar Venta'),
+            child: const Text('Aceptar'),
           ),
         ],
       ),
@@ -329,16 +328,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (token == null) throw Exception("No autenticado");
       _apiClient.setToken(token);
 
-      await _apiClient.confirmSale(transactionId);
+      // ✅ Usamos confirmDelivery que es el endpoint que realmente marca confirmacionVendedor
+      await _apiClient.confirmDelivery(transactionId);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ ¡Venta aceptada! El comprador ha sido notificado.'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('✅ ¡Venta aceptada! Coordina con el comprador para la entrega.'), backgroundColor: Colors.green),
         );
         await _loadMySales();
       }
     } catch (e) {
-      print('❌ Error confirmando venta: $e');
+      print('❌ Error aceptando venta: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
@@ -413,49 +413,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
-
-  Future<void> _confirmDelivery(int transactionId) async {
-     final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar Entrega'),
-        content: const Text('¿Confirmas que has entregado este producto al comprador? Esta acción no se puede deshacer.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmar')),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Confirmando entrega...'), duration: Duration(seconds: 1)),
-    );
-
-    try {
-       final token = await _authService.getToken();
-       if (token == null) throw Exception("No autenticado");
-      _apiClient.setToken(token);
-
-      await _apiClient.confirmDelivery(transactionId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ ¡Entrega confirmada!'), backgroundColor: Colors.green),
-        );
-        // Recargar la lista de ventas
-        await _loadMySales();
-      }
-    } catch (e) {
-      print('❌ Error confirmando entrega: $e');
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
+  // ✅ Método _confirmDelivery eliminado - ahora se usa _confirmSale que llama a confirmDelivery directamente
 
   // ✅ NUEVO: Cargar estado de "Mantener sesión iniciada"
   Future<void> _loadKeepSessionState() async {
@@ -1301,18 +1259,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
       ],
     );
-  }
-  // Widget reutilizable para mostrar una compra o venta
+  }  // Widget reutilizable para mostrar una compra o venta
   Widget _buildTransactionTile(TransactionSummary transaction, {required bool isPurchase}) {
     final user = isPurchase ? transaction.vendedor : transaction.comprador;
     final canConfirm = transaction.estado == 'Pendiente';
-    final alreadyConfirmed = isPurchase ? transaction.confirmacionComprador : transaction.confirmacionVendedor;
     
-    // Para ventas: si está pendiente Y el vendedor NO ha confirmado, mostrar botones de aceptar/rechazar
+    // ✅ Para ventas: si está pendiente Y el vendedor NO ha confirmado, mostrar botones de aceptar/rechazar
     final isVentaPendiente = !isPurchase && canConfirm && !transaction.confirmacionVendedor;
     
-    // Para ventas confirmadas o compras: mostrar botón de entregado/recibido
-    final showConfirmButton = canConfirm && alreadyConfirmed && !isVentaPendiente;
+    // ✅ Para compras: si está pendiente y el comprador NO ha confirmado Y el vendedor SÍ confirmó, mostrar botón "Recibido"
+    final showConfirmButtonForPurchase = isPurchase && canConfirm && !transaction.confirmacionComprador && transaction.confirmacionVendedor;
+    
+    // ✅ Para ventas: NO mostrar botón adicional después de aceptar (al aceptar ya se confirma todo del lado del vendedor)
+    final showConfirmButton = showConfirmButtonForPurchase;
 
     return ListTile(
       title: Text(transaction.producto.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -1363,22 +1322,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ],
-      ),
-      trailing: showConfirmButton
+      ),      trailing: showConfirmButton
           ? ElevatedButton(
-              onPressed: () {
-                if (isPurchase) {
-                  _confirmReceipt(transaction.id);
-                } else {
-                  _confirmDelivery(transaction.id);
-                }
-              },
+              onPressed: () => _confirmReceipt(transaction.id), // ✅ Solo para compras
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 minimumSize: const Size(0, 30),
-                backgroundColor: isPurchase ? Colors.green : Colors.blue,
+                backgroundColor: Colors.green,
               ),
-              child: Text(isPurchase ? 'Recibido' : 'Entregado', style: const TextStyle(fontSize: 12)),
+              child: const Text('Recibido', style: TextStyle(fontSize: 12)),
             )
           : null,
       isThreeLine: true,
