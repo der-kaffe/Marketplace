@@ -244,6 +244,127 @@ async function checkAndUpdateCompletionStatus(transactionId, tx) {
     return null; // No necesita actualización de estado
 }
 
+// PATCH /api/transactions/:id/confirm-seller - Vendedor confirma/acepta la venta
+router.patch('/:id/confirm-seller', authenticateToken, async (req, res, next) => {
+    try {
+        const transactionId = parseInt(req.params.id);
+        const userId = req.user.userId;
+
+        const updatedTransaction = await prisma.$transaction(async (tx) => {
+            // 1. Buscar transacción y verificar permisos
+            const transaccion = await tx.transacciones.findUnique({
+                where: { id: transactionId },
+                include: {
+                    producto: { select: { nombre: true } },
+                    comprador: { select: { nombre: true, usuario: true } }
+                }
+            });
+
+            if (!transaccion) {
+                throw new AppError('Transacción no encontrada', 'TRANSACTION_NOT_FOUND', 404);
+            }
+            if (transaccion.vendedorId !== userId) {
+                throw new AppError('No tienes permiso para confirmar esta venta', 'FORBIDDEN', 403);
+            }
+            if (transaccion.confirmacionVendedor) {
+                throw new AppError('Esta venta ya fue confirmada', 'ALREADY_CONFIRMED', 400);
+            }
+            if (transaccion.estadoId === ESTADO_CANCELADO) {
+                throw new AppError('Esta transacción fue cancelada', 'TRANSACTION_CANCELLED', 400);
+            }
+
+            // 2. Confirmar la venta
+            const confirmed = await tx.transacciones.update({
+                where: { id: transactionId },
+                data: { confirmacionVendedor: true },
+            });
+
+            console.log(`✅ Vendedor ${userId} confirmó la venta de transacción ${transactionId}`);
+
+            return confirmed;
+        });
+
+        res.json({
+            ok: true,
+            message: '¡Venta confirmada exitosamente! El comprador ha sido notificado.',
+            transaction: {
+                id: updatedTransaction.id,
+                confirmacionVendedor: updatedTransaction.confirmacionVendedor,
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+// PATCH /api/transactions/:id/reject-seller - Vendedor rechaza/cancela la venta
+router.patch('/:id/reject-seller', authenticateToken, async (req, res, next) => {
+    try {
+        const transactionId = parseInt(req.params.id);
+        const userId = req.user.userId;
+        const { motivo } = req.body; // Opcional: motivo del rechazo
+
+        const updatedTransaction = await prisma.$transaction(async (tx) => {
+            // 1. Buscar transacción y verificar permisos
+            const transaccion = await tx.transacciones.findUnique({
+                where: { id: transactionId },
+                include: {
+                    producto: { select: { id: true, nombre: true } }
+                }
+            });
+
+            if (!transaccion) {
+                throw new AppError('Transacción no encontrada', 'TRANSACTION_NOT_FOUND', 404);
+            }
+            if (transaccion.vendedorId !== userId) {
+                throw new AppError('No tienes permiso para rechazar esta venta', 'FORBIDDEN', 403);
+            }
+            if (transaccion.confirmacionVendedor) {
+                throw new AppError('No puedes rechazar una venta ya confirmada', 'ALREADY_CONFIRMED', 400);
+            }
+            if (transaccion.estadoId === ESTADO_CANCELADO) {
+                throw new AppError('Esta transacción ya fue cancelada', 'ALREADY_CANCELLED', 400);
+            }
+
+            // 2. Cancelar la transacción
+            const cancelled = await tx.transacciones.update({
+                where: { id: transactionId },
+                data: { 
+                    estadoId: ESTADO_CANCELADO,
+                    // Podrías agregar un campo 'motivoCancelacion' en tu schema si quieres guardar el motivo
+                },
+            });
+
+            // 3. Devolver el stock al producto
+            await tx.productos.update({
+                where: { id: transaccion.productoId },
+                data: {
+                    cantidad: {
+                        increment: transaccion.cantidad
+                    }
+                }
+            });
+
+            console.log(`❌ Vendedor ${userId} rechazó la venta de transacción ${transactionId}. Stock devuelto.`);
+
+            return cancelled;
+        });
+
+        res.json({
+            ok: true,
+            message: 'Venta rechazada. El stock ha sido devuelto al producto.',
+            transaction: {
+                id: updatedTransaction.id,
+                estadoId: updatedTransaction.estadoId,
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+});
+
 // PATCH /api/transactions/:id/confirm-delivery - Vendedor confirma entrega física
 // ℹ️ NOTA: La confirmación inicial se hace automáticamente al crear la transacción.
 //          Este endpoint es para confirmar que el producto fue entregado físicamente al comprador.

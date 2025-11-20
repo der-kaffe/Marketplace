@@ -61,17 +61,16 @@ class ApiClient {
       throw ApiException(message: 'Error de conexión: $e');
     }
   }
-
   Future<Map<String, dynamic>> reportProduct({
-    required int productId, // ✅ CAMBIAR nombre del parámetro
+    required int productId,
     required String motivo,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/reports/product'),
+        Uri.parse('$baseUrl/api/reports'), // ✅ ENDPOINT CORRECTO
         headers: _headers,
         body: json.encode({
-          'productId': productId, // ✅ USAR productId
+          'productoId': productId, // ✅ El backend espera 'productoId'
           'motivo': motivo,
         }),
       );
@@ -83,15 +82,15 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> reportUser({
-    required int userId, // ✅ CAMBIAR nombre del parámetro
+    required int userId,
     required String motivo,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/reports/user'),
+        Uri.parse('$baseUrl/api/reports'), // ✅ ENDPOINT CORRECTO
         headers: _headers,
         body: json.encode({
-          'userId': userId, // ✅ USAR userId
+          'usuarioReportadoId': userId, // ✅ El backend espera 'usuarioReportadoId'
           'motivo': motivo,
         }),
       );
@@ -598,6 +597,41 @@ class ApiClient {
       print('❌ Excepción en getMySales: $e');
       if (e is ApiException) rethrow;
       throw ApiException(message: 'Error de conexión al obtener ventas: $e');
+    }
+  }
+  /// ✅ NUEVO: Vendedor confirma/acepta la venta (confirmación inicial)
+  Future<Map<String, dynamic>> confirmSale(int transactionId) async {
+    try {
+      final uri = Uri.parse(
+          '$baseUrl/api/transactions/$transactionId/confirm-seller');
+      print('✅ Vendedor confirmando venta: PATCH $uri');
+      final response = await http.patch(uri, headers: _headers);
+      print('   -> Respuesta: ${response.statusCode}');
+      return _handleResponse(response);
+    } catch (e) {
+      print('❌ Excepción en confirmSale: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al confirmar venta: $e');
+    }
+  }
+
+  /// ✅ NUEVO: Vendedor rechaza/cancela la venta
+  Future<Map<String, dynamic>> rejectSale(int transactionId, {String? motivo}) async {
+    try {
+      final uri = Uri.parse(
+          '$baseUrl/api/transactions/$transactionId/reject-seller');
+      print('❌ Vendedor rechazando venta: PATCH $uri');
+      final response = await http.patch(
+        uri, 
+        headers: _headers,
+        body: motivo != null ? jsonEncode({'motivo': motivo}) : null,
+      );
+      print('   -> Respuesta: ${response.statusCode}');
+      return _handleResponse(response);
+    } catch (e) {
+      print('❌ Excepción en rejectSale: $e');
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Error de conexión al rechazar venta: $e');
     }
   }
 

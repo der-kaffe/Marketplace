@@ -297,6 +297,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
   }
+  /// ✅ NUEVO: Confirmar/aceptar venta (confirmación inicial del vendedor)
+  Future<void> _confirmSale(int transactionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aceptar Venta'),
+        content: const Text('¿Deseas aceptar esta venta? El comprador será notificado.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Aceptar Venta'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Aceptando venta...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token);
+
+      await _apiClient.confirmSale(transactionId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ ¡Venta aceptada! El comprador ha sido notificado.'), backgroundColor: Colors.green),
+        );
+        await _loadMySales();
+      }
+    } catch (e) {
+      print('❌ Error confirmando venta: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// ✅ NUEVO: Rechazar/cancelar venta
+  Future<void> _rejectSale(int transactionId) async {
+    final TextEditingController motivoController = TextEditingController();
+    
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Rechazar Venta'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('¿Estás seguro de que deseas rechazar esta venta? El stock será devuelto.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motivoController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                hintText: 'Motivo (opcional)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Rechazar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Rechazando venta...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final token = await _authService.getToken();
+      if (token == null) throw Exception("No autenticado");
+      _apiClient.setToken(token);
+
+      final motivo = motivoController.text.trim();
+      await _apiClient.rejectSale(transactionId, motivo: motivo.isNotEmpty ? motivo : null);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Venta rechazada. El stock ha sido devuelto.'), backgroundColor: Colors.orange),
+        );
+        await _loadMySales();
+      }
+    } catch (e) {
+      print('❌ Error rechazando venta: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e is ApiException ? e.message : e.toString()}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   Future<void> _confirmDelivery(int transactionId) async {
      final confirmed = await showDialog<bool>(
@@ -1186,30 +1302,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ],
     );
   }
-
   // Widget reutilizable para mostrar una compra o venta
   Widget _buildTransactionTile(TransactionSummary transaction, {required bool isPurchase}) {
     final user = isPurchase ? transaction.vendedor : transaction.comprador;
-    final canConfirm = transaction.estado == 'Pendiente'; // Solo se puede confirmar si está pendiente
+    final canConfirm = transaction.estado == 'Pendiente';
     final alreadyConfirmed = isPurchase ? transaction.confirmacionComprador : transaction.confirmacionVendedor;
-    final showConfirmButton = canConfirm && !alreadyConfirmed;
+    
+    // Para ventas: si está pendiente Y el vendedor NO ha confirmado, mostrar botones de aceptar/rechazar
+    final isVentaPendiente = !isPurchase && canConfirm && !transaction.confirmacionVendedor;
+    
+    // Para ventas confirmadas o compras: mostrar botón de entregado/recibido
+    final showConfirmButton = canConfirm && alreadyConfirmed && !isVentaPendiente;
 
     return ListTile(
-      // leading: CircleAvatar(child: Icon(Icons.shopping_bag)), // O imagen del producto
       title: Text(transaction.producto.nombre, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           Text('${DateFormat('dd/MM/yyyy HH:mm').format(transaction.fecha)} - ${_formatCLP(transaction.precioTotal)}'),
+          Text('${DateFormat('dd/MM/yyyy HH:mm').format(transaction.fecha)} - ${_formatCLP(transaction.precioTotal)}'),
           if (user != null) Text(isPurchase ? 'Vendedor: ${user.nombreCompleto}' : 'Comprador: ${user.nombreCompleto}'),
-          Row( // Mostrar estado y confirmaciones
+          Row(
             children: [
               Text('Estado: ${transaction.estado}'),
               const SizedBox(width: 8),
-              if (transaction.confirmacionVendedor) const Icon(Icons.check_circle, color: Colors.blue, size: 16), // Vendedor OK
-              if (transaction.confirmacionComprador) const Icon(Icons.check_circle, color: Colors.green, size: 16), // Comprador OK
+              if (transaction.confirmacionVendedor) const Icon(Icons.check_circle, color: Colors.blue, size: 16),
+              if (transaction.confirmacionComprador) const Icon(Icons.check_circle, color: Colors.green, size: 16),
             ],
-          )
+          ),
+          // ✅ Mostrar botones de aceptar/rechazar para ventas pendientes
+          if (isVentaPendiente) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _confirmSale(transaction.id),
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Aceptar', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: const Size(0, 32),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _rejectSale(transaction.id),
+                    icon: const Icon(Icons.close, size: 16),
+                    label: const Text('Rechazar', style: TextStyle(fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: const Size(0, 32),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
       trailing: showConfirmButton
@@ -1222,14 +1374,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                 minimumSize: const Size(0, 30), // Botón más pequeño
-                 backgroundColor: isPurchase ? Colors.green : Colors.blue,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 30),
+                backgroundColor: isPurchase ? Colors.green : Colors.blue,
               ),
               child: Text(isPurchase ? 'Recibido' : 'Entregado', style: const TextStyle(fontSize: 12)),
             )
-          : null, // No mostrar botón si no se puede confirmar
-       isThreeLine: true, // Ajustar si el subtítulo tiene varias líneas
+          : null,
+      isThreeLine: true,
     );
   }
 
