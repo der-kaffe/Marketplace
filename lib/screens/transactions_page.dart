@@ -120,7 +120,6 @@ class _TransactionsPageState extends State<TransactionsPage>
             Text('Fecha: $fecha', style: const TextStyle(fontSize: 13)),
             Text('Cantidad: $cantidad | Total: \$$total'),
             const SizedBox(height: 8),
-            Text(isSeller ? 'Comprador: $comprador' : 'Vendedor: $vendedor'),
             const SizedBox(height: 8),
             if (completada)
               const Text(
