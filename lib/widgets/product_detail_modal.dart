@@ -733,16 +733,84 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       final result = await apiClient.createTransaction(
         productId: productIdInt,
         quantity: _cantidadAComprar,
-      );
-
-      // Éxito
+      );      // Éxito
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(result['message'] ?? '¡Pedido realizado con éxito!'),
-            backgroundColor: Colors.green,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(result['message'] ?? '¡Pedido realizado con éxito!'),
+                const SizedBox(height: 4),
+                const Text(
+                  '⏳ Esperando confirmación del vendedor',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
           ),
         );
+        
+        // Mostrar diálogo con información de la compra pendiente
+        await showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.hourglass_empty, color: Colors.orange, size: 32),
+                SizedBox(width: 12),
+                Text('Pedido Pendiente'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Tu pedido ha sido enviado y está esperando la confirmación del vendedor.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '⏳ Estado: Pendiente de confirmación',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      SizedBox(height: 8),
+                      Text('1. El vendedor revisará tu pedido', style: TextStyle(fontSize: 13)),
+                      Text('2. Recibirás una notificación cuando lo confirme', style: TextStyle(fontSize: 13)),
+                      Text('3. Luego podrás coordinar la entrega', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Puedes ver el estado de tu pedido en la sección "Mis Compras" de tu perfil.',
+                  style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
+        
         // Podrías cerrar el modal o navegar a "Mis Compras"
          Navigator.pop(context); // Cierra el modal después de comprar
       }
@@ -876,12 +944,11 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
       ),
     );
   }
-
   Future<void> _confirmAndDeleteProduct() async {
     print('🆔 DEBUG: widget.product = ${widget.product}');
     print('🆔 DEBUG: widget.product.id = ${widget.product.id}');
-    if (widget.product == null || widget.product.id == null || widget.product.id.toString().isEmpty) {
-      print('❌ El producto o su id es null o vacío');
+    if (widget.product.id.toString().isEmpty) {
+      print('❌ El id del producto es vacío');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Error: El producto no tiene ID válido')),

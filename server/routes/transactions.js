@@ -69,9 +69,7 @@ router.post('/', authenticateToken, [
             // (Opcional: Si la cantidad llega a 0, podrías cambiar el estadoId del producto a "Agotado")
             // if (productoActualizado.cantidad <= 0) {
             //   await tx.productos.update({ where: { id: productId }, data: { estadoId: ID_ESTADO_AGOTADO }});
-            // }
-
-            // 4. Crear la transacción
+            // }            // 4. Crear la transacción pendiente de confirmación del vendedor
             const transaccion = await tx.transacciones.create({
                 data: {
                     productoId: productId,
@@ -81,25 +79,25 @@ router.post('/', authenticateToken, [
                     precioUnitario: producto.precioActual, // Guarda el precio al momento de la compra
                     precioTotal: (producto.precioActual ?? 0) * quantity, // Calcula el total
                     estadoId: ESTADO_PENDIENTE, // Estado inicial
-                    // Nuevos campos para confirmación (AÑADIR AL SCHEMA.PRISMA si no existen)
-                    confirmacionVendedor: false,
-                    confirmacionComprador: false,
+                    // ⚠️ Transacción pendiente - Vendedor debe confirmar manualmente
+                    confirmacionVendedor: false, // Vendedor debe confirmar manualmente
+                    confirmacionComprador: false, // Comprador debe confirmar recibo después
                 }
             });
 
             return transaccion; // Devuelve la transacción creada
-        }); // Fin de prisma.$transaction
-
-        // 5. Respuesta exitosa
+        }); // Fin de prisma.$transaction        // 5. Respuesta exitosa
         res.status(201).json({
             ok: true,
-            message: 'Pedido realizado con éxito. Esperando confirmación.',
+            message: '¡Pedido realizado con éxito! El vendedor debe confirmar tu compra.',
             transaction: {
                 id: nuevaTransaccion.id,
                 productoId: nuevaTransaccion.productoId,
                 cantidad: nuevaTransaccion.cantidad,
                 precioTotal: Number(nuevaTransaccion.precioTotal), // Convertir Decimal
                 estadoId: nuevaTransaccion.estadoId,
+                confirmacionVendedor: nuevaTransaccion.confirmacionVendedor, // false - Pendiente
+                confirmacionComprador: nuevaTransaccion.confirmacionComprador, // false
                 fecha: nuevaTransaccion.fechaTransaccion // O el nombre real del campo de fecha
             }
         });
@@ -246,7 +244,9 @@ async function checkAndUpdateCompletionStatus(transactionId, tx) {
     return null; // No necesita actualización de estado
 }
 
-// PATCH /api/transactions/:id/confirm-delivery - Vendedor confirma entrega
+// PATCH /api/transactions/:id/confirm-delivery - Vendedor confirma entrega física
+// ℹ️ NOTA: La confirmación inicial se hace automáticamente al crear la transacción.
+//          Este endpoint es para confirmar que el producto fue entregado físicamente al comprador.
 router.patch('/:id/confirm-delivery', authenticateToken, async (req, res, next) => {
     try {
         const transactionId = parseInt(req.params.id);
@@ -256,7 +256,7 @@ router.patch('/:id/confirm-delivery', authenticateToken, async (req, res, next) 
             // 1. Buscar transacción y verificar permisos
             const transaccion = await tx.transacciones.findUnique({
                 where: { id: transactionId },
-                select: { vendedorId: true, estadoId: true }
+                select: { vendedorId: true, estadoId: true, confirmacionVendedor: true }
             });
 
             if (!transaccion) {
@@ -269,7 +269,7 @@ router.patch('/:id/confirm-delivery', authenticateToken, async (req, res, next) 
                  throw new AppError('Esta transacción ya está finalizada o cancelada', 'TRANSACTION_FINALIZED', 400);
             }
 
-            // 2. Marcar confirmación del vendedor
+            // 2. Marcar confirmación del vendedor (por si acaso no estaba confirmada)
             const confirmed = await tx.transacciones.update({
                 where: { id: transactionId },
                 data: { confirmacionVendedor: true },
@@ -284,7 +284,7 @@ router.patch('/:id/confirm-delivery', authenticateToken, async (req, res, next) 
 
         res.json({
             ok: true,
-            message: 'Entrega confirmada.',
+            message: 'Entrega física confirmada exitosamente.',
             // Opcional: devolver el estado actual para que la UI sepa si se completó
             // isCompleted: updatedTransaction.confirmacionComprador // Si el comprador ya había confirmado
         });
