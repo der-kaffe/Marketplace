@@ -305,7 +305,7 @@ router.patch('/:id/reject-seller', authenticateToken, async (req, res, next) => 
         const userId = req.user.userId;
         const { motivo } = req.body; // Opcional: motivo del rechazo
 
-        const updatedTransaction = await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx) => {
             // 1. Buscar transacción y verificar permisos
             const transaccion = await tx.transacciones.findUnique({
                 where: { id: transactionId },
@@ -323,20 +323,8 @@ router.patch('/:id/reject-seller', authenticateToken, async (req, res, next) => 
             if (transaccion.confirmacionVendedor) {
                 throw new AppError('No puedes rechazar una venta ya confirmada', 'ALREADY_CONFIRMED', 400);
             }
-            if (transaccion.estadoId === ESTADO_CANCELADO) {
-                throw new AppError('Esta transacción ya fue cancelada', 'ALREADY_CANCELLED', 400);
-            }
 
-            // 2. Cancelar la transacción
-            const cancelled = await tx.transacciones.update({
-                where: { id: transactionId },
-                data: { 
-                    estadoId: ESTADO_CANCELADO,
-                    // Podrías agregar un campo 'motivoCancelacion' en tu schema si quieres guardar el motivo
-                },
-            });
-
-            // 3. Devolver el stock al producto
+            // 2. Devolver el stock al producto ANTES de eliminar la transacción
             await tx.productos.update({
                 where: { id: transaccion.productoId },
                 data: {
@@ -346,18 +334,17 @@ router.patch('/:id/reject-seller', authenticateToken, async (req, res, next) => 
                 }
             });
 
-            console.log(`❌ Vendedor ${userId} rechazó la venta de transacción ${transactionId}. Stock devuelto.`);
+            // 3. Eliminar la transacción (no existe estado "Cancelado" en la BD)
+            await tx.transacciones.delete({
+                where: { id: transactionId }
+            });
 
-            return cancelled;
+            console.log(`❌ Vendedor ${userId} rechazó la venta de transacción ${transactionId}. Stock devuelto y transacción eliminada.`);
         });
 
         res.json({
             ok: true,
             message: 'Venta rechazada. El stock ha sido devuelto al producto.',
-            transaction: {
-                id: updatedTransaction.id,
-                estadoId: updatedTransaction.estadoId,
-            }
         });
 
     } catch (error) {

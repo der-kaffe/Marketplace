@@ -662,7 +662,13 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
 
                     try {
                       if (reportType == 'producto') {
-                        final productoId = int.parse(widget.product.id);
+                        // ✅ Validar que el ID sea válido
+                        final productoId = int.tryParse(widget.product.id);
+                        if (productoId == null) {
+                          throw Exception('ID de producto inválido: ${widget.product.id}');
+                        }
+                        
+                        print('📝 Reportando producto ID: $productoId, Motivo: $reason');
                         await ReportService().reportProduct(productoId, reason);
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -673,7 +679,13 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                           ),
                         );
                       } else {
-                        final usuarioId = int.parse(widget.product.sellerId);
+                        // ✅ Validar que el ID sea válido
+                        final usuarioId = int.tryParse(widget.product.sellerId);
+                        if (usuarioId == null) {
+                          throw Exception('ID de usuario inválido: ${widget.product.sellerId}');
+                        }
+                        
+                        print('📝 Reportando usuario ID: $usuarioId, Motivo: $reason');
                         await ReportService().reportUser(usuarioId, reason);
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -685,6 +697,7 @@ class _ProductDetailModalState extends State<ProductDetailModal> {
                         );
                       }
                     } catch (e) {
+                      print('❌ Error al reportar: $e');
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
